@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT'){
+DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT'){
 
     library(DESeq2)
     #library(readxl)
@@ -22,17 +22,20 @@ DESEQ_NORM = function(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM 
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
 
+    # Read outliers
+    outliers <- read.csv(outliers_path, header = FALSE)
+    outliers = outliers$V1
 
     # Filter for outliers
 
-    if(length(OUTLIERS)>0){
+    if(length(outliers)>0){
         print('Getting rid of outliers')
 
-        Metadata = Metadata %>% filter(!Sample_name %in% OUTLIER)
+        Metadata = Metadata %>% filter(!Sample_name %in% outliers)
         Count = Count[ ,match(Metadata$Sample_name,colnames(Count) ) ]
         print(dim(Count))
     }else{
-        print(' No outliers list provided')
+        print('No outliers list provided')
     }
 
     # DESeq normalization
@@ -43,8 +46,6 @@ DESEQ_NORM = function(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM 
         Metadata$CoarseCondition = paste(Metadata[["CoarseCondition"]],Metadata[[CoarseConditions[j]]], sep = "_")
     }
 
-    Metadata$IndicationOn = 1
-    Metadata$IndicationOn[is.na(Metadata$`Indication._induction_time(hrs)`)] = 0
 
    # Normalization
     if (METHOD_NORM == 'Standard'){
@@ -61,15 +62,18 @@ DESEQ_NORM = function(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM 
             NormCounts = getVarianceStabilizedData(deseqObj)
             endTime <- Sys.time()
             print(endTime - startTime)
-        }else{
+        }else if(VST_FILTER == "VST_OFF"){
             print("Not using vst")
             NormCounts = counts(deseqObj, normalized=TRUE)
 
+        }else{
+
+            stop('Choose VST_FILTER method valid')
         }
 
     }else {
 
-        stop('Choose standard method for normalization. It is the only method implemented for now.')
+        stop('Choose a valid method for normalization')
     }
 
    # SVD filter
@@ -132,6 +136,18 @@ DESEQ_NORM = function(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM 
         Name_folder_PCA =  "PCA_PLOTS"
         dir.create(Name_folder_PCA)
         setwd(Name_folder_PCA )
+
+        #Create indication On feature in Metadata from Indication_induction_time(hrs)
+
+        if("Indication._induction_time(hrs)" %in% colnames(Metadata)){
+           print("IndicationOn feature in Metadata indicates whether sample received stimulation or not ")
+           Metadata$IndicationOn = 1
+           Metadata$IndicationOn[is.na(Metadata$`Indication._induction_time(hrs)`)] = 0
+        }else{
+
+           print("IndicationOn was not found within metadata")
+        }
+
 
         PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
 

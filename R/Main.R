@@ -27,13 +27,13 @@ Match_feature = "Animal_id"
 Suffix_del_name = "Mouse_TNBS_"
 
 #PARAM FOR QC_PRENORMALIZATION
-# Number of standard deviations below to consider an optional outlier
+# Number of standard deviations below to consider an optional outlier. Should be higher than 1.
 nOpt = 2
-# Number of standard deviations below to consider an outlier
+# Number of standard deviations below to consider an outlier. Should be higher than 1.
 nMust = 4
 
 #PARAM FOR PRE-FILTERING
-# Prevalence fraction filter
+# Prevalence fraction filter. A number between 0 and 1.
 Prev_perc = 0.1
 # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
 # negative binomial functions
@@ -41,14 +41,14 @@ PRE_FILTER = "PREV"
 
 #PARAM FOR DESEQ_NORM
 # If a list of samples should be excluded for a certain reason not detected in QC steps
-OUTLIERS = c()
+outliers_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = c("Treatment", "Rna_collection_time(hrs)")
-# Normalization method
+# Normalization method. Only has 'Standard' otherwise it will stop
 METHOD_NORM = 'Standard'
-# Use VST transformation after normalization. Either VST_ON or VST_OFF
+# Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
 VST_FILTER = "VST_ON"
-# Use SVD truncation to get rid of noise from data. 'SVD_ON' or 'SVD_OFF'
+# Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
 SVD_FILTER = 'SVD_OFF'
 # Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
 PlotPCA = 'PCA_PLOT'
@@ -61,15 +61,15 @@ PlotPCA = 'PCA_PLOT'
 
 List_contrasts_Path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/List_Contrasts.xlsx"
 
-# DEG methods: Either 'DESeq' or 'T-Test'
+# DEG methods: Either 'DESeq' or 'T-Test', otherwise it will stop
 DEG_Method = 'DESeq'
-# Multiple hypothesis testing method. Either BH or High criticism
+# Multiple hypothesis testing method. Either BH or High criticism, otherwise it will stop
 MH_Method = 'BH'
-# Parameter use in high criticism method only. Significance threshold
+# Parameter use in high criticism method only. Significance threshold. A number between 0 and 1
 AlphaHC = 0.1
-# P adjusted value threshold for significance
+# P adjusted value threshold for significance. A number between 0 and 1
 padjval = 0.2
-# LogFold threshold to use in Volcano plot
+# LogFold threshold to use in Volcano plot. A number between 0 and 10000.
 LogFoldThrs_VolPlot = 1
 
 
@@ -88,11 +88,10 @@ PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER)
 
 # DESEQ PRENORMALIZATION -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/DESEQ_NORM.R")
-DESEQ_NORM(Output_file_path, OUTLIERS, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT')
-
+DESEQ_NORM(Output_file_path, outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT')
 # DESEQ DEG -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/DEG_FUNCTION.R")
-DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method = 'T-Test',MH_Method = 'BH', AlphaHC = 0.1,  padjval = 0.2 ,LogFoldThrs_VolPlot = 1)
+DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method = 'DESeq',MH_Method = 'BH', AlphaHC = 0.1,  padjval = 0.2 ,LogFoldThrs_VolPlot = 1)
 
 
 

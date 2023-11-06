@@ -157,6 +157,9 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
                 res = results(deseqObj,contrast = c("CoarseCondition",List_contrasts_mol$treat[i], List_contrasts_mol$untreat[i] ) )
                 ModelInfo = data.frame(res)
                 ModelInfo$genes = rownames(ModelInfo)
+            }else{
+
+                stop('DEG method not valid')
             }
 
 
@@ -196,6 +199,9 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
                 print(VP)
                 dev.off()
 
+            }else{
+
+                stop("Select a valid Multiple hypothesis method")
             }
 
 
@@ -215,6 +221,6 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
 
 
     }
-
-
+    setwd(Output_file_path)
+    return()
 }

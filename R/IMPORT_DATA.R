@@ -27,7 +27,7 @@ IMPORT_DATA = function(Metadata_path, Count_path, Match_feature, Output_file_pat
      stop("An element within Metadata is not in Count matrix. Please check")
    }
 
-   # Order correctly samples
+   # Order samples correctly
 
    Metadata = read_xlsx(Metadata_path)
    Count = Count[, match(Metadata[[Match_feature]], colnames(Count))]
