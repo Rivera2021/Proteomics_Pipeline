@@ -1,6 +1,6 @@
 # Transcriptomics_Pipeline
 
-This project is used to create the Nextflow pipeline for tx data analysis. 
+This project is used to create the Nextflow pipeline for bulk RNAseq transcriptomics data analysis. 
 
 Started on 2023-10-27.
 
@@ -10,23 +10,22 @@ Started on 2023-10-27.
 * **analysis** - R Markdown analysis files
 * **docs** - Rendered analysis reports
 * **data** - Raw data used for analysis
-* **output** - Output files
 
 ## Data
 
-Input data files include:
+* Data_for_pipeline: Contains different type of data that is used along the pipeline
+* raw: Contains the raw count matrix and metadata to start analysis
+
 
 ## Analysis
 
-Current analysis files include:
-
-* **template.Rmd** - Analysis template
 
 ## Code
 
-Current code files include:
-
-## Output
-
-Output files (not in repository but created by analysis files):
+* IMPORT_DATA.R: Validates that Count matrix and Metadata agree with each other
+* QC_PRENORMALIZATION: QC based on the quality of the sequencing
+* PRE_FILTERING: Filtering genes depending on different criteria
+* DESEQ_NORM: DESeq normalization and PCA plots
+* QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
+* DEG_FUNCTION: Finds differentially expressed genes
 
