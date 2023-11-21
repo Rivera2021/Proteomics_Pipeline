@@ -13,7 +13,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
 
     # Import data
     setwd(Output_file_path)
-    Data_file = "./DESEQ_NORM/DESeq_Norm.RData"
+    Data_file = "./DESEQ_NORM_QCNORM/DESeq_Norm.RData"
     load(Data_file)
 
     List_contrasts = read.xlsx(xlsxFile = List_contrasts_Path)

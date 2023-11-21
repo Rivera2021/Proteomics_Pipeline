@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT'){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT'){
 
     library(DESeq2)
     #library(readxl)
@@ -9,6 +9,7 @@ DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_
     library("PCAtools")
     library(foreach)
     library(doParallel)
+    library(openxlsx)
     nCores = detectCores()
     cl <- makeCluster(nCores)
     registerDoParallel(cl)
@@ -22,9 +23,53 @@ DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
 
-    # Read outliers
-    outliers <- read.csv(outliers_path, header = FALSE)
-    outliers = outliers$V1
+    # Read customize outliers
+
+    if(file.exists(outliers_path)){
+
+        outliers_cust <- read.csv(outliers_path, header = FALSE)
+        outliers_cust = outliers_cust[[1]]
+    }else{
+
+        print("Path to costumized outliers does not exists or is null")
+        outliers_cust = c()
+    }
+
+    # Evaluate condition depending on whether the function is call before or after QC_POSTNORNMALIZATION
+    if(QCNORM == "POST_QCNORM"){
+
+        # Join outliers from Outlier_file_path and from QC_POSTNORMALIZATION
+
+        if(class(try(read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE))) == "try-error"){
+            print("outlier file from QC_NORMALIZATION is empty. Only customized outliers are considered")
+            outliers = outliers_cust
+
+        }else{
+
+            outliers_qc = read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE)
+            outliers_qc = outliers_qc[[1]]
+            outliers = unique(c(outliers_cust, outliers_qc))
+
+        }
+
+        # Create Folder
+
+        Name_folder =  "DESEQ_NORM_QCNORM"
+        dir.create(Name_folder)
+        setwd(Name_folder)
+
+    }else if(QCNORM == "PRE_QCNORM"){
+
+        Name_folder =  "DESEQ_NORM"
+        dir.create(Name_folder)
+        setwd(Name_folder)
+
+        outliers = outliers_cust
+
+    }else{
+
+        stop("Select a valid QC_NORM option")
+    }
 
     # Filter for outliers
 
@@ -47,7 +92,7 @@ DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_
     }
 
 
-   # Normalization
+    # Normalization
     if (METHOD_NORM == 'Standard'){
         print('Running Standard normalization...')
         ##create a DESeq object
@@ -113,11 +158,6 @@ DESEQ_NORM = function(Output_file_path, outliers_path, CoarseConditions, METHOD_
     }
 
 
-    # Create Folder and save
-
-    Name_folder =  "DESEQ_NORM"
-    dir.create(Name_folder)
-    setwd(Name_folder)
 
     #Save RData object
     save(deseqObj, NormCounts,Metadata, file = 'DESeq_Norm.RData')

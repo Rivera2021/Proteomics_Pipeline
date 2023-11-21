@@ -27,10 +27,9 @@ Match_feature = "Animal_id"
 Suffix_del_name = "Mouse_TNBS_"
 
 #PARAM FOR QC_PRENORMALIZATION
-# Number of standard deviations below to consider an optional outlier. Should be higher than 1.
-nOpt = 2
-# Number of standard deviations below to consider an outlier. Should be higher than 1.
-nMust = 4
+
+# Number of IQR below first quartile to consider an outlier. Default is 2
+nMust = 2
 
 #PARAM FOR PRE-FILTERING
 # Prevalence fraction filter. A number between 0 and 1.
@@ -40,8 +39,11 @@ Prev_perc = 0.1
 PRE_FILTER = "PREV"
 
 #PARAM FOR DESEQ_NORM
-# If a list of samples should be excluded for a certain reason not detected in QC steps
-outliers_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
+# Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
+QCNORM = "PRE_QCNORM"
+# Path to samples that should be excluded in a customize manner. Add "" if no list wants to be submitted
+# See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
+outliers_path = ""
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = c("Treatment", "Rna_collection_time(hrs)")
 # Normalization method. Only has 'Standard' otherwise it will stop
@@ -53,6 +55,12 @@ SVD_FILTER = 'SVD_OFF'
 # Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
 PlotPCA = 'PCA_PLOT'
 
+# PARAM QC-POSTNORMALIZATION
+# Outlier filter method. Either 'GENTLE' for mild outlier detection, better for data sets with low sample size per condition, 'STRONG'
+# less conservative method for outlier detection, 'NONE' no outlier detection method
+OUTLIER_FILTER = "GENTLE"
+# Path containing features needed to identify replicates
+RepFeatures_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/RepFeatures.csv"
 
 #PARAM FOR DEG_FUNCTION
 # List of pairwise conditions to be compared from DESeq object. Should be an .xlsx file with two columns named as treat and untreat.
@@ -80,18 +88,31 @@ IMPORT_DATA(Metadata_path, Count_path, Match_feature, Output_file_path, Suffix_d
 
 # QC-PRENORMALIZATION -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/QC_PRENORMALIZATION.R")
-QC_PRENORMALIZATION(Output_file_path, nOpt, nMust)
+QC_PRENORMALIZATION(Output_file_path,nMust)
 
 # PRE-FILTERING -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/PRE_FILTERING.R")
 PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER)
 
-# DESEQ PRENORMALIZATION -----------------------------------------------------------------------------
+# DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/DESEQ_NORM.R")
-DESEQ_NORM(Output_file_path, outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT')
+DESEQ_NORM(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path = "", CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT')
+
+# QC-POSTNORMALIZATION-----------------------------------------------------------------------------
+source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/QC_POSTNORMALIZATION.R")
+QC_POSTNORMALIZATION(Output_file_path, OUTLIER_FILTER = "GENTLE", RepFeatures_path = RepFeatures_path)
+
+# DESEQ NORMALIZATION -----------------------------------------------------------------------------
+source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/DESEQ_NORM.R")
+CoarseConditions = c("Treatment", "Rna_collection_time(hrs)")
+outliers_path = ""
+DESEQ_NORM(Output_file_path, QCNORM = "POST_QCNORM", outliers_path= outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT')
+
 # DESEQ DEG -----------------------------------------------------------------------------
 source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/DEG_FUNCTION.R")
 DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method = 'DESeq',MH_Method = 'BH', AlphaHC = 0.1,  padjval = 0.2 ,LogFoldThrs_VolPlot = 1)
+
+
 
 
 

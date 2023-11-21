@@ -5,7 +5,7 @@
 # 3. PENDING: PLOTS SHOULD BE ADDED IN LOG SCALE
 
 
-QC_PRENORMALIZATION = function(Output_file_path, nOpt, nMust){
+QC_PRENORMALIZATION = function(Output_file_path,nMust = 2){
     library(tidyverse)
     library(dplyr)
     library("stringr")
@@ -35,89 +35,83 @@ QC_PRENORMALIZATION = function(Output_file_path, nOpt, nMust){
     Metadata$ReadNum = Tot_Reads[match(Metadata$Sample_name,names(Tot_Reads))]
     Metadata$No_genes = Ngenes[match(Metadata$Sample_name,names(Ngenes))]
 
+    # Convert NoReads and No_genes in log scale to estimate outliers in log scale
 
-    n = nOpt
-    nmax = nMust
+    Metadata$LogReadNum = log10(Metadata$ReadNum)
+    Metadata$LogNo_genes = log10(Metadata$No_genes)
 
     # Thresholds for Number of reads and Number of non-zero genes
-    Thrs_Reads = data.frame(Mean = mean(Metadata$ReadNum), Sd = sd(Metadata$ReadNum))
-    Thrs_Reads$Thrs = (Thrs_Reads$Mean - n*Thrs_Reads$Sd)/1e6
-    Thrs_Reads$ThrsMust = (Thrs_Reads$Mean - nmax*Thrs_Reads$Sd)/1e6
+    IQR_reads = quantile(Metadata$LogReadNum,3/4) - quantile(Metadata$LogReadNum,1/4)
+    Thrs_reads =  quantile(Metadata$LogReadNum,1/4) - nMust * IQR_reads
 
-    Thrs_NoGenes = data.frame(Mean = mean(Metadata$No_genes), Sd = sd(Metadata$No_genes))
-    Thrs_NoGenes$Thrs = (Thrs_NoGenes$Mean - n*Thrs_NoGenes$Sd)
-    Thrs_NoGenes$ThrsMust = (Thrs_NoGenes$Mean - nmax*Thrs_NoGenes$Sd)
+    IQR_genes = quantile(Metadata$LogNo_genes,3/4) - quantile(Metadata$LogNo_genes,1/4)
+    Thrs_Nogenes =  quantile(Metadata$LogNo_genes,1/4) - nMust * IQR_genes
 
+    Thrs_df = data.frame(Thrs_reads = Thrs_reads, Thrs_Nogenes = Thrs_Nogenes)
+
+    # Find and saved outliers
+
+    MustDrop_List = c()
+    Metadata_MustDrop = Metadata %>% filter(LogNo_genes < Thrs_Nogenes |  LogReadNum < Thrs_reads)
+    MustDrop_list = Metadata_MustDrop$Sample_name
+
+
+    Df = list()
+    Df[["Dropped"]] = MustDrop_list
+    write.xlsx(Df, file = 'Outliers.xlsx')
+
+    # Plots
 
     pdf("QC_Prenormalization.pdf", width = 8, height = 6)
 
-    p1 = hist(Metadata$ReadNum, 20, main = "Hist reads/sample and 2 SD", xlab = "No Reads")
-    abline(v = Thrs_Reads$Mean + n*Thrs_Reads$Sd, col="red")
-    abline(v = Thrs_Reads$Mean - n*Thrs_Reads$Sd, col="red")
+    # Boxplots of Logreads and Log non-zero genes with lower threshold
+    p1 = ggplot(Metadata, aes(x = "",y = LogReadNum)) + geom_boxplot() +
+        ylab("Log10 number of reads")+
+        geom_jitter(position=position_jitter(0.2)) +
+        geom_hline(yintercept = Thrs_reads, linetype = 'dashed', color = 'navy')+
+        ggtitle(paste("Log10 of number of reads. Dashed: Q1 - ", as.character(nMust), "x IQR ",sep = " "))
+
     print(p1)
 
-    p2 = hist(Metadata$No_genes, 20, main = "Hist non-zero genes/sample and 2 SD", xlab = "Non-zero genes")
-    abline(v = Thrs_NoGenes$Mean + n*Thrs_NoGenes$Sd, col="red")
-    abline(v = Thrs_NoGenes$Mean - n*Thrs_NoGenes$Sd, col="red")
+    p2 = ggplot(Metadata, aes(x = "",y = LogNo_genes)) + geom_boxplot() +
+        ylab("Log10 number of non-zero genes")+
+        geom_jitter(position=position_jitter(0.2)) +
+        geom_hline(yintercept = Thrs_Nogenes, linetype = 'dashed', color = 'navy')+
+        ggtitle(paste("Log10 number of non-zero genes. Dashed: Q1 - ", as.character(nMust), "x IQR ",sep = " "))
+
     print(p2)
 
+    # Plot Number of reads Vs number of genes in log10 space with threshold for outliers
+
+    Metadata$timeColl = factor(Metadata$`Rna_collection_time(hrs)`, levels = sort(as.numeric(unique(Metadata$`Rna_collection_time(hrs)`))))
+
+    p3 = ggplot(Metadata, aes(x=LogReadNum, y=LogNo_genes, group = Treatment)) +
+        geom_point(aes(shape=timeColl, color=Treatment)) +
+        xlab("Log10 of number of reads") +
+        ylab("Log10 of number of non-zero genes") +
+        xlim(min(Metadata$LogReadNum,Thrs_reads), max(Metadata$LogReadNum))+
+        ylim(min(Metadata$LogNo_genes,Thrs_Nogenes), max(Metadata$LogNo_genes))+
+        geom_hline(data = Thrs_df, aes(yintercept = Thrs_Nogenes), linetype="dashed")+
+        geom_vline(data = Thrs_df, aes(xintercept = Thrs_reads), linetype="dashed")+
+        ggtitle(paste("Number of reads vs Non-zero genes in Log10 space. Dashed: Q1 - ", as.character(nMust), "x IQR",sep = " "))
+
+    print(p3)
 
 
-    p4 = ggplot(Metadata, aes(x=ReadNum/1e6, y=No_genes, color=as.factor(Treatment))) + geom_point() +
-        xlab("Reads Per Million") +
-        ylab("Non-zero genes") +
-        xlim(min(Metadata$ReadNum/1e6,Thrs_Reads$ThrsMust), max(Metadata$ReadNum/1e6))+
-        ylim(min(Metadata$No_genes,Thrs_NoGenes$ThrsMust), max(Metadata$No_genes))+
-        geom_hline(data = Thrs_NoGenes, aes(yintercept = ThrsMust), linetype="dashed")+
-        geom_vline(data = Thrs_Reads, aes(xintercept = ThrsMust), linetype="dashed")+
-        ggtitle(paste("RPM vs Non-zero genes. Dashed:", as.character(nmax), "SD",sep = " "))
+    # Plot of Number reads per million vs Number of non-zero genes. In original space and show outliers selected
+    Metadata$Out_QC_Prenorm = ""
+    Metadata$Out_QC_Prenorm[Metadata$Sample_name %in% MustDrop_list] = Metadata$Sample_name[Metadata$Sample_name %in% MustDrop_list]
 
+    p4 = ggplot(Metadata, aes(x=ReadNum, y=No_genes, group = Treatment)) +
+        geom_point(aes(shape=timeColl, color=Treatment)) +
+        geom_text(label=Metadata$Out_QC_Prenorm, nudge_x = 0.25, nudge_y = 0.25, check_overlap = F, size = 3) +
+        xlab("Number of reads") +
+        ylab("Number of non-zero genes")
 
     print(p4)
 
-
-
-    Metadata$timeColl = factor(Metadata$`Rna_collection_time(hrs)`, levels = sort(as.numeric(unique(Metadata$`Rna_collection_time(hrs)`))))
-    p5 = ggplot(Metadata, aes(x=ReadNum/1e6, y=No_genes, group = Treatment)) + geom_point(aes(shape=timeColl, color=Treatment)) +
-        xlab("Reads Per Million") +
-        ylab("Non-zero genes") +
-        xlim(min(Metadata$ReadNum/1e6,Thrs_Reads$ThrsMust), max(Metadata$ReadNum/1e6))+
-        ylim(min(Metadata$No_genes,Thrs_NoGenes$ThrsMust), max(Metadata$No_genes))+
-        geom_hline(data = Thrs_NoGenes, aes(yintercept = ThrsMust), linetype="dashed")+
-        geom_vline(data = Thrs_Reads, aes(xintercept = ThrsMust), linetype="dashed")+
-        ggtitle(paste("RPM vs Non-zero genes. Dashed:", as.character(nmax), "SD",sep = " "))
-    print(p5)
-
-    # Rna concentration has some NA
-    Metadata$Rna_concentration = Metadata$Rna_concentration
-    Metadata_fil = Metadata %>% filter(!is.na(Rna_concentration))
-    Metadata_fil$Rna_concentration = as.numeric(Metadata_fil$Rna_concentration)
-
-    p6 = ggplot(Metadata_fil, aes(x=timeColl, y=Rna_concentration, color = timeColl)) + geom_boxplot() +
-        xlab("time collection") +
-        ylab("Rna_concentration") +
-        ggtitle(paste("Time vs RNA concentration",sep = " "))+
-        geom_jitter(shape=16, position=position_jitter(0.2))
-    print(p6)
-
-
-
     dev.off()
 
-    # Get a list of must drop and a list of possible candidates to drop out.
-    MustDrop_List = c()
-    OptDrop_List = c()
-    Metadata_Exps_cell_Must = list()
-    Metadata_Exps_cell_opt = list()
-    Metadata_MustDrop = Metadata %>% filter(No_genes < Thrs_NoGenes$ThrsMust |  ReadNum < Thrs_Reads$ThrsMust * 1e6)
-    Metadata_OptDrop = Metadata %>% filter(No_genes < Thrs_NoGenes$Thrs |  ReadNum < Thrs_Reads$Thrs * 1e6)
-    MustDrop_list = Metadata_MustDrop$Sample_name
-    OptDrop_List = Metadata_OptDrop$Sample_name
-    Df = list()
-    Df[["Dropped"]] = MustDrop_list
-    Df[["OptDrop"]] = OptDrop_List
-
-    write.xlsx(Df, file = 'Outliers.xlsx')
     #save(MustDrop_list, OptDrop_List, Metadata_MustDrop,Metadata_OptDrop, file = "QC_Remove_lists.RData")
 
     # Save QC-ed data
