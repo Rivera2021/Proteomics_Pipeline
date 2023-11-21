@@ -22,5 +22,10 @@ Started on 2023-10-27.
 
 ## Code
 
-
+* IMPORT_DATA.R: Validates that Count matrix and Metadata agree with each other
+* QC_PRENORMALIZATION: QC based on the quality of the sequencing
+* PRE_FILTERING: Filtering genes depending on different criteria
+* DESEQ_NORM: DESeq normalization and PCA plots
+* QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
+* DEG_FUNCTION: Finds differentially expressed genes
 
