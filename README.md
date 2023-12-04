@@ -45,7 +45,18 @@ Started on 2023-10-27.
 * QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
 
     - Output:
-        - DEG_MOLXXX__.RData: 
+        - Outlier_DF.xlsx: MH_dist_df (Mahalanobis distance with respect to the cloud for every sample), MH_crt (Mahalanobis distance threshold corresponding to P < 0.001), Corr (Correlation matrix across all samples), Outlier_Over (Outliers list first pass), Outlier_RepV2 (Outliers list second pass, based only on correlation between replicates), Outlier_Selected (All outliers selected to be removed)
+        - Outliers_Selected.csv: All outliers selected to be removed
+        - Mahalanobis_screeplot: Rnak plot of MH_dist_df
+        - MAHALANOBIS_OUTLIERS_PCA: PCA showing outliers identified using Mahalanobis distance. Note: Not all these samples will be removed in the GENTLE model
+        - SELECTED_OUTLIERS_PCA: PCA showing outliers removed from the rest of the analysis
   
 * DEG_FUNCTION: Finds differentially expressed genes
+
+    - Output: A folder per molecule
+        - DEG_MXXX_.RData: List containing DEG for every comparison containing the selected molecule
+        - Volcano plots for every comparison
+          
+  
+    
 
