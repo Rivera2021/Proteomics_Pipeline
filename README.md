@@ -23,6 +23,8 @@ Started on 2023-10-27.
 ## Code
 
 * IMPORT_DATA.R: Validates that Count matrix and Metadata agree with each other
+    Output:
+        - Import_Data.xlsx: File with Count matrix and metadata after a few modifications needed to start the pipeline
 * QC_PRENORMALIZATION: QC based on the quality of the sequencing
 * PRE_FILTERING: Filtering genes depending on different criteria
 * DESEQ_NORM: DESeq normalization and PCA plots
