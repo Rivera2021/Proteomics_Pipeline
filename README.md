@@ -41,7 +41,7 @@ Started on 2023-10-27.
     - Output:
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
         - Norm_Data.xlsx: Count matrix after applying vst on the DESeq2 normalized counts
-        - PCA_PLOTS: PCA plots using Norm_Data for all samples and per treatment
+        - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
 * QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
 
     - Output:
