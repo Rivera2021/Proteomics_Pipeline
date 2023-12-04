@@ -14,7 +14,7 @@ Started on 2023-10-27.
 ## Data
 
 * Data_for_pipeline: Contains different type of data that is used along the pipeline
-* raw: Contains the raw count matrix and metadata to start analysis
+* raw: Contains the raw count matrix and metadata to start the analysis
 
 
 ## Analysis
