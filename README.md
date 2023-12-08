@@ -32,13 +32,17 @@ Started on 2023-10-27.
     - Output:
         - Import_Data.xlsx: File with Count matrix and metadata after a few modifications needed to start the pipeline
 * QC_PRENORMALIZATION: QC based on the quality of the sequencing
-
+    - Params:
+          - Output_file_path: Path to directory to store results
+          - nMust: Number of IQRs below Q1(25% quantile) to consider outlier in number of reads and number of non-zero genes. 2 recommended 
     - Output:
         - Outliers.xlsx: List of samples selected as outliers based on the QC sequencing depth and number of non-zero genes
         - QC_Data.xlsx: File with Count Matrix and Metadata without outliers selected
         - QC_Prenormalization: QC plots
 * PRE_FILTERING: Filtering genes depending on different criteria 
-
+    - Params:
+        - Output_file_path: Path to directory to store results
+        - Prev_perc: 
     - Output:
         - Prefilter_Data.xlsx: File with Count matrix with gene prefiltering applied and Metadata.
 * DESEQ_NORM: DESeq normalization and PCA plots
