@@ -23,7 +23,12 @@ Started on 2023-10-27.
 ## Code
 
 * IMPORT_DATA.R: Validates that Count matrix and Metadata agree with each other.
-  
+    - Params:
+        - Metadata_path: Path to Metadata in .xlsx format
+        - Count_path: Path to matrix with read count in .tsv format
+        - Match_feature: Column name from metadata that should coincide with the sample names used in the count matrix
+        - Output_file_path: Path to directory to store results
+        - SampleNamepath: Path to .csv file containing the metadata column names that will be used to uniquely identified a sample using biological features
     - Output:
         - Import_Data.xlsx: File with Count matrix and metadata after a few modifications needed to start the pipeline
 * QC_PRENORMALIZATION: QC based on the quality of the sequencing
