@@ -77,10 +77,19 @@ Started on 2023-10-27.
         - PCA_WITH_OUTLIERS: PCA plots showing selected outliers
   
 * DEG_FUNCTION: Finds differentially expressed genes
-
+    - Params:
+        - Output_file_path: Directory path for storing results
+        - List_contrasts_Path: Path to .xlsx file containing a list with pairs of conditions for which DEG should be estimated. Columns have to be named "treat" and "untreat"
+        - DEG_Method: Method to find DEG. Either 'DESeq' or 'T-Test'
+        - MH_Method: Multiple hypothesis testing method. Either 'BH' or 'High_Cr'(high criticism)
+        - AlphaHC: Significance threshold for high criticism method. A number between 0 and 1
+        - padjval: P adjusted value threshold for significance. A number between 0 and 1. 0.2 is recommended
+        - LogFoldThrs_VolPlot: LogFold threshold to use in Volcano plot and to select DEG for pathway enrichment
       - Output: A folder per molecule
-        - DEG_MXXX_.RData: List containing DEG for every comparison containing the selected molecule
+        - DEG_MXXX_.xlsx: List containing DEG for every comparison containing the selected molecule
         - Volcano plots for every comparison
+
+* PWAY_ENRICHMENT:  
           
   
     
