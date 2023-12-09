@@ -67,11 +67,12 @@ Started on 2023-10-27.
         - OUTLIER_FILTER: Method to detect outliers. GENTLE_REP (Method based on correlation with replicates only)
         - RepFeatures_path: Metadata features to identify biological replicates 
     - Output:
-        - Outlier_DF.xlsx: Bad_Samples_cod (Mahalanobis distance with respect to the cloud for every sample), MH_crt (Mahalanobis distance threshold corresponding to P < 0.001), Corr (Correlation matrix across all samples), Outlier_Over (Outliers list first pass), Outlier_RepV2 (Outliers list second pass, based only on correlation between replicates), Outlier_Selected (All outliers selected to be removed)
-        - Outliers_Selected.csv: All outliers selected to be removed
-        - Mahalanobis_screeplot: Rnak plot of MH_dist_df
-        - MAHALANOBIS_OUTLIERS_PCA: PCA showing outliers identified using Mahalanobis distance. Note: Not all these samples will be removed in the GENTLE model
-        - SELECTED_OUTLIERS_PCA: PCA showing outliers removed from the rest of the analysis
+        - Outlier_DF.xlsx:
+            - Bad_Samples_cond: Samples associated to conditions where correlation among replicates is significantly low
+            - Outlier_samples: Samples that correlate very poorly with all its replicates
+            - Outlier_Selected: Bad_Samples + Outlier_samples. Samples to be removed from the rest of the analysis.
+        - Correlation_within_replicates.pdf: Plots showing correlation within replicates across all conditions
+        - PCA_WITH_OUTLIERS: PCA plots showing selected outliers
   
 * DEG_FUNCTION: Finds differentially expressed genes
 
