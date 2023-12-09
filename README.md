@@ -22,33 +22,33 @@ Started on 2023-10-27.
 
 ## Code
 
-* IMPORT_DATA.R: Validates that Count matrix and Metadata agree with each other.
+* IMPORT_DATA.R: Validates consistency between count matrix and Metadata
     - Params:
         - Metadata_path: Path to Metadata in .xlsx format
-        - Count_path: Path to matrix with reads count in .tsv format
-        - Match_feature: Column name from metadata that should coincide with the sample names used in the count matrix
-        - Output_file_path: Path to a directory to store results
-        - SampleNamepath: Path to .csv file containing the metadata column names that will be used to uniquely identified a sample using biological features
+        - Count_path: Path to matrix with read count in .tsv format
+        - Match_feature: Column name from metadata that matched the sample names used in the count matrix
+        - Output_file_path: Directory path for storing results
+        - SampleNamepath: Path to .csv file containing the metadata column names that will be used to uniquely identify a sample using biological features
     - Output:
-        - Import_Data.xlsx: File with Count matrix and metadata after a few modifications needed to start the pipeline
+        - Import_Data.xlsx: File with count matrix and metadata after a few modifications needed to start the pipeline
 * QC_PRENORMALIZATION: QC based on the quality of the sequencing
     - Params:
-          - Output_file_path: Path to a directory to store results
-          - nMust: Number of IQRs below Q1(25% quantile) to consider outlier in number of reads and number of non-zero genes. 2 recommended 
+        - Output_file_path: Directory path for storing results
+        - nMust: Number of IQRs below Q1(25% quantile) to identify outlier samples based on number of reads and number of non-zero genes. 2 recommended 
     - Output:
-        - Outliers.xlsx: List of samples selected as outliers based on the QC sequencing depth and number of non-zero genes
-        - QC_Data.xlsx: File with Count Matrix and Metadata without outliers selected
+        - Outliers.xlsx: List of samples selected as outliers based on the QC of sequencing depth and number of non-zero genes
+        - QC_Data.xlsx: File with count matrix and metadata without selected outliers
         - QC_Prenormalization: QC plots
 * PRE_FILTERING: Filtering genes depending on different criteria 
     - Params:
-        - Output_file_path: Path to a directory to store results
+        - Output_file_path: Directory path for storing results
         - PRE_FILTER: PREV (Prevalence of gene across samples is used as a prefiltering criterion)
-        - Prev_perc: Fraction of samples in which a gene has to be detected to be considered as part of the analysis
+        - Prev_perc: Threshold used during gene filtering. Genes present in less than Prev_percent samples will be removed
     - Output:
-        - Prefilter_Data.xlsx: File with Count matrix with gene prefiltering applied and Metadata.
+        - Prefilter_Data.xlsx: File with Count matrix with gene prefiltering applied to count matrix
 * DESEQ_NORM: DESeq normalization and PCA plots
     - Params:
-        - Output_file_path: Path to a directory to store results
+        - Output_file_path: Directory path for storing results
         - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
         - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
         - METHOD_NORM: Normalization method. Standard (Normalization obtained from DESeq object)
@@ -58,21 +58,18 @@ Started on 2023-10-27.
         - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
         - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
     - Output:
-      
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
-        - Norm_Data.xlsx: Count matrix after applying vst on the DESeq2 normalized counts
+        - Norm_Data.xlsx: Normalized count matrix
         - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
           
 * QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
     - Params:
-      
-        - Output_file_path: Path to a directory to store results
-        - OUTLIER_FILTER: Method to detect outliers. GENTLE_REP (Method based on correlation with replicates only)
+        - Output_file_path: Directory path for storing results
+        - OUTLIER_FILTER: Method to detect outliers. GENTLE_REP (Method based on correlation within replicates only)
         - RepFeatures_path: Metadata features to identify biological replicates 
    
     - Output:
-      
-        - Outlier_DF.xlsx:
+       - Outlier_DF.xlsx:
             - Bad_Samples_cond: Samples associated to conditions where correlation among replicates is significantly low
             - Outlier_samples: Samples that correlate very poorly with all its replicates
             - Outlier_Selected: Bad_Samples + Outlier_samples. Samples to be removed from the rest of the analysis.
@@ -81,7 +78,7 @@ Started on 2023-10-27.
   
 * DEG_FUNCTION: Finds differentially expressed genes
 
-    - Output: A folder per molecule
+      - Output: A folder per molecule
         - DEG_MXXX_.RData: List containing DEG for every comparison containing the selected molecule
         - Volcano plots for every comparison
           
