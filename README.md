@@ -59,15 +59,20 @@ Started on 2023-10-27.
           - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
           - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
     - Output:
+      
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
         - Norm_Data.xlsx: Count matrix after applying vst on the DESeq2 normalized counts
         - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
+          
 * QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
     - Params:
+      
         - Output_file_path: Path to a directory to store results
         - OUTLIER_FILTER: Method to detect outliers. GENTLE_REP (Method based on correlation with replicates only)
         - RepFeatures_path: Metadata features to identify biological replicates 
+   
     - Output:
+      
         - Outlier_DF.xlsx:
             - Bad_Samples_cond: Samples associated to conditions where correlation among replicates is significantly low
             - Outlier_samples: Samples that correlate very poorly with all its replicates
