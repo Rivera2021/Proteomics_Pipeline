@@ -48,20 +48,20 @@ Started on 2023-10-27.
         - Prefilter_Data.xlsx: File with Count matrix with gene prefiltering applied and Metadata.
 * DESEQ_NORM: DESeq normalization and PCA plots
     - Params:
-          - Output_file_path: Path to a directory to store results
-          - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
-          - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
-          - METHOD_NORM: Normalization method. Standard (Normalization obtained from DESeq object)
-          - VST_FILTER: Whether to apply Variance Stabilizing transformation to the normalized matrix. VST_ON or VST_OFF. VST_ON recommended
-          - SVD_FILTER: Whether to apply SVD truncation to eliminate noisy PCA direction contributions. SVD_OFF or SVD_ON
-          - PlotPCA: Whether to produce PCA plots. 'PCA_PLOT'
-          - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
-          - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
+        - Output_file_path: Path to a directory to store results
+        - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
+        - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
+        - METHOD_NORM: Normalization method. Standard (Normalization obtained from DESeq object)
+        - VST_FILTER: Whether to apply Variance Stabilizing transformation to the normalized matrix. VST_ON or VST_OFF. VST_ON recommended
+        - SVD_FILTER: Whether to apply SVD truncation to eliminate noisy PCA direction contributions. SVD_OFF or SVD_ON
+        - PlotPCA: Whether to produce PCA plots. 'PCA_PLOT'
+        - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
+        - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
     - Output:
       
-            - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
-            - Norm_Data.xlsx: Count matrix after applying vst on the DESeq2 normalized counts
-            - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
+        - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
+        - Norm_Data.xlsx: Count matrix after applying vst on the DESeq2 normalized counts
+        - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
           
 * QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
     - Params:
