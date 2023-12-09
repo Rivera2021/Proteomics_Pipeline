@@ -48,6 +48,7 @@ Started on 2023-10-27.
         - Prefilter_Data.xlsx: File with Count matrix with gene prefiltering applied and Metadata.
 * DESEQ_NORM: DESeq normalization and PCA plots
     - Params:
+      
           - Output_file_path: Path to a directory to store results
           - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
           - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
