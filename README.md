@@ -85,12 +85,17 @@ Started on 2023-10-27.
         - AlphaHC: Significance threshold for high criticism method. A number between 0 and 1
         - padjval: P adjusted value threshold for significance. A number between 0 and 1. 0.2 is recommended
         - LogFoldThrs_VolPlot: LogFold threshold to use in Volcano plot and to select DEG for pathway enrichment
-      - Output: A folder per molecule
+    - Output: A folder per molecule
         - DEG_MXXX_.xlsx: List containing DEG for every comparison containing the selected molecule
         - Volcano plots for every comparison
 
-* PWAY_ENRICHMENT:  
-          
+* PWAY_ENRICHMENT: Finds enriched pathways for each of the comparisons found in DEG_FUNCTION
+       
+    - Params:
+        - Output_file_path: Directory path for storing results
+        - WITH_REVERSE: Whether enrichment using reverse filter should also be estimated. If WITH_REVERSE is TRUE, enriched pathways are calculated using only genes regulated in the healthy direction (REVERSE = TRUE), as well as all DEG (REVERSE = FALSE)
+        - 
+        
   
     
 
