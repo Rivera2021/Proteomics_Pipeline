@@ -1,5 +1,5 @@
 # DEG per time point and Pathway Enrichment
-PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path){
+PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirData){
     library(ggvenn)
     library(ggplot2)
     library(ggrepel)
@@ -51,12 +51,12 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     # Data bases for pathway enrichment
     if(ORGANISM == 'Mouse'){
         # Mouse
-        KEGG_GeneSet_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/KEGG_All_mouse_230922.RData"
-        REACTOME_GeneSet_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/REACTOME_All_mouse_230924.RData"
+        KEGG_GeneSet_path = paste(DirData,"KEGG_All_mouse_230922.RData", sep = "/")
+        REACTOME_GeneSet_path = paste(DirData,"REACTOME_All_mouse_230924.RData", sep = "/")
         Species = 'mmu'
     }else if(ORGANISM == 'Human'){
-        KEGG_GeneSet_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/KEGG_All_human_231208.RData"
-        REACTOME_GeneSet_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/REACTOME_All_human_231209.RData"
+        KEGG_GeneSet_path = paste(DirData,"KEGG_All_human_231208.RData", sep = "/")
+        REACTOME_GeneSet_path = paste(DirData,"REACTOME_All_human_231209.RData", sep = "/")
         Species = 'hsa'
 
     }else{

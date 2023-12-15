@@ -13,7 +13,7 @@ library(openxlsx)
 
 # PARAMETERS
 DirDataRaw = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/raw"
-DirData = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/"
+DirData = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
 DirOutput = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/output/231212_Unit_Test"
 dir.create(DirOutput)
@@ -139,7 +139,7 @@ DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method ,MH_Method, Alpha
 
 # PATHWAY ENRICHMENT -----------------------------------------------------------------------------
 source(paste(DirPipeline, "PWAY_ENRICHMENT.R", sep = '/'))
-PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path)
+PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path,DirData)
 
 
 
