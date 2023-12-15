@@ -94,7 +94,14 @@ Started on 2023-10-27.
     - Params:
         - Output_file_path: Directory path for storing results
         - WITH_REVERSE: Whether enrichment using reverse filter should also be estimated. If WITH_REVERSE is TRUE, enriched pathways are calculated using only genes regulated in the healthy direction (REVERSE = TRUE), as well as all DEG (REVERSE = FALSE)
-        - 
+        - REVERSE_DRUG: Name of treatment/state to use as healthy
+        - REVERSE_TIME: Collection time in case healthy control is only measured at a particular time
+        - padjval: P adjusted value threshold for significance of DEG that will be used in pathway enrichment. A number between 0 and 1. 0.2 is recommended
+        - LogFoldThrs: LogFold threshold use for selecting DEGs that will be used in pathway enrichment
+        - Pway_qvalThrs:  P adjusted value threshold for significance of enriched pathways. A number between 0 and 1. 0.2 is recommended
+        - ORGANISM: Either "Mouse" or "Human"
+        - Target_list_path: Path to target list candidates from chemoproteomics and chemoinformatics
+        - DirData: Path to directory where KEGG and REACTOME gene sets are stored
         
   
     
