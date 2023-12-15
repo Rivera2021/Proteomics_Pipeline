@@ -83,7 +83,7 @@ QC_PRENORMALIZATION = function(Output_file_path,nMust = 2){
 
     # Plot Number of reads Vs number of genes in log10 space with threshold for outliers
 
-    Metadata$timeColl = factor(Metadata$`Rna_collection_time(hrs)`, levels = sort(as.numeric(unique(Metadata$`Rna_collection_time(hrs)`))))
+
 
     p3 = ggplot(Metadata, aes(x=LogReadNum, y=LogNo_genes, group = Treatment)) +
         geom_point(aes(shape=timeColl, color=Treatment)) +

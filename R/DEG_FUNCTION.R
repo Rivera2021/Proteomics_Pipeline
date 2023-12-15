@@ -6,6 +6,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
     library(ddpca)
     library(foreach)
     library(BioMark)
+    library(stringr)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
@@ -16,7 +17,9 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
     Data_file = "./DESEQ_NORM_QCNORM/DESeq_Norm.RData"
     load(Data_file)
 
+    print("Only contrasts allowed after removing outliers will be calculated")
     List_contrasts = read.xlsx(xlsxFile = List_contrasts_Path)
+    List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
 
     drugsInContrasts = unique(sapply(List_contrasts$treat, function(x){str_split(x,'_')[[1]][1]}))
     drugs = unique(Metadata$Treatment)

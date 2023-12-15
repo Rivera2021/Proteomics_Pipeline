@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT'){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = ""){
 
     library(DESeq2)
     #library(readxl)
@@ -177,17 +177,30 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
         dir.create(Name_folder_PCA)
         setwd(Name_folder_PCA )
 
-        #Create indication On feature in Metadata from Indication_induction_time(hrs)
+        # Create indication On feature in Metadata from Indication_induction_time(hrs) or from "Stimulant_used.
+        # Only one of those should be present depending on whether cell line or in vivo metadata
 
-        if("Indication._induction_time(hrs)" %in% colnames(Metadata)){
+        if("Indication_induction_time_hrs" %in% colnames(Metadata)){
            print("IndicationOn feature in Metadata indicates whether sample received stimulation or not ")
            Metadata$IndicationOn = 1
            Metadata$IndicationOn[is.na(Metadata$`Indication._induction_time(hrs)`)] = 0
+        }else if("Stimulant_used" %in% colnames(Metadata)){
+            Metadata$IndicationOn = 1
+            Metadata$IndicationOn[is.na(Metadata$Stimulant_used)] = 0
         }else{
 
-           print("IndicationOn was not found within metadata")
+            print("IndicationOn neither Stimulant_used was found within the metadata")
         }
 
+        if("Treatment_conc_uM" %in% colnames(Metadata)){
+
+            Metadata$Treatment_Conc = Metadata$Treatment_conc_uM
+        }else if("Treatment_concentration_mg_Kg" %in% colnames(Metadata)){
+            Metadata$Treatment_Conc = Metadata$Treatment_concentration_mg_Kg
+        }else{
+
+            print("Treatment concentration column not found")
+        }
 
         PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
 
@@ -209,7 +222,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
         for(drug in Drugs){
 
-            Metadata_mol = Metadata %>% filter(Treatment %in% c(drug, 'Sham', 'Vehicle'))
+            Metadata_mol = Metadata %>% filter(Treatment %in% c(drug, Control_Neg_PCA, Control_Pos_PCA))
             NormCounts_mol = NormCounts[ ,match(Metadata_mol$Sample_name,colnames(NormCounts) ) ]
 
             # Get rid of columns with variance equal to zero
@@ -223,6 +236,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             print(PCA[[1]])
             print(PCA[[2]])
             print(PCA[[3]])
+            print(PCA[[4]])
+            print(PCA[[5]])
+            print(PCA[[6]])
             dev.off()
 
             png(filename=paste("PCA", drug,".png", sep = '_'), width = 1000, height = 1000, res=100)
