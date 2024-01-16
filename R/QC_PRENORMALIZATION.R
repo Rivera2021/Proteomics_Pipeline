@@ -9,6 +9,7 @@ QC_PRENORMALIZATION = function(Output_file_path,nMust = 2){
     library(tidyverse)
     library(dplyr)
     library("stringr")
+    library("openxlsx")
 
 
     # Import data
@@ -65,17 +66,17 @@ QC_PRENORMALIZATION = function(Output_file_path,nMust = 2){
     pdf("QC_Prenormalization.pdf", width = 8, height = 6)
 
     # Boxplots of Logreads and Log non-zero genes with lower threshold
-    p1 = ggplot(Metadata, aes(x = "",y = LogReadNum)) + geom_boxplot() +
+    p1 = ggplot(Metadata, aes(x = "",y = LogReadNum)) + geom_boxplot(outlier.shape = NA) +
         ylab("Log10 number of reads")+
-        geom_jitter(position=position_jitter(0.2)) +
+        geom_jitter(position=position_jitter(w = 0.1, h = 0)) +
         geom_hline(yintercept = Thrs_reads, linetype = 'dashed', color = 'navy')+
         ggtitle(paste("Log10 of number of reads. Dashed: Q1 - ", as.character(nMust), "x IQR ",sep = " "))
 
     print(p1)
 
-    p2 = ggplot(Metadata, aes(x = "",y = LogNo_genes)) + geom_boxplot() +
+    p2 = ggplot(Metadata, aes(x = "",y = LogNo_genes)) + geom_boxplot(outlier.shape = NA) +
         ylab("Log10 number of non-zero genes")+
-        geom_jitter(position=position_jitter(0.2)) +
+        geom_jitter(position=position_jitter(w = 0.1, h = 0)) +
         geom_hline(yintercept = Thrs_Nogenes, linetype = 'dashed', color = 'navy')+
         ggtitle(paste("Log10 number of non-zero genes. Dashed: Q1 - ", as.character(nMust), "x IQR ",sep = " "))
 
