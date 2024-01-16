@@ -7,6 +7,8 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
     library(foreach)
     library(BioMark)
     library(stringr)
+    library("openxlsx")
+    library(dplyr)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message

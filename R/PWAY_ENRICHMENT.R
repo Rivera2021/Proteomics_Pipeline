@@ -1,5 +1,5 @@
 # DEG per time point and Pathway Enrichment
-PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirData){
+PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirPipeline_Data){
     library(ggvenn)
     library(ggplot2)
     library(ggrepel)
@@ -10,6 +10,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     library(DESeq2)
     library(eulerr)
     library("org.Hs.eg.db")
+    library(stringr)
 
     # Function to add Chemoproteomic targets present within an enriched pathway
     Add_Chemo_Enrich = function(drug, Target_list, enrichedPathways){
@@ -51,12 +52,12 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     # Data bases for pathway enrichment
     if(ORGANISM == 'Mouse'){
         # Mouse
-        KEGG_GeneSet_path = paste(DirData,"KEGG_All_mouse_230922.RData", sep = "/")
-        REACTOME_GeneSet_path = paste(DirData,"REACTOME_All_mouse_230924.RData", sep = "/")
+        KEGG_GeneSet_path = paste(DirPipeline_Data,"KEGG_All_mouse_230922.RData", sep = "/")
+        REACTOME_GeneSet_path = paste(DirPipeline_Data,"REACTOME_All_mouse_230924.RData", sep = "/")
         Species = 'mmu'
     }else if(ORGANISM == 'Human'){
-        KEGG_GeneSet_path = paste(DirData,"KEGG_All_human_231208.RData", sep = "/")
-        REACTOME_GeneSet_path = paste(DirData,"REACTOME_All_human_231209.RData", sep = "/")
+        KEGG_GeneSet_path = paste(DirPipeline_Data,"KEGG_All_human_231208.RData", sep = "/")
+        REACTOME_GeneSet_path = paste(DirPipeline_Data,"REACTOME_All_human_231209.RData", sep = "/")
         Species = 'hsa'
 
     }else{
@@ -72,6 +73,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     }
 
     # Create Folder
+    setwd(Output_file_path)
     Name_folder =  "PWAY_ENRICHMENT"
     dir.create(Name_folder)
     setwd(Name_folder)
@@ -357,7 +359,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
 
                             #Problematic_Pways = c("mmu04723", "mmu00512", "mmu01212")
                             Problematic_Pways = c()
-                            print("Got till here!")
+
                             for (ti in 1:length(enrichedPathways$ID)){
 
                                 curKegg = enrichedPathways$ID[ti]

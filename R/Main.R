@@ -1,10 +1,4 @@
 # Introducing some extra-prefiltering and multiple hypothesis testing to improve signal
-library(ddpca) #Add before cause it requires a version of a package that can be loaded at a lower version in a different package, causing error
-library(tidyverse)
-#library("arrow")
-library(dplyr)
-library(readxl)
-library(openxlsx)
 
 
 # COUNT MATRIX: 1. .TSV FILE, 2. ROWNAMES ARE GENE NAMES (SYMBOL) 3. COLNAMES NEED TO COINCIDE WITH A FEATURE FROM METADATA "MATCH_FEATURE"
@@ -15,7 +9,7 @@ library(openxlsx)
 DirDataRaw = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/raw"
 DirData = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-DirOutput = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/output/231212_Unit_Test"
+DirOutput = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/output/240112_Unit_Test"
 dir.create(DirOutput)
 
 
@@ -35,13 +29,16 @@ SampleNamepath = paste(DirData,"SampleName.csv", sep = "/")
 
 # Number of IQR below first quartile to consider an outlier. Default is 2
 nMust = 2
+Output_file_path = DirOutput
 
 #PARAM FOR PRE-FILTERING
 # Prevalence fraction filter. A number between 0 and 1.
 Prev_perc = 0.1
+
 # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
 # negative binomial functions
 PRE_FILTER = "PREV"
+Output_file_path = DirOutput
 
 #PARAM FOR DESEQ_NORM
 # Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
@@ -59,6 +56,7 @@ VST_FILTER = "VST_ON"
 SVD_FILTER = 'SVD_OFF'
 # Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
 PlotPCA = 'PCA_PLOT'
+Output_file_path = DirOutput
 
 # PARAM QC-POSTNORMALIZATION
 # Outlier filter method. Either 'GENTLE' for mild outlier detection, better for data sets with low sample size per condition, 'STRONG'
@@ -66,6 +64,31 @@ PlotPCA = 'PCA_PLOT'
 OUTLIER_FILTER = "GENTLE_REP"
 # Path containing features needed to identify replicates
 RepFeatures_path = paste(DirData,"RepFeatures.csv", sep = "/")
+Output_file_path = DirOutput
+
+#PARAM FOR DESEQ_NORM POSTNORM
+
+# Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
+QCNORM = "POST_QCNORM"
+# Path to samples that should be excluded in a customize manner. Add "" if no list wants to be submitted
+# See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
+outliers_path = ""
+# The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
+CoarseConditions = c("Treatment", "Rna_collection_time_hrs")
+# Normalization method. Only has 'Standard' otherwise it will stop
+METHOD_NORM = 'Standard'
+# Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
+VST_FILTER = "VST_ON"
+# Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
+SVD_FILTER = 'SVD_OFF'
+# Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
+PlotPCA = 'PCA_PLOT'
+# Negative control
+Control_Neg_PCA = "Vehicle"
+# Healthy control
+Control_Pos_PCA = "Sham"
+# Output directory
+Output_file_path = DirOutput
 
 
 #PARAM FOR DEG_FUNCTION
@@ -84,6 +107,8 @@ AlphaHC = 0.1
 padjval = 0.2
 # LogFold threshold to use in Volcano plot. A number between 0 and 10000.
 LogFoldThrs_VolPlot = 1
+# Output directory
+Output_file_path = DirOutput
 
 # PARAM FOR PATHWAY ENRICHMENT
 # Whether the reverse option should be run. Etiher TRUE or FALSE
@@ -99,11 +124,12 @@ padjval = 0.2
 LogFoldThrs = 1
 # P adjusted value threshold for significance of PATHWAY ENRICHMENT. A number between 0 and 1
 Pway_qvalThrs = 0.2
-# Organism
+# Organism either Mouse or Human
 ORGANISM = 'Mouse'
 # The list of Target candidates from Chemoproteomics
 Target_list_path = paste(DirData,"Target_list_Mouse_230922.RData", sep = "/")
-
+# Output directory
+Output_file_path = DirOutput
 
 
 # IMPORT DATA -----------------------------------------------------------------------------------
@@ -129,9 +155,7 @@ QC_POSTNORMALIZATION(Output_file_path, OUTLIER_FILTER = OUTLIER_FILTER, RepFeatu
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(DirPipeline, "DESEQ_NORM.R", sep = '/'))
-CoarseConditions = c("Treatment", "Rna_collection_time_hrs")
-outliers_path = ""
-DESEQ_NORM(Output_file_path, QCNORM = "POST_QCNORM", outliers_path= outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "Vehicle", Control_Pos_PCA = "Sham")
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path, CoarseConditions, METHOD_NORM, VST_FILTER ,  SVD_FILTER , PlotPCA, Control_Neg_PCA, Control_Pos_PCA)
 
 # DESEQ DEG -----------------------------------------------------------------------------
 source(paste(DirPipeline, "DEG_FUNCTION.R", sep = '/'))
