@@ -1,5 +1,5 @@
 # DEG per time point and Pathway Enrichment
-PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirPipeline_Data){
+PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirPipeline_Data, PARAllEL = TRUE, Partition = 'compute' ){
     library(ggvenn)
     library(ggplot2)
     library(ggrepel)
@@ -11,6 +11,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     library(eulerr)
     library("org.Hs.eg.db")
     library(stringr)
+
 
     # Function to add Chemoproteomic targets present within an enriched pathway
     Add_Chemo_Enrich = function(drug, Target_list, enrichedPathways){
@@ -45,6 +46,34 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
 
 
     }
+    # Function to plot Kegg diagrams
+    Plot_kegg = function(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways) {
+
+        curKegg = enrichedPathways$ID[ti]
+        curKegg_Desc = enrichedPathways$Description[ti]
+        gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
+        GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$entrez %in% gids)]
+        names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$entrez %in% gids)]
+        DiffGenesPways_kegg_t= Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
+        NamePathway = paste(comp,curKegg_Desc,sep='_' )
+        if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
+            try(pathview(gene.data  = GeneFold,
+                         pathway.id = curKegg,
+                         limit      = list(gene=max(abs(GeneFold)), cpd=1),
+                         kegg.dir = '.',
+                         kegg.native= TRUE,
+                         out.suffix = paste(drug,curKegg_Desc,sep = "_"),
+                         species    = Species,
+                         res = 100,
+                         low=list(gene="steelblue"),
+                         high=list(gene="aquamarine3")))
+        }
+
+        DiffGenesPways_kegg_list = list("DiffGenesPways_kegg_t" = DiffGenesPways_kegg_t,"NamePathway" = NamePathway )
+        return(DiffGenesPways_kegg_list)
+    }
+    # Cluster temp file
+    ClusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
 
 
     # Checking parameters if FILTER_REVERSE = FALSE does not matter what REVERSE_CONTROL is, cause it is not used. If FILTER_REVERSE = TRUE, the length of REVERSE_CONTROL
@@ -360,31 +389,69 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
                             #Problematic_Pways = c("mmu04723", "mmu00512", "mmu01212")
                             Problematic_Pways = c()
 
-                            for (ti in 1:length(enrichedPathways$ID)){
 
-                                curKegg = enrichedPathways$ID[ti]
-                                print(curKegg)
-                                curKegg_Desc = enrichedPathways$Description[ti]
-                                gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
-                                GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$entrez %in% gids)]
-                                names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$entrez %in% gids)]
-                                DiffGenesPways_kegg[[paste(comp,curKegg_Desc,sep='_' )]] = Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
-                                print(GeneFold)
-                                if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
-                                    try(pathview(gene.data  = GeneFold,
-                                                 pathway.id = curKegg,
-                                                 limit      = list(gene=max(abs(GeneFold)), cpd=1),
-                                                 kegg.dir = '.',
-                                                 kegg.native= TRUE,
-                                                 out.suffix = paste(drug,curKegg_Desc,sep = "_"),
-                                                 species    = Species,
-                                                 res = 100,
-                                                 low=list(gene="steelblue"),
-                                                 high=list(gene="aquamarine3")))
+                            if(PARAllEL == TRUE){
+
+                                print("Running pathway enrichment in parallel")
+
+                                TIMEOUT = 1000
+                                NETWORKS = min(nrow(enrichedPathways), 100)
+
+                                options(
+                                    clustermq.scheduler = "slurm",
+                                    clustermq.template = ClusterTemp,
+                                    clustermq.data.warning=5000 #megabytes
+                                )
+                                register_dopar_cmq(n_jobs=NETWORKS,
+                                                   fail_on_error=FALSE,
+                                                   verbose=TRUE,
+                                                   log_worker=TRUE,
+                                                   timeout = TIMEOUT,
+                                                   template=list(
+                                                       timeout=TIMEOUT, #how long to wait on SLURM side
+                                                       memory=5000,
+                                                       cores=1,#how many cores to use (to throttle down memory usage),
+                                                       partition = 'compute',
+                                                       r_path = file.path(R.home("bin"), "R")))
+
+
+
+
+                                EnrichRes = foreach (ti = 1:nrow(enrichedPathways),.export=c( 'Plot_kegg'),
+                                                     .packages=c('stringr', 'pathview')) %dopar% {
+
+
+                                                         res <- Plot_kegg(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways)
+                                                         return(res)
+
+                                                     }
+                                DiffGenesPways_kegg = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                names(DiffGenesPways_kegg) = lapply(EnrichRes, function(x){x$NamePathway})
+
+                                Files_Current = list.files(".")
+                                Log_files = Files_Current[startsWith(Files_Current, "cmq")]
+                                Name_folder_LOGS = "Logs_KEGG"
+                                dir.create(Name_folder_LOGS)
+                                file.copy(file.path(".",Log_files),"./Logs_KEGG")
+                                file.remove(file.path(".",Log_files))
+
+
+
+                            }else{
+
+                                for(ti in 1:nrow(enrichedPathways)){
+
+                                    print("Running pathway enrichment in serial model")
+
+                                    EnrichRes[[ti]] = Plot_kegg(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways)
+
+
                                 }
+
+                                DiffGenesPways_kegg = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                names(DiffGenesPways_kegg) = lapply(EnrichRes, function(x){x$NamePathway})
+
                             }
-
-
 
                         }else{
                             print("KEGG enrichment is not very reliable, therefore not saved")

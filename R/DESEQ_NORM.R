@@ -13,9 +13,10 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     nCores = detectCores()
     cl <- makeCluster(nCores)
     registerDoParallel(cl)
+    library(clustermq)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
-
+    clusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
     # Import data
 
     setwd(Output_file_path)
@@ -94,7 +95,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
     # Normalization
     if (METHOD_NORM == 'Standard'){
-        print('Running Standard normalization...')
+        print('Running DESEQ Standard normalization...')
         ##create a DESeq object
         dds <- DESeqDataSetFromMatrix(countData = Count, colData = Metadata, design = ~ CoarseCondition)
         startTime <- Sys.time()
@@ -115,6 +116,54 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
             stop('Choose VST_FILTER method valid')
         }
+
+    }else if(METHOD_NORM == 'Standard_Parallel'){
+
+        print('Running DESEQ Standard normalization in parallel...')
+        NJOBS = 500
+        TIMEOUT = 10000
+
+        options(
+            clustermq.scheduler = "slurm",
+            clustermq.template = clusterTemp,
+            clustermq.data.warning=5000 #megabytes
+        )
+        register(DoparParam())
+        register_dopar_cmq(n_jobs=NJOBS, memory=1024, pkgs="BiocParallel", export=list(
+            .bpworker_EXEC=BiocParallel:::.bpworker_EXEC,
+            .log_buffer_get=BiocParallel:::.log_buffer_get,
+            #.log_data=BiocParallel:::.log_data,
+            .log_buffer_init=BiocParallel:::.log_buffer_init,
+            .VALUE=BiocParallel:::.VALUE
+        ),
+        template=list(
+            timeout=TIMEOUT, #how long to wait on SLURM side
+            memory=5000,
+            cores=1,#how many cores to use (to throttle down memory usage),
+            partition = 'compute',
+            r_path = file.path(R.home("bin"), "R")))
+
+            dds <- DESeqDataSetFromMatrix(countData = Count, colData = Metadata, design = ~ CoarseCondition)
+            startTime <- Sys.time()
+            deseqObj = DESeq(dds,
+                             parallel = TRUE,
+                             fitType = "parametric",
+                             BPPARAM=bpparam())
+            if(VST_FILTER == "VST_ON"){
+                print("Using Vst ")
+                NormCounts = getVarianceStabilizedData(deseqObj)
+                endTime <- Sys.time()
+                print(endTime - startTime)
+            }else if(VST_FILTER == "VST_OFF"){
+                print("Not using vst")
+                NormCounts = counts(deseqObj, normalized=TRUE)
+
+            }else{
+
+                stop('Choose VST_FILTER method valid')
+            }
+
+
 
     }else {
 
