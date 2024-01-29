@@ -50,7 +50,7 @@ QC_PRENORMALIZATION = function(Output_file_path,nMust = 2){
 
     Thrs_df = data.frame(Thrs_reads = Thrs_reads, Thrs_Nogenes = Thrs_Nogenes)
 
-    # Find and saved outliers
+    # Find and save outliers
 
     MustDrop_List = c()
     Metadata_MustDrop = Metadata %>% filter(LogNo_genes < Thrs_Nogenes |  LogReadNum < Thrs_reads)

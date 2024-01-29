@@ -137,7 +137,18 @@ Output_file_path = DirOutput
 PARAllEL = TRUE
 # Which compute partition to use
 Partition = 'compute'
+# Path to where gene sets are stored
+DirPipeline_Data = DirData
 
+# PARAM FOR PATHWAYS INTEGRATION
+# Output directory
+Output_file_path = DirOutput
+# The list of Target candidates from Chemoproteomics
+Target_list_path = paste(DirData,"Target_list_Mouse_230922.RData", sep = "/")
+# Organism either Mouse or Human
+ORGANISM = 'Mouse'
+# Path to where gene sets are stored
+DirPipeline_Data = DirData
 
 # IMPORT DATA -----------------------------------------------------------------------------------
 source(paste(DirPipeline, "IMPORT_DATA.R", sep = '/'))
@@ -170,9 +181,11 @@ DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method ,MH_Method, Alpha
 
 # PATHWAY ENRICHMENT -----------------------------------------------------------------------------
 source(paste(DirPipeline, "PWAY_ENRICHMENT.R", sep = '/'))
-PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path,DirData, PARAllEL = TRUE, Partition = 'compute')
+PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path,DirData, PARAllEL , Partition )
 
-
+# PATHWAY INTEGRATION -----------------------------------------------------------------------------
+source(paste(DirPipeline, "PWAYS_INTEGRATION.R", sep = '/'))
+PWAYS_INTEGRATION(Output_file_path, Target_list_path, ORGANISM , DirPipeline_Data )
 
 
 

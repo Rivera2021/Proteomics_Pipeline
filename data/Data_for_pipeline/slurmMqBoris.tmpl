@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#SBATCH --job-name={{ job_name }}
+#SBATCH --output={{ log_file | /dev/null }}
+#SBATCH --error={{ log_file | /dev/null }}
+#SBATCH --mem-per-cpu={{ memory | 7000 }}
+#SBATCH --partition={{ partition }} #intentionally no default - be cognizant of where you are running!
+#SBATCH --array=1-{{ n_jobs }}
+#SBATCH --cpus-per-task={{ cores | 1 }}
+#SBATCH --time={{ timeout }}
+##SBATCH --log_file="/path/to.file.%a"
+
+CMQ_AUTH={{ auth }} {{ r_path }} --no-save --no-restore -e 'clustermq:::worker("{{ master }}")'

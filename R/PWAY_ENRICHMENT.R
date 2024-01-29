@@ -3,13 +3,13 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     library(ggvenn)
     library(ggplot2)
     library(ggrepel)
-    library("AnnotationDbi")
-    library("org.Mm.eg.db")
-    library("clusterProfiler")
-    library("pathview")
+    library(AnnotationDbi)
+    library(org.Mm.eg.db)
+    library(clusterProfiler)
+    library(pathview)
     library(DESeq2)
     library(eulerr)
-    library("org.Hs.eg.db")
+    library(org.Hs.eg.db)
     library(stringr)
 
 
@@ -46,6 +46,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
 
 
     }
+
     # Function to plot Kegg diagrams
     Plot_kegg = function(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways) {
 
@@ -183,6 +184,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
                 DiffGenesPways_kegg = list()
                 DiffGenesPways_Reactome = list()
                 DiffGenesPways_GO = list()
+
                 EnrichedPathwaysDf_kegg = data.frame("ID" = character(), "Description" = character(), "GeneRatio" = character, "BgRatio" = character,
                                                      "pvalue" = numeric(), "p.adjust" = numeric(), "qvalue" = numeric(), "geneID" = character(),
                                                      "Count" = integer(), "Target" = character(), "comp" = character() )
@@ -425,8 +427,8 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
                                                          return(res)
 
                                                      }
-                                DiffGenesPways_kegg = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
-                                names(DiffGenesPways_kegg) = lapply(EnrichRes, function(x){x$NamePathway})
+                                DiffGenesPways_kegg_temp = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                names(DiffGenesPways_kegg_temp) = lapply(EnrichRes, function(x){x$NamePathway})
 
                                 Files_Current = list.files(".")
                                 Log_files = Files_Current[startsWith(Files_Current, "cmq")]
@@ -448,10 +450,12 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
 
                                 }
 
-                                DiffGenesPways_kegg = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
-                                names(DiffGenesPways_kegg) = lapply(EnrichRes, function(x){x$NamePathway})
+                                DiffGenesPways_kegg_temp = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                names(DiffGenesPways_kegg_temp) = lapply(EnrichRes, function(x){x$NamePathway})
 
                             }
+
+                            DiffGenesPways_kegg = c(DiffGenesPways_kegg,DiffGenesPways_kegg_temp)
 
                         }else{
                             print("KEGG enrichment is not very reliable, therefore not saved")
@@ -635,6 +639,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
             setwd('..')
     }
 
+    setwd(Output_file_path)
 }
 
 

@@ -6,7 +6,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     library(dplyr)
     library(BiocParallel)
     library(parallel)
-    library("PCAtools")
+    library(PCAtools)
     library(foreach)
     library(doParallel)
     library(openxlsx)
@@ -17,22 +17,21 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     clusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
-    # Import data
 
+    # Import data
     setwd(Output_file_path)
     Data_file = "./PRE_FILTERING/Prefilter_Data.xlsx"
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
 
     # Read customize outliers
-
     if(file.exists(outliers_path)){
 
         outliers_cust <- read.csv(outliers_path, header = FALSE)
         outliers_cust = outliers_cust[[1]]
     }else{
 
-        print("Path to costumized outliers does not exists or is null")
+        print("Path to costumized outliers does not exist or is null")
         outliers_cust = c()
     }
 
@@ -232,7 +231,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
         if("Indication_induction_time_hrs" %in% colnames(Metadata)){
            print("IndicationOn feature in Metadata indicates whether sample received stimulation or not ")
            Metadata$IndicationOn = 1
-           Metadata$IndicationOn[is.na(Metadata$`Indication._induction_time(hrs)`)] = 0
+           Metadata$IndicationOn[is.na(Metadata$Indication_induction_time_hrs)] = 0
         }else if("Stimulant_used" %in% colnames(Metadata)){
             Metadata$IndicationOn = 1
             Metadata$IndicationOn[is.na(Metadata$Stimulant_used)] = 0
