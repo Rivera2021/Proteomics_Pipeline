@@ -1,0 +1,109 @@
+---
+title: "Transcriptomics analysis"
+date: "2024-01-31"
+output:
+ html_document:
+    toc: true
+    toc_depth: 4
+    keep_md: true
+    toc_float: true
+params:
+  Dir_Output: "~/InVivoTranscriptomics/Results/Results_240129"  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PCA 
+
+PCA of all samples in the experiment. Please check single treatment plus controls PCA plots within the folder DESEQ_NORM_QCNORM.
+
+```{r PCA_POSTNORM_ALLSAMPLES,echo=FALSE, warning = FALSE,message=FALSE}
+#Path_Dir = "/fsx/home/crivera/Novogene/usftp21.novogene.com_Exp5/Results_Ramos/Summary_Plots_Nfcore"
+Path_Dir = params$Dir_Output
+PCA_file1 = "PCA_allSamples1Vs2.png"
+Path_PCA1 = paste(Path_Dir,'DESEQ_NORM_QCNORM','PCA_PLOTS',PCA_file1, sep = "/")
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_PCA1)
+PCA_file2 = "PCA_allSamples1Vs3.png"
+Path_PCA2 = paste(Path_Dir,'DESEQ_NORM_QCNORM','PCA_PLOTS',PCA_file2, sep = "/")
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_PCA2)
+
+```
+
+
+## DEG
+
+Please find summary table containing differentially expressed genes for every selected comparison in the following link:
+
+## ENRICHED PATHWAYS
+
+Using DEG (abs(log2Fold) >1 and padj < 0.2) we find the over-represented pathways for each comparison. The filter REVERSE = TRUE determines whether only those DEG being regulated in the direction of healthy control are used for pathway enrichment. In other words, REVERSE = TRUE estimates the enrichment only with DEG from treatment vs DMSO that are also significant and change in the same  direction in the comparison healthy-control vs DMSO. We hope that this filter would allow us detect off-target effects at least up to a certain point. 
+
+### SUMMARY TABLES
+
+<br>
+<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_FALSE_KEGG </a>
+
+<br>
+<a href="file:///WORKDIR/InVivoTranscriptomics/Results/Results_240129/PWAYS_INTEGRATION/Chemo_target_enriched_PWAY_REVERSE_FALSE_Allmol.xlsx">link </a>
+
+
+<br>
+<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_TRUE_KEGG </a>
+
+<br>
+<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_TRUE_REACTOME </a>
+
+
+
+
+```{r PATHWAYS,echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=10, fig.height=10}
+Path_Dir = params$Dir_Output
+FolderName = "PWAY_ENRICHMENT"
+FilterFold = list.files(paste(Path_Dir,FolderName, sep = "/"))
+
+for(Fold in FilterFold){
+    
+    cat('\n')
+    cat("###", Fold)
+    cat('\n')
+    Mols = list.files(paste(Path_Dir,FolderName,Fold, sep = "/"))
+
+    for(mol in Mols){
+
+        cat('\n')
+        cat("####", mol)
+        cat('\n')
+        
+         CompFiles = list.files(paste(Path_Dir,FolderName,Fold,mol, sep = "/"))
+         CompFolder = CompFiles[grep(mol, CompFiles)]
+         
+         for(Comp in CompFolder){
+             
+             cat('\n')
+             cat("####", Comp)
+             cat('\n')
+             
+         }
+         
+         
+    }
+
+    
+}
+cat('\n')
+
+
+```
+
+
+
+
+
+
+
+
+

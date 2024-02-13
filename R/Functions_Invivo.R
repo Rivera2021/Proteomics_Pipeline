@@ -255,7 +255,67 @@ Gene_Expression_plot = function(NormMatrix,Metadata, GeneList, ControlName){
 
 }
 
+Gene_Expr_plot_and_Descrip = function(ti,NormMatrix,Metadata, Gene_comb, ControlName, Df_mol_filt, comp, GeneDescription, mol){
 
+    gids = unlist(str_split(Gene_comb[ti], '/'))
+    GeneList = Df_mol_filt %>% filter(entrez %in% gids)
+    GeneList = GeneList$genes
+    NormMatrix_filt = as.data.frame(NormMatrix[GeneList,])
+    NormMatrix_filt$Gene = rownames(NormMatrix_filt)
+    NormMatrix_Long = NormMatrix_filt %>% pivot_longer(!Gene, names_to = "Sample_name", values_to = "Norm_Expr") %>% as.data.frame()
+    NormMatrix_Long$Gene = factor(NormMatrix_Long$Gene)
+    NormMatrix_Long$time = Metadata$Rna_collection_time_hrs[match(NormMatrix_Long$Sample_name, Metadata$Sample_name)]
+    NormMatrix_Long$time = factor(NormMatrix_Long$time, levels = sort(unique(NormMatrix_Long$time)))
+    NormMatrix_Long$Treatment = Metadata$Treatment[match(NormMatrix_Long$Sample_name, Metadata$Sample_name)]
+    NormMatrix_Long$Treatment = factor( NormMatrix_Long$Treatment, levels = c(ControlName, mol))
+    NormMatrix_Long$Sample_name = NULL
+
+    # Add very little noise to avoid T-test to complain
+    NormMatrix_Long$Norm_Expr = NormMatrix_Long$Norm_Expr + rnorm(nrow(NormMatrix_Long),mean = 0,sd = 1e-7)
+
+    # Generate pvalues.  step.increase = 0.06 seems to control of the pvalue test in the y axis.
+    stat.test <- NormMatrix_Long %>% group_by(Gene, time) %>% t_test(Norm_Expr ~ Treatment, ref.group = "Vehicle")%>%add_significance()
+    stat.test <- stat.test %>% add_xy_position(x = "time", dodge = 0.5, step.increase = 0.06)
+    #%>% rstatix::t_test(Norm_Expr ~ Treatment, ref.group = "Vehicle")
+    # Plot
+    bxp <- ggboxplot(NormMatrix_Long, x = "time", y = "Norm_Expr", color = "Treatment", palette = "jco",
+                     facet.by = "Gene", scales = "free", add = "dotplot")+
+        stat_pvalue_manual(stat.test, label = "p.signif", size = 3)+
+        scale_y_continuous(expand = expansion(mult = c(0.01, 0.2)))
+
+    png(filename=paste('Genes', comp, gsub("/", "_", Gene_comb[ti]), '.png',sep = '_'), width = 1200, height = 800, res= 100)
+    print(bxp)
+    dev.off()
+
+    # Add gene data frame with description
+
+    Gene_info_temp = Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
+
+    # Gene description data frame
+    Description = c()
+    for(gene in Gene_info_temp$genes){
+
+        for(i in 1:nrow(GeneDescription)){
+
+            if(gene %in% GeneDescription$Gene.Names_mod[i][[1]]){
+                Description[gene] = GeneDescription$LongDesc[i]
+
+                break
+            }
+
+        }
+    }
+
+    Gene_info_temp$Description = Description[match(Gene_info_temp$genes, names(Description))]
+    DiffGenesPwaysDf = list()
+    DiffGenesPwaysDf[[paste('Genes', comp, gsub("/", "_", Gene_comb[ti]), '.png',sep = '_')]] = Gene_info_temp
+    DiffGenesPwaysDf[['Names']] = paste('Genes', comp, gsub("/", "_", Gene_comb[ti]), '.png',sep = '_')
+
+    return(DiffGenesPwaysDf)
+
+
+
+}
 
 
 

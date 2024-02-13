@@ -15,12 +15,6 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
   library(tidyverse)
   library("writexl")
 
-  # OUTLIER_FILTER : GENTLE (Not all outliers predicted from Mahalanobis distance are removed. Only those that ALSO have a correlation
-  # within replicate less than 0.8. After removing these outliers, correlation within replicate is recomputed, and those samples with average
-  # correlation within replicate less than 0.8 are removed. ) STRONG (All candidate outliers from Mahalanobis distance are removed. After
-  # removing these samples correlation within replicate is compute. All samples with average correlation less than 0.8 get removed).NONE
-  # (No outlier detection is done)
-  # The removed samples should be the union of Outlier_over and Outlier_rep within the Outlier_DF
 
 
   # Param for oulier
@@ -166,7 +160,7 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
 
   if(OUTLIER_FILTER == 'GENTLE_REP'){
 
-        # Get rid of entire bad conditions. Evaluate whether all correlations within same condition are lower than the low threshold
+        # Spot entire bad conditions. Evaluate whether all correlations within same condition are lower than the low threshold
 
         Corr_w_all$Fail_ThrsLow = Corr_w_all$Corr_rep < Thrs_Low
         Corr_w_all_group = Corr_w_all %>% group_by(Condition) %>% summarize(Prod = prod(Fail_ThrsLow)) %>% filter(Prod == 1)
@@ -196,8 +190,8 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
 
         Outlier_selected = unique(c(Outlier_samples ,Bad_Samples_cond))
 
-        Metadata_filt = Metadata %>% filter(!Sample_name %in% Outlier_selected)
-        NormCounts_filt = NormCounts[,match(Metadata_filt$Sample_name, colnames(NormCounts))]
+        # Metadata_filt = Metadata %>% filter(!Sample_name %in% Outlier_selected)
+        # NormCounts_filt = NormCounts[,match(Metadata_filt$Sample_name, colnames(NormCounts))]
 
 
 
@@ -205,8 +199,8 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
       Bad_Samples_cond = c()
       Outlier_samples = c()
       Outlier_selected = c()
-      Metadata_filt = Metadata
-      NormCounts_filt = NormCounts
+      # Metadata_filt = Metadata
+      # NormCounts_filt = NormCounts
 
   }else{
 

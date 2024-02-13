@@ -1,4 +1,4 @@
-PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mouse', DirPipeline_Data = DirData){
+PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mouse', DirPipeline_Data ){
 
     library(openxlsx)
     library(dplyr)
@@ -77,6 +77,7 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
         for(nameid in EnrichedPathwaysDf_kegg_All$NameRef){
 
             namesheet = EnrichedPathwaysDf_kegg_All$Namesheet[EnrichedPathwaysDf_kegg_All$NameRef == nameid]
+            namesheet = sub(':', '_', namesheet)
             mol = EnrichedPathwaysDf_kegg_All$mol[EnrichedPathwaysDf_kegg_All$NameRef == nameid]
             load(paste('../PWAY_ENRICHMENT',Fold,mol,EnrichPwayFile, sep = '/'))
 
@@ -143,8 +144,8 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
         # Add the data specific data frames for each pathway
         row = 2
         for(nameid in EnrichedPathwaysDf_Reactome_All$NameRef){
-
             namesheet = EnrichedPathwaysDf_Reactome_All$Namesheet[EnrichedPathwaysDf_Reactome_All$NameRef == nameid]
+            namesheet = sub(':', '_', namesheet)
             mol = EnrichedPathwaysDf_Reactome_All$mol[EnrichedPathwaysDf_Reactome_All$NameRef == nameid]
             load(paste('../PWAY_ENRICHMENT',Fold,mol,EnrichPwayFile, sep = '/'))
             if(nameid %in% names(DiffGenesPways_Reactome)){
@@ -172,6 +173,7 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
 
 
     # SUMMARY OF CHEMOPROTEOMICS
+    print("Finding over-representation of chemoproteomics candidate targets")
 
     if(file.exists(Target_list_path)){
         load(Target_list_path)
@@ -271,8 +273,13 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
                     for(molec in drugs){
 
                         Enriched_comp_mol =  EnrichedPathwaysDf_kegg_All %>% filter(CompCategory == compo & mol == molec)
-                        Enriched_comp_mol_WithTar = Is_Tar_in_Pway(TargetCand = ChemoTar,Target_list, EnrichedPways = Enriched_comp_mol, GeneSet)
-                        Tar_in_Mol = nrow(Enriched_comp_mol_WithTar %>% filter(WithTarget != ''))
+                        if(nrow(Enriched_comp_mol) > 0){
+                            Enriched_comp_mol_WithTar = Is_Tar_in_Pway(TargetCand = ChemoTar,Target_list, EnrichedPways = Enriched_comp_mol, GeneSet)
+                            Tar_in_Mol = nrow(Enriched_comp_mol_WithTar %>% filter(WithTarget != ''))
+                        }else{
+
+                            Tar_in_Mol = 0
+                        }
                         No_Pways_Mol = nrow(Enriched_comp_mol)
                         Tar_in_MOLS[paste(molec,'Tar_in', sep = '_')] = paste(as.character(Tar_in_Mol), "/", as.character(No_Pways_Mol),sep = '')
                         # Hypergeometric distribution: Already sort of a cumulative if use phyper
@@ -332,8 +339,14 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
                 for(molec in drugs){
 
                     Enriched_comp_mol_React =  EnrichedPathwaysDf_Reactome_All %>% filter(CompCategory == compo & mol == molec)
-                    Enriched_comp_mol_WithTar_React = Is_Tar_in_Pway(TargetCand = ChemoTar,Target_list, EnrichedPways = Enriched_comp_mol_React, GeneSet)
-                    Tar_in_Mol = nrow(Enriched_comp_mol_WithTar_React %>% filter(WithTarget != ''))
+                    if(nrow(Enriched_comp_mol_React) > 0){
+                        Enriched_comp_mol_WithTar_React = Is_Tar_in_Pway(TargetCand = ChemoTar,Target_list, EnrichedPways = Enriched_comp_mol_React, GeneSet)
+                        Tar_in_Mol = nrow(Enriched_comp_mol_WithTar_React %>% filter(WithTarget != ''))
+                    }else{
+                        Tar_in_Mol = 0
+
+                    }
+
                     No_Pways_Mol = nrow(Enriched_comp_mol_React)
                     Tar_in_MOLS[paste(molec,'Tar_in', sep = '_')] = paste(as.character(Tar_in_Mol), "/", as.character(No_Pways_Mol),sep = '')
                     # Hypergeometric distribution: Already sort of a cumulative if use phyper
@@ -369,7 +382,7 @@ PWAYS_INTEGRATION = function(Output_file_path,Target_list_path, ORGANISM = 'Mous
     }
 
 
-
+    setwd(Output_file_path)
 
 
 

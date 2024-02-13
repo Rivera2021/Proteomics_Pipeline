@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = ""){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = "", MEM_MB = 1600){
 
     library(DESeq2)
     #library(readxl)
@@ -37,20 +37,20 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
     # Evaluate condition depending on whether the function is call before or after QC_POSTNORNMALIZATION
     if(QCNORM == "POST_QCNORM"){
-
+        outliers = outliers_cust
         # Join outliers from Outlier_file_path and from QC_POSTNORMALIZATION
 
-        if(class(try(read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE))) == "try-error"){
-            print("outlier file from QC_NORMALIZATION is empty. Only customized outliers are considered")
-            outliers = outliers_cust
-
-        }else{
-
-            outliers_qc = read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE)
-            outliers_qc = outliers_qc[[1]]
-            outliers = unique(c(outliers_cust, outliers_qc))
-
-        }
+        # if(class(try(read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE))) == "try-error"){
+        #     print("outlier file from QC_NORMALIZATION is empty. Only customized outliers are considered")
+        #     outliers = outliers_cust
+        #
+        # }else{
+        #
+        #     outliers_qc = read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE)
+        #     outliers_qc = outliers_qc[[1]]
+        #     outliers = unique(c(outliers_cust, outliers_qc))
+        #
+        # }
 
         # Create Folder
 
@@ -119,8 +119,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     }else if(METHOD_NORM == 'Standard_Parallel'){
 
         print('Running DESEQ Standard normalization in parallel...')
-        NJOBS = 500
+        NJOBS = 100
         TIMEOUT = 10000
+        MEMORY = MEM_MB
 
         options(
             clustermq.scheduler = "slurm",
@@ -128,7 +129,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             clustermq.data.warning=5000 #megabytes
         )
         register(DoparParam())
-        register_dopar_cmq(n_jobs=NJOBS, memory=1024, pkgs="BiocParallel", export=list(
+        register_dopar_cmq(n_jobs=NJOBS, memory=MEMORY, pkgs="BiocParallel", export=list(
             .bpworker_EXEC=BiocParallel:::.bpworker_EXEC,
             .log_buffer_get=BiocParallel:::.log_buffer_get,
             #.log_data=BiocParallel:::.log_data,
@@ -139,7 +140,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             timeout=TIMEOUT, #how long to wait on SLURM side
             memory=5000,
             cores=1,#how many cores to use (to throttle down memory usage),
-            partition = 'compute',
+            partition = 'himem',
             r_path = file.path(R.home("bin"), "R")))
 
             dds <- DESeqDataSetFromMatrix(countData = Count, colData = Metadata, design = ~ CoarseCondition)
@@ -250,12 +251,21 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             print("Treatment concentration column not found")
         }
 
-        PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
+        #PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
+        PCA = Plot_PC_Invivo_PerMol(t(NormCounts), Metadata, Color_gg = 'Treatment', Title = 'PCA all samples')
 
         pdf(file= "PCA_allSamples.pdf")
         print(PCA[[1]])
         print(PCA[[2]])
         print(PCA[[3]])
+        dev.off()
+
+        png(filename=paste("PCA_allSamples1Vs2.png", sep = '_'), width = 1000, height = 1000, res=100)
+        print(PCA[[1]])
+        dev.off()
+
+        png(filename=paste("PCA_allSamples1Vs3.png", sep = '_'), width = 1000, height = 1000, res=100)
+        print(PCA[[2]])
         dev.off()
 
         # Per Mol
