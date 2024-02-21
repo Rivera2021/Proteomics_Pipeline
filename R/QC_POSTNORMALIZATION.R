@@ -158,6 +158,10 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
   print(Plt)
   dev.off()
 
+  png(filename=paste("Correlation_within_replicates.png", sep = '_'), width = 1000, height = 1000, res=100)
+  print(Plt)
+  dev.off()
+
   if(OUTLIER_FILTER == 'GENTLE_REP'){
 
         # Spot entire bad conditions. Evaluate whether all correlations within same condition are lower than the low threshold

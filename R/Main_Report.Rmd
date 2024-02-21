@@ -1,6 +1,6 @@
 ---
-title: "Transcriptomics analysis"
-date: "2024-01-31"
+title: "In Vivo transcriptomics (A-2023-0186): M255 and M574"
+date: "2024-02-14"
 output:
  html_document:
     toc: true
@@ -8,12 +8,83 @@ output:
     keep_md: true
     toc_float: true
 params:
-  Dir_Output: "~/InVivoTranscriptomics/Results/Results_240129"  
+  Dir_Output: "/fsx/home/crivera/InVivoTranscriptomics/Results/Results_240214" 
+  DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline" 
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Experimental design
+
+87 female Bab/c mice were grouped into 8 groups: 3 mice in sham group, intracolonic injection 50% ethanol (0.1mL) on day 0, whereas mice in colitis modeling groups were intracolonic injection of 2% TNBS solution (0.1mL) on day 0. Test articles (TAs) were dosed from day 2 to day 4. Mice in TA groups and vehicle groups were taken down on day 2, day 3 and day 5 (3 mice per each point) for endpoint samples collection, before dosing on that day. The dose regimen and group setting are shown in Table1. 
+
+For bulk RNAseq, colons were cleaned and cut lengthwise (longitudinally) into 0.5cm (~10 mg) sections, 20 mg of distal colon were used for RNA extraction using Trizol and Qiagen Rneasy MinElute Cleanup kit.
+RNA was QCed by agarose gel electrophoresis, and NanoDrop was used to measure the concentration of RNA. Then libraries constructed kit by TruSeq mRNA library kit. Qubit was used to quantify the concentration of the final sequencing libraries, and the size distribution was analyzed using Agilent BioAnalyzer. Sequencing was performed using an Illumina NovaSeq 6000 system following Illumina-provided protocols for 2x150 paired-end sequencing.
+
+Timepoint to harvest tissues:
+
+1.    4 time points, 3 mice/time point/group; Sham is 1 timepoint (Day 5 only), 3 mice
+
+2.    Day 2 (6 h after the 1st treatment) 
+
+3.    Day 2 (12 h after the 1st treatment) 
+
+4.    Day 3 (24 h after the 1st treatment, prior to day 3 treatment) 
+
+5.    Day 5 (72 h after the 1st treatment, no treatment on day 5) 
+
+```{r Exp,echo=FALSE, warning = FALSE,message=FALSE, fig.cap="End points:  Three mice will be taken down in each group at day2, day3 and day5, whereas one timepoint at day5 for sham group. Cardiac puncture blood draw, spleen, stool, and colons harvested"}
+
+Path_Dir =  "~/InVivoTranscriptomics/Results/Results_230913/Reports"
+Exp_file = "Invivo_experimentalDesign.png"
+Path_Exp = paste(Path_Dir,Exp_file, sep = "/")
+#Plot_PCA = paste(" <img src=",Path_PCA,">")
+#cat("<img src= /fsx/home/crivera/Novogene/usftp21.novogene.com_Exp4/Summary_Plots/PCA_Plot_Norm.png width=400 >" )
+#cat(Plot_PCA, "\n")
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_Exp)
+
+
+
+```
+
+```{r ExpTable,echo=FALSE, warning = FALSE,message=FALSE, fig.cap=" "}
+
+Path_Dir =  "~/InVivoTranscriptomics/Results/Results_230913/Reports"
+Exp_file = "Table_ExperimentalDesign.png"
+Path_Exp = paste(Path_Dir,Exp_file, sep = "/")
+#Plot_PCA = paste(" <img src=",Path_PCA,">")
+#cat("<img src= /fsx/home/crivera/Novogene/usftp21.novogene.com_Exp4/Summary_Plots/PCA_Plot_Norm.png width=400 >" )
+#cat(Plot_PCA, "\n")
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_Exp)
+
+
+```
+
+## QC- CORRELATION WITHIN REPLICATES
+
+This report only included samples for molecules M255, M574 and controls. We discovered a higher number of regulated genes linked to M255 when analyzing this select set of samples, compared to the results derived from the entire batch. The fact that these genes enriched for biological pathways give us confidence on the signal.
+
+In the following plot each dot represents the Spearman correlation between replicates for every condition in the data set.
+
+```{r QC_CORR,echo=FALSE, warning = FALSE,message=FALSE}
+
+
+#Path_Dir = "/fsx/home/crivera/Novogene/usftp21.novogene.com_Exp5/Results_Ramos/Summary_Plots_Nfcore"
+# Path_Dir = params$Dir_Output
+# Corr_file1 = "PCA_allSamples1Vs2.png"
+# Path_PCA1 = paste(Path_Dir,'DESEQ_NORM_QCNORM','PCA_PLOTS',PCA_file1, sep = "/")
+# knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+# knitr::include_graphics(Path_PCA1)
+
+
+```
+
+After QC we have decided to eliminate all the controls at 12 hrs. 
+
 
 ## PCA 
 
@@ -38,71 +109,170 @@ knitr::include_graphics(Path_PCA2)
 
 Please find summary table containing differentially expressed genes for every selected comparison in the following link:
 
+<br>
+<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EZQUjin0ENBChQ_RTz_hhFoBWuWT996qyt6mm5vEUYWjvA?e=GqIYKY> All comparisons DEG </a>
+
 ## ENRICHED PATHWAYS
 
 Using DEG (abs(log2Fold) >1 and padj < 0.2) we find the over-represented pathways for each comparison. The filter REVERSE = TRUE determines whether only those DEG being regulated in the direction of healthy control are used for pathway enrichment. In other words, REVERSE = TRUE estimates the enrichment only with DEG from treatment vs DMSO that are also significant and change in the same  direction in the comparison healthy-control vs DMSO. We hope that this filter would allow us detect off-target effects at least up to a certain point. 
 
-### SUMMARY TABLES
-
-<br>
-<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_FALSE_KEGG </a>
-
-<br>
-<a href="file:///WORKDIR/InVivoTranscriptomics/Results/Results_240129/PWAYS_INTEGRATION/Chemo_target_enriched_PWAY_REVERSE_FALSE_Allmol.xlsx">link </a>
 
 
-<br>
-<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_TRUE_KEGG </a>
-
-<br>
-<a href= https://fvl55.sharepoint.com/:x:/s/Empress/EVwPcebhZ7pDp5Ae2YN3_iMBA6s7gUWJyGdz4LTkWlibTg?e=M6Vjgq> REVERSE_TRUE_REACTOME </a>
+```{r ListLinks_dataframes, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 
 
+LinkList = list('KEGG' = c('REVERSING DISEASE (REVERSE TRUE) ENRICHED PATHWAYS IN KEGG' = 'https://fvl55.sharepoint.com/:x:/s/Empress/EZQUjin0ENBChQ_RTz_hhFoBWuWT996qyt6mm5vEUYWjvA?e=GqIYKY','ENRICHED PATHWAYS (REVERSE FALSE) IN KEGG' =  'https://fvl55.sharepoint.com/:x:/s/Empress/EWvyr_GnyE9Mn6PEHRyg64EBCSZM22h0kLXudFyPu73vsQ?e=sdiAzT'), 'REACTOME' = c('REVERSING DISEASE (REVERSE TRUE) ENRICHED PATHWAYS IN REACTOME' = 'https://fvl55.sharepoint.com/:x:/s/Empress/EQ1brZQTXRxBmmWpEUGKyrcBw2BjVlZKOzoGFJpN_8BGPg?e=Adj74d','ENRICHED PATHWAYS (REVERSE FALSE) IN REACTOME' = 'https://fvl55.sharepoint.com/:x:/s/Empress/ET2dQihyve5KsiaW5s7facsBk4aYaeNgBN8VGW_J1TIAzg?e=l9G3XD' ), 'GO' = c('REVERSING DISEASE (REVERSE TRUE) ENRICHED PATHWAYS IN GO' = 'https://fvl55.sharepoint.com/:x:/s/Empress/EbIVNjvH94ZIr4sbz2iYdE0BJKtdkmPkHtSGNtfjehTsFA?e=YKKd1y', 'ENRICHED PATHWAYS (REVERSE FALSE) IN GO' = 'https://fvl55.sharepoint.com/:x:/s/Empress/EYq18sdYPSNKuGdeXPRUDEIBJOyseYd2g6T2c3r9SVs99g?e=t8r6ik'))
 
 
-```{r PATHWAYS,echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=10, fig.height=10}
-Path_Dir = params$Dir_Output
-FolderName = "PWAY_ENRICHMENT"
-FilterFold = list.files(paste(Path_Dir,FolderName, sep = "/"))
+      
+```
 
-for(Fold in FilterFold){
+### SUMMARY TABLES FOR PATHWAY ENRICHMENT {.tabset}
+
+```{r DataFrames, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+
+library(glue)
+library(knitr)
+
+
+
+  for(j in seq_along(LinkList)){ 
     
+    
+    
+    Gene_set_name = names(LinkList)[j]
     cat('\n')
-    cat("###", Fold)
+    cat("####",Gene_set_name)
     cat('\n')
-    Mols = list.files(paste(Path_Dir,FolderName,Fold, sep = "/"))
+    
+   
+    cat('\n')
+    Links_GeneSet = LinkList[[Gene_set_name]]
 
-    for(mol in Mols){
+    for (i in seq_along(Links_GeneSet)){
 
-        cat('\n')
-        cat("####", mol)
-        cat('\n')
-        
-         CompFiles = list.files(paste(Path_Dir,FolderName,Fold,mol, sep = "/"))
-         CompFolder = CompFiles[grep(mol, CompFiles)]
-         
-         for(Comp in CompFolder){
-             
-             cat('\n')
-             cat("####", Comp)
-             cat('\n')
-             
-         }
-         
-         
-    }
+
+           output <- glue("[{names(Links_GeneSet[i])}]({Links_GeneSet[i]})")
+           knitr::knit_print(output)
+           cat('\n')
+
+      }
 
     
-}
-cat('\n')
-
-
+  }
+      
 ```
 
 
 
 
+## CHEMOPROTEOMICS OVER-REPRESENTATION{.tabset}
 
+Here we estimate whether the chemoproteomics target candidates are over-represented within the enriched pathways. Mainly whether we find them within the enriched pathways more often than what we would find them by chance in the total collection of Gene sets, for example KEGG or REACTOME.
+
+```{r EnrichmentScheme,echo=FALSE, warning = FALSE,message=FALSE, fig.cap=""}
+
+Path_Dir = params$DirDataForPipeline
+Enrich_Scheme_plot = "Enrichment_scheme.png"
+Path_Enrich_Scheme_plot = paste(Path_Dir,Enrich_Scheme_plot, sep = "/")
+
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_Enrich_Scheme_plot)
+
+```
+
+
+The following heatmaps show in blue the targets that are over-represented for a particular molecule. Only those with padj < 0.1 are shown in blue. More specifically, -log10(padj) is plotted. Benjamini & Hochberg was used for multiple hypothesis testing. The cases where over-representation is not significant are shown in white with -log10(padj) = 0. The star identifies for every molecule,  those genes that are 'hits' from chemoproteomics or other prior information.
+
+```{r HeatmapChemoAll, echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=10, fig.height=10}
+
+library("readxl")
+library('pheatmap')
+library("dplyr")
+library("stringr")
+
+# Download Chemoproteomics targets
+Path_Dir = params$DirDataForPipeline
+Target_list_path = paste(Path_Dir,"Target_list_Mouse_240131.RData", sep = '/')
+load(Target_list_path)
+
+# Folder containing chemoproteomics over-representation tables
+FolderPath = paste(params$Dir_Output, "PWAYS_INTEGRATION", sep = '/')
+
+Gene_set_names = c('KEGG', 'REACTOME', 'GO')
+for(File in list.files(FolderPath)[grep("Chemo",list.files(FolderPath))]){
+    
+    cat('\n')
+    cat("###", gsub('.xlsx', '', File))
+    cat('\n')
+    
+    
+    for(Gene_set_name in Gene_set_names){
+        if(Gene_set_name == 'KEGG'){
+            cat('\n')
+            cat(paste("####",Gene_set_name,sep = ' '))
+            cat('\n')
+            Chemo_Enrich = read_excel(path = paste(FolderPath,File, sep = '/'), sheet = "Chemo_Enrich_KEGG")
+        }else if (Gene_set_name == 'REACTOME'){
+            cat('\n')
+            cat(paste("####",Gene_set_name,sep = ' '))
+            cat('\n')
+            Chemo_Enrich = read_excel(path = paste(FolderPath,File, sep = '/'), sheet = "Chemo_Enrich_REACTOME")
+            
+        }else if (Gene_set_name == 'GO'){
+            cat('\n')
+            cat(paste("####",Gene_set_name,sep = ' '))
+            cat('\n')
+            Chemo_Enrich = read_excel(path = paste(FolderPath,File, sep = '/'), sheet = "Chemo_Enrich_GO")
+            
+        }
+        
+        
+        Chemo_Enrich$Chemo_TargetTime = paste(Chemo_Enrich$Chemo_Target,sapply(Chemo_Enrich$CompCategory, function(x){str_split(x, '_')[[1]][1]}), sep = '_')
+        annotation_row = Chemo_Enrich %>% dplyr::select(CompCategory) %>% data.frame()
+        rownames(annotation_row) = Chemo_Enrich$Chemo_TargetTime
+        matrixEn = Chemo_Enrich[,c('Chemo_TargetTime', colnames(Chemo_Enrich)[grep('P_val',colnames(Chemo_Enrich))])] %>% as.data.frame()
+        rownames(matrixEn) = matrixEn$Chemo_TargetTime
+        matrixEn$Chemo_TargetTime = NULL
+        matrixEn = as.matrix(matrixEn)
+        # Correct for multiple hypothesis testing
+        Vect_corr = p.adjust(as.vector(matrixEn), method = "BH")
+        matrixEn_cor = matrix(Vect_corr, nrow = nrow(matrixEn), ncol = ncol(matrixEn))
+        colnames(matrixEn_cor) = colnames(matrixEn)
+        rownames(matrixEn_cor) = rownames(matrixEn)
+        
+        matrixEn_cor[matrixEn_cor > 0.1] = 1
+        colnames(matrixEn_cor)  = sapply(colnames(matrixEn_cor), function(x){str_split(x, '_')[[1]][1]})
+        
+        # labels for heatmap showing targets associated to molecules
+        labelsEn = matrix(' ', nrow = nrow(matrixEn_cor), ncol = ncol(matrixEn_cor))
+        colnames(labelsEn) = colnames(matrixEn_cor)
+        rownames(labelsEn) = rownames(matrixEn_cor)
+        for(mol in colnames(labelsEn)){
+            
+            Target_list_mol = Target_list %>% filter(drugs == mol)
+            TarNames = sapply(rownames(matrixEn_cor), function(x){str_split(x, '_')[[1]][1]})
+            labelsEn[TarNames %in% Target_list_mol$gene,mol] = "\u2731"
+            
+        }
+        matrixEn_cor[matrixEn_cor == 0] = 1e-15
+        # Plot heatmap
+        paletteLength <- 50
+        myColor <- colorRampPalette(c( "white","navy"))(paletteLength)
+        myBreaks <- seq(0, max(-log10(matrixEn_cor)), length.out = paletteLength)
+            
+        P = pheatmap(-log10(matrixEn_cor), breaks=myBreaks, col = myColor,annotation_row=annotation_row, cluster_rows = FALSE, display_numbers = labelsEn)
+        print(P)
+            
+      
+       cat('\n')
+   }    
+    
+}
+
+
+
+```
 
 
 
