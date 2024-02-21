@@ -51,12 +51,13 @@ Started on 2023-10-27.
         - Output_file_path: Directory path for storing results
         - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
         - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
-        - METHOD_NORM: Normalization method. Standard (Normalization obtained from DESeq object)
+        - METHOD_NORM: Normalization method. 'Standard' (Normalization obtained from DESeq object) or 'Standard_Parallel' (Standard DESeq2 method but using parallelization with clustermq) 
         - VST_FILTER: Whether to apply Variance Stabilizing transformation to the normalized matrix. VST_ON or VST_OFF. VST_ON recommended
         - SVD_FILTER: Whether to apply SVD truncation to eliminate noisy PCA direction contributions. SVD_OFF or SVD_ON
         - PlotPCA: Whether to produce PCA plots. 'PCA_PLOT'
         - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
         - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
+        - MEM_MB: Memory parameter for parallelization with register_dopar_cmq from clustermq package. Only used when METHOD_NORM = 'Standard_Parallel'
     - Output:
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
         - Norm_Data.xlsx: Normalized count matrix
@@ -101,7 +102,21 @@ Started on 2023-10-27.
         - Pway_qvalThrs:  P adjusted value threshold for significance of enriched pathways. A number between 0 and 1. 0.2 is recommended
         - ORGANISM: Either "Mouse" or "Human"
         - Target_list_path: Path to target list candidates from chemoproteomics and chemoinformatics
-        - DirData: Path to directory where KEGG and REACTOME gene sets are stored
+        - DirPipeline_Data: Path to directory where KEGG, REACTOME and GO gene sets are stored
+        - GeneDescription_path: Path to where the file containing gene description is stored
+        - TimeToRemove: When an entire category of controls at a given point is removed, use this parameter to remove all samples at this time point, given that no comparison can be made at this time point if there are no controls
+     
+* PWAYS_INTEGRATION: Creates summary data frames across compared conditions for pathway enrichment and data frames for over-representation of chemoproteomics candidate targets
+
+    - Params:
+         - Output_file_path: Directory path for storing results
+         - Target_list_path: Path to target list candidates from chemoproteomics and chemoinformatics
+         - ORGANISM: Either "Mouse" or "Human"
+         - DirPipeline_Data: Path to directory where KEGG, REACTOME and GO gene sets are stored
+         - Control: Name of control used for comparisons
+    
+
+          
         
   
     
