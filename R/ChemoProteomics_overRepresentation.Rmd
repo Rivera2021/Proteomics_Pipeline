@@ -1,0 +1,118 @@
+---
+title: "Chemoproteomics over-representation"
+output: html_document
+date: "2024-01-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Here we estimate whether the chemoproteomics target candidates are over-represented within the enriched pathways. Mainly whether we find them within the enriched pathways more often than what we would find them by chance in the total collection of Gene sets, for example KEGG or REACTOME.
+
+
+```{r EnrichmentScheme,echo=FALSE, warning = FALSE,message=FALSE, fig.cap=""}
+
+
+Path_Exp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Enrichment_scheme.png"
+knitr::opts_chunk$set(fig_width=12, fig_height=15) 
+knitr::include_graphics(Path_Exp)
+
+```
+
+
+The following heatmaps show in blue the targets that are over-represented for a particular molecule. Only those with p-value < 0.05 are shown in blue. More specifically, log10(pvalue) is plotted. The cases where over-representation is not significant are shown in white with log10(pvalue) = 0. The star identifies for every molecule,  those genes that are 'hits' from chemoproteomics or other prior information.
+
+```{r HeatmapChemoAll, echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=10, fig.height=10}
+
+library("readxl")
+library('pheatmap')
+library("dplyr")
+library("stringr")
+
+# Download Chemoproteomics targets
+Target_list_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_Mouse_240131.RData"
+load(Target_list_path)
+
+
+FolderPath = "~/InVivoTranscriptomics/Results/Results_240129/PWAYS_INTEGRATION"
+for(File in list.files(FolderPath)[grep("Chemo",list.files(FolderPath))]){
+    
+    cat('\n')
+    cat("##", File)
+    cat('\n')
+    
+    # KEGG
+    cat("### KEGG")
+    Chemo_Enrich_Kegg = read_excel(path = paste(FolderPath,File, sep = '/'), sheet = "Chemo_Enrich_Kegg")
+    Chemo_Enrich_Kegg$Chemo_TargetTime = paste(Chemo_Enrich_Kegg$Chemo_Target,sapply(Chemo_Enrich_Kegg$CompCategory, function(x){str_split(x, '_')[[1]][1]}), sep = '_')
+    annotation_row = Chemo_Enrich_Kegg %>% dplyr::select(CompCategory) %>% data.frame()
+    rownames(annotation_row) = Chemo_Enrich_Kegg$Chemo_TargetTime
+    matrix_kegg = Chemo_Enrich_Kegg[,c('Chemo_TargetTime', colnames(Chemo_Enrich_Kegg)[grep('P_val',colnames(Chemo_Enrich_Kegg))])] %>% as.data.frame()
+    rownames(matrix_kegg) = matrix_kegg$Chemo_TargetTime
+    matrix_kegg$Chemo_TargetTime = NULL
+    matrix_kegg = as.matrix(matrix_kegg)
+    matrix_kegg[matrix_kegg > 0.05] = 1
+    colnames(matrix_kegg)  = sapply(colnames(matrix_kegg), function(x){str_split(x, '_')[[1]][1]})
+    
+    # labels for heatmap showing targets associated to molecules
+    labels_kegg = matrix(' ', nrow = nrow(matrix_kegg), ncol = ncol(matrix_kegg))
+    colnames(labels_kegg) = colnames(matrix_kegg)
+    rownames(labels_kegg) = rownames(matrix_kegg)
+    for(mol in colnames(labels_kegg)){
+        
+        Target_list_mol = Target_list %>% filter(drugs == mol)
+        TarNames = sapply(rownames(matrix_kegg), function(x){str_split(x, '_')[[1]][1]})
+        labels_kegg[TarNames %in% Target_list_mol$gene,mol] = "\u2731"
+        
+    }
+    
+    # Plot heatmap
+    paletteLength <- 50
+    myColor <- colorRampPalette(c( "navy", "white"))(paletteLength)
+    myBreaks <- seq(min(log10(matrix_kegg)),0, length.out = paletteLength)
+        
+    P = pheatmap(log10(matrix_kegg), breaks=myBreaks, col = myColor,annotation_row=annotation_row, cluster_rows = FALSE, display_numbers = labels_kegg)
+    print(P)
+        
+   cat('\n')
+   
+   cat("### REACTOME")
+    Chemo_Enrich_React = read_excel(path = paste(FolderPath,File, sep = '/'), sheet = "Chemo_Enrich_React")
+    Chemo_Enrich_React$Chemo_TargetTime = paste(Chemo_Enrich_React$Chemo_Target,sapply(Chemo_Enrich_React$CompCategory, function(x){str_split(x, '_')[[1]][1]}), sep = '_')
+    annotation_row = Chemo_Enrich_React %>% dplyr::select(CompCategory) %>% data.frame()
+    rownames(annotation_row) = Chemo_Enrich_React$Chemo_TargetTime
+    matrix_React = Chemo_Enrich_React[,c('Chemo_TargetTime', colnames(Chemo_Enrich_React)[grep('P_val',colnames(Chemo_Enrich_React))])] %>% as.data.frame()
+    rownames(matrix_React) = matrix_React$Chemo_TargetTime
+    matrix_React$Chemo_TargetTime = NULL
+    matrix_React = as.matrix(matrix_React)
+    matrix_React[matrix_React > 0.05] = 1
+    colnames(matrix_React)  = sapply(colnames(matrix_React), function(x){str_split(x, '_')[[1]][1]})
+    
+    # labels for heatmap showing targets associated to molecules
+    labels_React = matrix(' ', nrow = nrow(matrix_React), ncol = ncol(matrix_React))
+    colnames(labels_React) = colnames(matrix_React)
+    rownames(labels_React) = rownames(matrix_React)
+    for(mol in colnames(labels_React)){
+        
+        Target_list_mol = Target_list %>% filter(drugs == mol)
+        TarNames = sapply(rownames(matrix_React), function(x){str_split(x, '_')[[1]][1]})
+        labels_React[TarNames %in% Target_list_mol$gene,mol] = "\u2731"
+        
+    }
+    # Plot heatmap
+    paletteLength <- 50
+    myColor <- colorRampPalette(c( "navy", "white"))(paletteLength)
+    myBreaks <- seq(min(log10(matrix_React)),0, length.out = paletteLength)
+        
+    P = pheatmap(log10(matrix_React), breaks=myBreaks, col = myColor,annotation_row=annotation_row, cluster_rows = FALSE, display_numbers = labels_React)
+    print(P)
+        
+   cat('\n')
+    
+    
+}
+
+
+
+```

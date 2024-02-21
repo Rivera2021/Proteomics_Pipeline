@@ -9,7 +9,7 @@
 DirDataRaw = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/raw"
 DirData = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-DirOutput = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/output/240112_Unit_Test"
+DirOutput = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/output/240116_Unit_Test"
 dir.create(DirOutput)
 
 
@@ -34,7 +34,6 @@ Output_file_path = DirOutput
 #PARAM FOR PRE-FILTERING
 # Prevalence fraction filter. A number between 0 and 1.
 Prev_perc = 0.1
-
 # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
 # negative binomial functions
 PRE_FILTER = "PREV"
@@ -49,13 +48,17 @@ outliers_path = ""
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = c("Treatment", "Rna_collection_time_hrs")
 # Normalization method. Only has 'Standard' otherwise it will stop
-METHOD_NORM = 'Standard'
+METHOD_NORM = 'Standard_Parallel'
 # Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
 VST_FILTER = "VST_ON"
 # Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
 SVD_FILTER = 'SVD_OFF'
 # Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
 PlotPCA = 'PCA_PLOT'
+# Character with the name of negative control to include in PCA
+Control_Neg_PCA = "Vehicle"
+# Character with the name of positive control to include in PCA
+Control_Pos_PCA = "Sham"
 Output_file_path = DirOutput
 
 # PARAM QC-POSTNORMALIZATION
@@ -76,7 +79,7 @@ outliers_path = ""
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = c("Treatment", "Rna_collection_time_hrs")
 # Normalization method. Only has 'Standard' otherwise it will stop
-METHOD_NORM = 'Standard'
+METHOD_NORM = 'Standard_Parallel'
 # Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
 VST_FILTER = "VST_ON"
 # Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
@@ -130,7 +133,22 @@ ORGANISM = 'Mouse'
 Target_list_path = paste(DirData,"Target_list_Mouse_230922.RData", sep = "/")
 # Output directory
 Output_file_path = DirOutput
+# Whether to run in parallel the pathview plot generation
+PARAllEL = TRUE
+# Which compute partition to use
+Partition = 'compute'
+# Path to where gene sets are stored
+DirPipeline_Data = DirData
 
+# PARAM FOR PATHWAYS INTEGRATION
+# Output directory
+Output_file_path = DirOutput
+# The list of Target candidates from Chemoproteomics
+Target_list_path = paste(DirData,"Target_list_Mouse_230922.RData", sep = "/")
+# Organism either Mouse or Human
+ORGANISM = 'Mouse'
+# Path to where gene sets are stored
+DirPipeline_Data = DirData
 
 # IMPORT DATA -----------------------------------------------------------------------------------
 source(paste(DirPipeline, "IMPORT_DATA.R", sep = '/'))
@@ -147,7 +165,7 @@ PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER)
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(DirPipeline, "DESEQ_NORM.R", sep = '/'))
-DESEQ_NORM(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path = "", CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT',Control_Neg_PCA = "Vehicle", Control_Pos_PCA = "Sham")
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = "", CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA )
 
 # QC-POSTNORMALIZATION-----------------------------------------------------------------------------
 source(paste(DirPipeline, "QC_POSTNORMALIZATION.R", sep = '/'))
@@ -163,9 +181,11 @@ DEG_FUNCTION(Output_file_path, List_contrasts_Path, DEG_Method ,MH_Method, Alpha
 
 # PATHWAY ENRICHMENT -----------------------------------------------------------------------------
 source(paste(DirPipeline, "PWAY_ENRICHMENT.R", sep = '/'))
-PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path,DirData)
+PWAY_ENRICHMENT(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1, Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path,DirData, PARAllEL , Partition )
 
-
+# PATHWAY INTEGRATION -----------------------------------------------------------------------------
+source(paste(DirPipeline, "PWAYS_INTEGRATION.R", sep = '/'))
+PWAYS_INTEGRATION(Output_file_path, Target_list_path, ORGANISM , DirPipeline_Data )
 
 
 

@@ -1,5 +1,6 @@
 # DEG per time point and Pathway Enrichment
-PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirPipeline_Data){
+PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG = 'Sham', REVERSE_TIME = "72", padjval = 0.2, LogFoldThrs = 1,Pway_qvalThrs = 0.2, ORGANISM = 'Mouse', Target_list_path, DirPipeline_Data, PARAllEL = TRUE, Partition = 'compute' , GeneDescription_path , TimeToRemove = '12'){
+
     library(ggvenn)
     library(ggplot2)
     library(ggrepel)
@@ -11,6 +12,14 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     library(eulerr)
     library("org.Hs.eg.db")
     library(stringr)
+    library(readxl)
+    library(foreach)
+    library(doParallel)
+    library(openxlsx)
+    library(clustermq)
+    library(tidyr)
+    library(rstatix)
+
 
     # Function to add Chemoproteomic targets present within an enriched pathway
     Add_Chemo_Enrich = function(drug, Target_list, enrichedPathways){
@@ -46,18 +55,121 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
 
     }
 
+    # Function to add description and gene plots of regulated genes in a pathway
+    Gene_Expr_plot_and_Descrip = function(ti,NormMatrix,Metadata, Gene_comb, ControlName, Df_mol_filt, comp, GeneDescription, mol, enrichedPathways){
+
+        gids = unlist(str_split(Gene_comb[ti], '/'))
+        NameRefUniq = enrichedPathways$NameRefUniq[match(Gene_comb[ti], enrichedPathways$geneID)]
+        GeneList = Df_mol_filt %>% filter(entrez %in% gids)
+        GeneList = GeneList$genes
+        NormMatrix_filt = as.data.frame(NormMatrix[GeneList,])
+        NormMatrix_filt$Gene = rownames(NormMatrix_filt)
+        NormMatrix_Long = NormMatrix_filt %>% pivot_longer(!Gene, names_to = "Sample_name", values_to = "Norm_Expr") %>% as.data.frame()
+        NormMatrix_Long$Gene = factor(NormMatrix_Long$Gene)
+        NormMatrix_Long$time = Metadata$Rna_collection_time_hrs[match(NormMatrix_Long$Sample_name, Metadata$Sample_name)]
+        NormMatrix_Long$time = factor(NormMatrix_Long$time, levels = sort(unique(NormMatrix_Long$time)))
+        NormMatrix_Long$Treatment = Metadata$Treatment[match(NormMatrix_Long$Sample_name, Metadata$Sample_name)]
+        NormMatrix_Long$Treatment = factor( NormMatrix_Long$Treatment, levels = c(ControlName, mol))
+        NormMatrix_Long$Sample_name = NULL
+
+        # Add very little noise to avoid T-test to complain
+        NormMatrix_Long$Norm_Expr = NormMatrix_Long$Norm_Expr + rnorm(nrow(NormMatrix_Long),mean = 0,sd = 1e-7)
+
+        # Generate pvalues.  step.increase = 0.06 seems to control of the pvalue test in the y axis.
+        stat.test <- NormMatrix_Long %>% group_by(Gene, time) %>% t_test(Norm_Expr ~ Treatment, ref.group = ControlName)%>%add_significance()
+        stat.test <- stat.test %>% add_xy_position(x = "time", dodge = 0.5, step.increase = 0.06)
+        #%>% rstatix::t_test(Norm_Expr ~ Treatment, ref.group = "Vehicle")
+        # Plot
+        bxp <- ggboxplot(NormMatrix_Long, x = "time", y = "Norm_Expr", color = "Treatment", palette = "jco",
+                         facet.by = "Gene", scales = "free", add = "dotplot")+
+            stat_pvalue_manual(stat.test, label = "p.signif", size = 3)+
+            scale_y_continuous(expand = expansion(mult = c(0.01, 0.2)))
+
+        png(filename=paste('Genes', NameRefUniq, '.png',sep = '_'), width = 1200, height = 800, res= 100)
+        print(bxp)
+        dev.off()
+
+        # Add gene data frame with description
+
+        Gene_info_temp = Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
+
+        # Gene description data frame
+        Description = c()
+        for(gene in Gene_info_temp$genes){
+
+            for(i in 1:nrow(GeneDescription)){
+
+                if(gene %in% GeneDescription$Gene.Names_mod[i][[1]]){
+                    Description[gene] = GeneDescription$LongDesc[i]
+
+                    break
+                }
+
+            }
+        }
+
+        Gene_info_temp$Description = Description[match(Gene_info_temp$genes, names(Description))]
+        DiffGenesPwaysDf = list()
+        DiffGenesPwaysDf[[paste('Genes', NameRefUniq,sep = '_')]] = Gene_info_temp
+        DiffGenesPwaysDf[['Names']] = paste('Genes', NameRefUniq,sep = '_')
+
+        return(DiffGenesPwaysDf)
+
+
+
+    }
+
+    # Function to plot Kegg diagrams
+    Plot_kegg = function(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways) {
+
+        curKegg = enrichedPathways$ID[ti]
+        curKegg_Desc = enrichedPathways$Description[ti]
+        gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
+        GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$entrez %in% gids)]
+        names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$entrez %in% gids)]
+        DiffGenesPways_kegg_t= Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
+        NamePathway = paste(comp,curKegg_Desc,sep='_' )
+        if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
+            try(pathview(gene.data  = GeneFold,
+                         pathway.id = curKegg,
+                         limit      = list(gene=max(abs(GeneFold)), cpd=1),
+                         kegg.dir = '.',
+                         kegg.native= TRUE,
+                         out.suffix = paste(drug,curKegg_Desc,sep = "_"),
+                         species    = Species,
+                         res = 100,
+                         low=list(gene="steelblue"),
+                         high=list(gene="aquamarine3")))
+        }
+
+        DiffGenesPways_kegg_list = list("DiffGenesPways_kegg_t" = DiffGenesPways_kegg_t,"NamePathway" = NamePathway )
+        return(DiffGenesPways_kegg_list)
+    }
+    # Cluster temp file
+    ClusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
+
 
     # Checking parameters if FILTER_REVERSE = FALSE does not matter what REVERSE_CONTROL is, cause it is not used. If FILTER_REVERSE = TRUE, the length of REVERSE_CONTROL
     # should be bigger than zero.
     # Data bases for pathway enrichment
+    Gene_set_names = c('KEGG', 'REACTOME', 'GO')
     if(ORGANISM == 'Mouse'){
         # Mouse
         KEGG_GeneSet_path = paste(DirPipeline_Data,"KEGG_All_mouse_230922.RData", sep = "/")
         REACTOME_GeneSet_path = paste(DirPipeline_Data,"REACTOME_All_mouse_230924.RData", sep = "/")
+        GO_GeneSet_path = paste(DirPipeline_Data,"GO_All_mouse_240212.RData", sep = "/")
+
         Species = 'mmu'
+        # Read gene description
+        GeneDescription <- read_excel(GeneDescription_path)
+        # Re do this step because when we save it as .xlsx, the vector properties of the column Gene.Names_mod are lost
+        GeneDescription$Gene.Names_mod = sapply(GeneDescription$Gene.Names,function(x) {str_split(x,' ')[[1]]})
+        GeneDescription = GeneDescription %>% filter(!is.na(Function..CC.))
+
     }else if(ORGANISM == 'Human'){
         KEGG_GeneSet_path = paste(DirPipeline_Data,"KEGG_All_human_231208.RData", sep = "/")
         REACTOME_GeneSet_path = paste(DirPipeline_Data,"REACTOME_All_human_231209.RData", sep = "/")
+        GO_GeneSet_path = paste(DirPipeline_Data,"GO_All_human_240212.RData", sep = "/")
         Species = 'hsa'
 
     }else{
@@ -71,6 +183,14 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
     }else{
         stop("Provide a valid path for chemoproteomics list")
     }
+
+    # Download normalized matrix
+    Data_Norm = "./DESEQ_NORM_QCNORM/DESeq_Norm.RData"
+    load(Data_Norm)
+    # Take out samples that won't pair because an entire control condition was removed
+    Metadata = Metadata %>% filter(!timeColl %in% TimeToRemove)
+    NormCounts = NormCounts[,match(Metadata$Sample_name, colnames(NormCounts))]
+
 
     # Create Folder
     setwd(Output_file_path)
@@ -147,18 +267,32 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
                 DEG_file_path = paste("../../../DEG_FUNCTION",drug,NameFile, sep = '/')
                 load(DEG_file_path)
 
+                # Define Universe of genes for future enrichment
+
+                Univ_genes = rownames(DiffGenes[[1]])
+                Univ_genes_entrez <- mapIds(org.Mm.eg.db, keys=Univ_genes, column="ENTREZID", keytype="SYMBOL", multiVals="first")
+                naIdx = which(is.na(Univ_genes_entrez))
+                if (length(naIdx) > 0) {
+                    Univ_genes_entrez =  Univ_genes_entrez[-naIdx]
+                }
+
 
                 # List of comparisons or pathway enrichment
                 Listdrug = names(DiffGenes)[grep(drug,names(DiffGenes))]
 
-                DiffGenesPways_kegg = list()
-                DiffGenesPways_Reactome = list()
+                DiffGenesPways_KEGG = list()
+                DiffGenesPways_REACTOME = list()
                 DiffGenesPways_GO = list()
-                EnrichedPathwaysDf_kegg = data.frame("ID" = character(), "Description" = character(), "GeneRatio" = character, "BgRatio" = character,
+
+                DiffUniqueGenesPwaysDf_Mol_KEGG = list()
+                DiffUniqueGenesPwaysDf_Mol_REACTOME = list()
+                DiffUniqueGenesPwaysDf_Mol_GO = list()
+
+                EnrichedPathwaysDf_KEGG = data.frame("ID" = character(), "Description" = character(), "GeneRatio" = character, "BgRatio" = character,
                                                      "pvalue" = numeric(), "p.adjust" = numeric(), "qvalue" = numeric(), "geneID" = character(),
                                                      "Count" = integer(), "Target" = character(), "comp" = character() )
 
-                EnrichedPathwaysDf_Reactome = data.frame("ID" = character(), "Description" = character(), "GeneRatio" = character, "BgRatio" = character,
+                EnrichedPathwaysDf_REACTOME = data.frame("ID" = character(), "Description" = character(), "GeneRatio" = character, "BgRatio" = character,
                                                          "pvalue" = numeric(), "p.adjust" = numeric(), "qvalue" = numeric(), "geneID" = character(),
                                                          "Count" = integer(), "Target" = character(), "comp" = character())
 
@@ -299,267 +433,261 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
                     }
 
 
-                    #KEGG
 
-                    Name_folder_L3 = "KEGG"
-                    dir.create(Name_folder_L3)
-                    setwd(Name_folder_L3)
+                    #   ENRICHMENT IN SELECTED GENE SETS
 
 
-                    print('Enrich KEGG')
+                    for(Gene_set_name in Gene_set_names){
 
-                    load(KEGG_GeneSet_path)
-                    try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = GeneSet,TERM2NAME=GeneSet_Desc))
-
-
-                    if(!is.null(res)){
-                        if(nrow(summary(res)) >1 & max(summary(res)$Count) > 1){
-                            enrichedPathways = res@result %>% filter(p.adjust < Pway_qvalThrs)
-
-                            # Fixing notation
-                            resultTemp = res@result
-                            if(ORGANISM == 'Mouse'){
-
-                               resultTemp$Description = sapply(resultTemp$Description, function(x){str_split(x,' - Mus')[[1]][1]})
-                               res@result = resultTemp
-                               enrichedPathways$Description = sapply(enrichedPathways$Description, function(x){str_split(x,' - Mus')[[1]][1]})
-
-                               # This data frame for the cnetplot
-                               resx <- setReadable(res, "org.Mm.eg.db", 'ENTREZID')
-
-                            }
-
-                            # Add chemoproteomics candidates to the pathways enriched in the data frame
-                            enrichedPathways = Add_Chemo_Enrich(drug, Target_list, enrichedPathways)
-                            # Save data frame of enriched pathways
-                            enrichedPathways$comp = comp
-                            EnrichedPathwaysDf_kegg = rbind(EnrichedPathwaysDf_kegg,enrichedPathways )
-                            save(enrichedPathways, file = paste("EnrichPathways","Pway_qvalThrs", Pway_qvalThrs,".RData", sep = "_"))
+                        # Create Folder for gene set
+                        Name_folder_L3 = Gene_set_name
+                        dir.create(Name_folder_L3)
+                        setwd(Name_folder_L3)
 
 
-                            # Dotplot
-                            png(file="DotPlot_Enrich.png",width = 800, height = 800, res = 100)
-                            print(try(dotplot(res, showCategory=20, font.size = 12) + ggtitle(paste(drug, comp, sep = ' '))))
-                            dev.off()
+                        print(paste('Enrich', Gene_set_name, sep = '_'))
 
-                            # cnetplot
-                            # It works on entrezID
-                            genelist = Df_mol_filt$log2FoldChange
-                            names(genelist) = Df_mol_filt$entrez
-                            png(file="CnetPlot_Enrich.png",width = 800, height = 800, res = 100)
-                            if(ORGANISM == "Mouse"){
-                               print(try(cnetplot(resx, foldChange=genelist, showCategory = 10)))
-                            }else{
+                        if(Gene_set_name == 'KEGG'){
 
-                                print(try(cnetplot(res, foldChange=genelist, showCategory = 10)))
-                            }
-                            dev.off()
+                            load(KEGG_GeneSet_path)
+                            try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = GeneSet, TERM2NAME=GeneSet_Desc, universe = Univ_genes_entrez))
+                        }else if(Gene_set_name == 'REACTOME'){
 
-                            # Plot Kegg diagrams
+                            load(REACTOME_GeneSet_path)
+                            try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = GeneSet, TERM2NAME=GeneSet_Desc, universe = Univ_genes_entrez))
 
-                            #Problematic_Pways = c("mmu04723", "mmu00512", "mmu01212")
-                            Problematic_Pways = c()
+                        }else if(Gene_set_name == 'GO'){
 
-                            for (ti in 1:length(enrichedPathways$ID)){
 
-                                curKegg = enrichedPathways$ID[ti]
-                                print(curKegg)
-                                curKegg_Desc = enrichedPathways$Description[ti]
-                                gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
-                                GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$entrez %in% gids)]
-                                names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$entrez %in% gids)]
-                                DiffGenesPways_kegg[[paste(comp,curKegg_Desc,sep='_' )]] = Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
-                                print(GeneFold)
-                                if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
-                                    try(pathview(gene.data  = GeneFold,
-                                                 pathway.id = curKegg,
-                                                 limit      = list(gene=max(abs(GeneFold)), cpd=1),
-                                                 kegg.dir = '.',
-                                                 kegg.native= TRUE,
-                                                 out.suffix = paste(drug,curKegg_Desc,sep = "_"),
-                                                 species    = Species,
-                                                 res = 100,
-                                                 low=list(gene="steelblue"),
-                                                 high=list(gene="aquamarine3")))
+                            load(GO_GeneSet_path)
+                            try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = GeneSet, TERM2NAME=GeneSet_Desc, universe = Univ_genes_entrez))
+
+                        }
+
+
+
+                        if(!is.null(res)){
+
+                            enrichedPathways = res@result %>% filter(p.adjust < Pway_qvalThrs & Count > 1)
+                            if(nrow(enrichedPathways) > 0){
+                            #if(nrow(summary(res)) >1 & max(summary(res)$Count) > 1){
+
+                                # Fixing notation
+                                resultTemp = res@result
+                                if(ORGANISM == 'Mouse' & Gene_set_name == 'KEGG'){
+
+                                   resultTemp$Description = sapply(resultTemp$Description, function(x){str_split(x,' - Mus')[[1]][1]})
+                                   res@result = resultTemp
+                                   enrichedPathways$Description = sapply(enrichedPathways$Description, function(x){str_split(x,' - Mus')[[1]][1]})
+
                                 }
+
+
+
+                                # Add chemoproteomics candidates to the pathways enriched in the data frame
+                                enrichedPathways = Add_Chemo_Enrich(drug, Target_list, enrichedPathways)
+                                # Save data frame of enriched pathways
+                                enrichedPathways$comp = comp
+
+                                # Add label unique for the combination of regulated genes
+                                enrichedPathways$NameLongRef = paste(enrichedPathways$comp, gsub('/','_',enrichedPathways$geneID), sep = '_')
+                                enrichedPathways$NameRef = paste(enrichedPathways$comp, enrichedPathways$ID, sep = '_')
+
+                                # Dictionary to map same combinations of regulted genes with a unique pathway name
+                                Unique_comb_Df = data.frame('NameLongRef' = unique(enrichedPathways$NameLongRef))
+                                Unique_comb_Df$NameRef = enrichedPathways$NameRef[match(Unique_comb_Df$NameLongRef, enrichedPathways$NameLongRef )]
+
+                                enrichedPathways$NameRefUniq = Unique_comb_Df$NameRef[match(enrichedPathways$NameLongRef,Unique_comb_Df$NameLongRef)]
+
+
+                                # Dotplot
+                                # png(file="DotPlot_Enrich.png",width = 800, height = 800, res = 100)
+                                # print(try(dotplot(res, showCategory=20, font.size = 12) + ggtitle(paste(drug, comp, sep = ' '))))
+                                # dev.off()
+
+                                # cnetplot
+                                if(ORGANISM == 'Mouse'){
+                                    #This data frame for the cnetplot
+                                    resx <- setReadable(res, "org.Mm.eg.db", 'ENTREZID')
+
+                                }
+
+                                # It works on entrezID
+                                genelist = Df_mol_filt$log2FoldChange
+                                names(genelist) = Df_mol_filt$entrez
+                                png(file="CnetPlot_Enrich.png",width = 800, height = 800, res = 100)
+                                if(ORGANISM == "Mouse"){
+                                   print(try(cnetplot(resx, foldChange=genelist, showCategory = 10)))
+                                }else{
+
+                                    print(try(cnetplot(res, foldChange=genelist, showCategory = 10)))
+                                }
+                                dev.off()
+
+                                # Plot Kegg diagrams
+
+                                #Problematic_Pways = c("mmu04723", "mmu00512", "mmu01212")
+                                Problematic_Pways = c()
+
+
+                                if(PARAllEL == TRUE){
+
+                                    print("Running pathway enrichment in parallel")
+
+                                    TIMEOUT = 1000
+                                    NETWORKS = min(nrow(enrichedPathways), 100)
+
+                                    options(
+                                        clustermq.scheduler = "slurm",
+                                        clustermq.template = ClusterTemp,
+                                        clustermq.data.warning=5000 #megabytes
+                                    )
+                                    register_dopar_cmq(n_jobs=NETWORKS,
+                                                       fail_on_error=FALSE,
+                                                       verbose=TRUE,
+                                                       log_worker=TRUE,
+                                                       timeout = TIMEOUT,
+                                                       template=list(
+                                                           timeout=TIMEOUT, #how long to wait on SLURM side
+                                                           memory=5000,
+                                                           cores=1,#how many cores to use (to throttle down memory usage),
+                                                           partition = Partition,
+                                                           r_path = file.path(R.home("bin"), "R")))
+
+
+                                    if(Gene_set_name == 'KEGG'){
+
+                                            EnrichRes = foreach (ti = 1:nrow(enrichedPathways),.export=c( 'Plot_kegg'),
+                                                                 .packages=c('stringr', 'pathview')) %dopar% {
+
+
+                                                                     res <- Plot_kegg(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways)
+                                                                     return(res)
+
+                                                                 }
+                                            DiffGenesPways_kegg_temp = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                            names(DiffGenesPways_kegg_temp) = lapply(EnrichRes, function(x){x$NamePathway})
+
+                                            Files_Current = list.files(".")
+                                            Log_files = Files_Current[startsWith(Files_Current, "cmq")]
+                                            Name_folder_LOGS = "Logs_KEGG"
+                                            dir.create(Name_folder_LOGS)
+                                            file.copy(file.path(".",Log_files),"./Logs_KEGG")
+                                            file.remove(file.path(".",Log_files))
+
+                                            DiffGenesPways_KEGG = c(DiffGenesPways_KEGG,DiffGenesPways_kegg_temp)
+                                    }
+
+                                    # Add gene description to data fame and plot gene expression
+                                    Unique_gene_comb = unique(enrichedPathways$geneID)
+
+                                    # THIS SECTION NEEDS TO BE MODIFIED WHEN WE HAVE DOSE ALSO VARYING
+
+                                    Control = str_split(str_split(comp,  '_VS_')[[1]][2],'_')[[1]][1]
+                                    #Time_coll = str_split(str_split(comp,  '_VS_')[[1]][2],'_')[[1]][2]
+                                    Metadata_comp_drug = Metadata %>% filter(Treatment %in% c(drug, Control))
+                                    Norm_comp_drug = as.data.frame(NormCounts[,match(Metadata_comp_drug$Sample_name, colnames(NormCounts))])
+
+                                    DiffUniqueGenesPwaysDf_temp = foreach (ti = 1:length(Unique_gene_comb),.export=c( 'Genes_df_desc'),
+                                                         .packages=c('stringr', 'tidyr','rstatix', 'ggpubr')) %dopar% {
+                                                        res <- Gene_Expr_plot_and_Descrip(ti,NormMatrix = Norm_comp_drug, Metadata = Metadata_comp_drug, Gene_comb = Unique_gene_comb, ControlName = Control,  Df_mol_filt = Df_mol_filt, comp = comp, GeneDescription = GeneDescription, mol = drug, enrichedPathways = enrichedPathways)
+                                                        return(res)
+
+                                                         }
+
+                                    DiffUniqueGenesPwaysDf = lapply(DiffUniqueGenesPwaysDf_temp, function(x){x[[1]]})
+                                    names(DiffUniqueGenesPwaysDf) = unlist(lapply(DiffUniqueGenesPwaysDf_temp, function(x){x[[2]]}))
+
+                                    # Move Log files
+
+                                    Files_Current = list.files(".")
+                                    Log_files = Files_Current[startsWith(Files_Current, "cmq")]
+                                    Name_folder_LOGS = "Logs_Expr"
+                                    dir.create(Name_folder_LOGS)
+                                    file.copy(file.path(".",Log_files),"./Logs_Expr")
+                                    file.remove(file.path(".",Log_files))
+
+
+                                }else{
+
+                                    EnrichRes = list()
+                                    DiffUniqueGenesPwaysDf_temp = list()
+
+                                    if(Gene_set_name == 'KEGG'){
+
+                                        for(ti in 1:nrow(enrichedPathways)){
+
+                                            print("Running pathway enrichment in serial model")
+
+                                            EnrichRes[[ti]] = Plot_kegg(ti,enrichedPathways, Df_mol_filt, comp, Problematic_Pways)
+
+
+                                        }
+
+                                        DiffGenesPways_kegg_temp = lapply(EnrichRes, function(x){x$DiffGenesPways_kegg_t})
+                                        names(DiffGenesPways_kegg_temp) = lapply(EnrichRes, function(x){x$NamePathway})
+                                        DiffGenesPways_KEGG = c(DiffGenesPways_KEGG,DiffGenesPways_kegg_temp)
+
+                                    }
+
+                                    # Add gene description to data fame and plot gene expression
+
+                                    Unique_gene_comb = unique(enrichedPathways$geneID)
+
+                                    # THIS SECTION NEEDS TO BE MODIFIED WHEN WE HAVE DOSE ALSO VARYING
+
+                                    Control = str_split(str_split(comp,  '_VS_')[[1]][2],'_')[[1]][1]
+                                    Time_coll = str_split(str_split(comp,  '_VS_')[[1]][2],'_')[[1]][2]
+                                    Metadata_comp_drug = Metadata %>% filter(Treatment %in% c(drug, Control))
+                                    Norm_comp_drug = as.data.frame(NormCounts[,match(Metadata_comp_drug$Sample_name, colnames(NormCounts))])
+
+
+
+                                    for(ti in 1:length(Unique_gene_comb)){
+
+                                        DiffUniqueGenesPwaysDf_temp[[ti]] = Gene_Expr_plot_and_Descrip(ti,NormMatrix = Norm_comp_drug, Metadata = Metadata_comp_drug, Gene_comb = Unique_gene_comb, ControlName = Control,  Df_mol_filt = Df_mol_filt, comp = comp, GeneDescription = GeneDescription, mol = drug,  enrichedPathways = enrichedPathways)
+                                    }
+
+                                    DiffUniqueGenesPwaysDf = lapply(DiffUniqueGenesPwaysDf_temp, function(x){x[[1]]})
+                                    names(DiffUniqueGenesPwaysDf) = unlist(lapply(DiffUniqueGenesPwaysDf_temp, function(x){x[[2]]}))
+
+
+                                }
+
+                                if(Gene_set_name == 'KEGG'){
+
+                                    EnrichedPathwaysDf_KEGG = rbind(EnrichedPathwaysDf_KEGG,enrichedPathways )
+                                    DiffUniqueGenesPwaysDf_Mol_KEGG = c(DiffUniqueGenesPwaysDf_Mol_KEGG, DiffUniqueGenesPwaysDf)
+
+                                }else if(Gene_set_name == 'REACTOME'){
+
+                                    EnrichedPathwaysDf_REACTOME = rbind(EnrichedPathwaysDf_REACTOME,enrichedPathways )
+                                    DiffUniqueGenesPwaysDf_Mol_REACTOME = c(DiffUniqueGenesPwaysDf_Mol_REACTOME, DiffUniqueGenesPwaysDf)
+
+                                }else if(Gene_set_name == 'GO'){
+
+                                    EnrichedPathwaysDf_GO = rbind(EnrichedPathwaysDf_GO,enrichedPathways )
+                                    DiffUniqueGenesPwaysDf_Mol_GO = c(DiffUniqueGenesPwaysDf_Mol_GO, DiffUniqueGenesPwaysDf)
+                                }
+
+
+
+                            }else{
+                                print(paste(Gene_set_name, "enrichment is not very reliable, therefore not saved", sep = ' '))
                             }
-
-
-
-                        }else{
-                            print("KEGG enrichment is not very reliable, therefore not saved")
-                        }
-                    }
-                    setwd("..")
-
-
-                    #REACTOME
-
-                    Name_folder_L3 = "REACTOME"
-                    dir.create(Name_folder_L3)
-                    setwd(Name_folder_L3)
-
-
-                    print('Enrich REACTOME')
-                    # Get Reactome from mouse
-
-                    load(REACTOME_GeneSet_path)
-                    try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = GeneSet,TERM2NAME=GeneSet_Desc))
-
-                    if(!is.null(res)){
-                      if(nrow(summary(res)) >1 & max(summary(res)$Count) > 1){
-                        enrichedPathways = res@result %>% filter(qvalue < Pway_qvalThrs)
-
-                        # Add chemoproteomics candidates to the pathways enriched in the data frame
-                        enrichedPathways = Add_Chemo_Enrich(drug, Target_list, enrichedPathways)
-
-                        # Save enriched pathways
-                        enrichedPathways$comp = comp
-                        EnrichedPathwaysDf_Reactome = rbind(EnrichedPathwaysDf_Reactome,enrichedPathways )
-                        save(enrichedPathways, file = paste("EnrichPathways","Pway_qvalThrs", Pway_qvalThrs,".RData", sep = "_"))
-
-
-
-                        # Plots
-                        Dot = dotplot(res, showCategory=20, font.size = 12) + ggtitle(paste(drug, comp, sep = ' '))
-                        # Dotplot
-                        png(file="DotPlot_Enrich.png",width = 800, height = 800, res = 100)
-                        print(Dot)
-                        dev.off()
-
-                        # cnetplot
-                        # Adding symbol
-                        if(ORGANISM == 'Mouse'){
-                            # This data frame for the cnetplot
-                            resx <- setReadable(res, "org.Mm.eg.db", 'ENTREZID')
-
-                        }
-                        genelist = Df_mol_filt$log2FoldChange
-                        names(genelist) = Df_mol_filt$entrez
-
-                        png(file="CnetPlot_Enrich.png",width = 800, height = 800, res = 100)
-                        if(ORGANISM == "Mouse"){
-                            print(try(cnetplot(resx, foldChange=genelist, showCategory = 10)))
-                        }else{
-
-                            print(try(cnetplot(res, foldChange=genelist, showCategory = 10)))
-                        }
-                        dev.off()
-
-                        Problematic_Pways = c()
-                        for (ti in 1:length(enrichedPathways$ID)){
-                            if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
-                                curKegg = enrichedPathways$ID[ti]
-                                print(curKegg)
-                                curKegg_Desc = enrichedPathways$Description[ti]
-                                gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
-                                GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$entrez %in% gids)]
-                                names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$entrez %in% gids)]
-
-                                DiffGenesPways_Reactome[[paste(comp,curKegg_Desc,sep='_' )]] = Df_mol_filt %>% filter(entrez %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
-
-                            }
                         }
 
-                      }else{
-
-                          print("REACTOME enrichment is not very reliable, therefore not saved")
-
-                       }
+                        setwd("..")
                     }
 
-                    setwd("..")
 
-
-
-                    # GO Enrichment
-
-                    Name_folder_L3 = "GO"
-                    dir.create(Name_folder_L3)
-                    setwd(Name_folder_L3)
-
-                    print('Enrich GO')
-
-                    if(ORGANISM == 'Mouse'){
-
-                        try(res <- enrichGO(Df_mol_filt$entrez, OrgDb = "org.Mm.eg.db", ont="ALL",readable=TRUE, qvalueCutoff = Pway_qvalThrs))
-
-                    }else if(ORGANISM == 'Human'){
-
-
-                        try(res <- enrichGO(Df_mol_filt$entrez, OrgDb = 'org.Hs.eg.db', ont="ALL",readable=TRUE, qvalueCutoff = Pway_qvalThrs))
-                    }else{
-
-                        stop("Select a valid organism")
-                    }
-
-                    if(!is.null(res)){
-                       if(nrow(summary(res)) >1 & max(summary(res)$Count) > 1){
-
-                        enrichedPathways = res@result %>% filter(p.adjust < Pway_qvalThrs)
-
-                        # Add chemoproteomics candidates to the pathways enriched in the data frame
-                        enrichedPathways = Add_Chemo_Enrich(drug, Target_list, enrichedPathways)
-
-                        # Save enriched pathways
-                        enrichedPathways$comp = comp
-                        EnrichedPathwaysDf_GO = rbind(EnrichedPathwaysDf_GO,enrichedPathways )
-                        save(enrichedPathways, file = paste("EnrichPathways","Pway_qvalThrs", Pway_qvalThrs,".RData", sep = "_"))
-
-
-                        # Plots
-
-                        # Dotplot
-                        png(file="DotPlot.png", width = 800, height = 800, res = 100)
-                        try(print(dotplot(res, showCategory=20, font.size = 10, split = "ONTOLOGY")+ facet_grid(ONTOLOGY~., scale="free")))
-                        dev.off()
-
-                        # cnetplot
-                        # Adding symbol
-                        if(ORGANISM == 'Mouse'){
-                            # This data frame for the cnetplot
-                            resx <- setReadable(res, "org.Mm.eg.db", 'ENTREZID')
-
-                        }
-                        genelist = Df_mol_filt$log2FoldChange
-                        names(genelist) = Df_mol_filt$entrez
-
-                        png(file="CnetPlot_Enrich.png",width = 800, height = 800, res = 100)
-                        if(ORGANISM == "Mouse"){
-                            print(try(cnetplot(resx, foldChange=genelist, showCategory = 10)))
-                        }else{
-
-                            print(try(cnetplot(res, foldChange=genelist, showCategory = 10)))
-                        }
-                        dev.off()
-
-                        Problematic_Pways = c()
-                        for (ti in 1:length(enrichedPathways$ID)){
-                            if (!(enrichedPathways$ID[ti] %in% Problematic_Pways)){
-                                curKegg = enrichedPathways$ID[ti]
-                                print(curKegg)
-                                curKegg_Desc = enrichedPathways$Description[ti]
-                                gids = unlist(str_split(enrichedPathways$geneID[ti], '/'))
-                                GeneFold = Df_mol_filt$log2FoldChange[which(Df_mol_filt$Gene %in% gids)]
-                                names(GeneFold) = Df_mol_filt$entrez[which(Df_mol_filt$Gene %in% gids)]
-                                print(GeneFold)
-                                DiffGenesPways_GO[[paste(comp,curKegg_Desc,sep='_' )]] = Df_mol_filt %>% filter(genes %in% gids) %>% dplyr::select("log2FoldChange", "pvalue", "padj", "genes", "entrez")
-
-                            }
-                        }
-                       }else{
-
-                           print("GO enrichment is not very reliable, therefore not saved")
-
-                      }
-                    }
-                    setwd("..")
                     setwd("..")
 
                 }
 
 
-                save(EnrichedPathwaysDf_kegg,EnrichedPathwaysDf_Reactome,EnrichedPathwaysDf_GO, DiffGenesPways_kegg, DiffGenesPways_Reactome, DiffGenesPways_GO ,
+                save(EnrichedPathwaysDf_KEGG,EnrichedPathwaysDf_REACTOME,EnrichedPathwaysDf_GO, DiffGenesPways_KEGG, DiffGenesPways_REACTOME, DiffGenesPways_GO ,
+                     DiffUniqueGenesPwaysDf_Mol_KEGG,DiffUniqueGenesPwaysDf_Mol_REACTOME,DiffUniqueGenesPwaysDf_Mol_GO,
                      file = paste('EnrichPathways_AllGeneSets', 'FILTER_REVERSE', FILTER_REVERSE,'.RData', sep = '_'))
                 setwd('..')
 
@@ -568,6 +696,7 @@ PWAY_ENRICHMENT = function(Output_file_path, WITH_REVERSE = TRUE, REVERSE_DRUG =
             setwd('..')
     }
 
+    setwd(Output_file_path)
 }
 
 

@@ -1,56 +1,56 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = ""){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = "", MEM_MB = 1600){
 
     library(DESeq2)
     #library(readxl)
     library(dplyr)
     library(BiocParallel)
     library(parallel)
-    library("PCAtools")
+    library(PCAtools)
     library(foreach)
     library(doParallel)
     library(openxlsx)
     nCores = detectCores()
     cl <- makeCluster(nCores)
     registerDoParallel(cl)
+    library(clustermq)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
+    clusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
 
     # Import data
-
     setwd(Output_file_path)
     Data_file = "./PRE_FILTERING/Prefilter_Data.xlsx"
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
 
     # Read customize outliers
-
     if(file.exists(outliers_path)){
 
         outliers_cust <- read.csv(outliers_path, header = FALSE)
         outliers_cust = outliers_cust[[1]]
     }else{
 
-        print("Path to costumized outliers does not exists or is null")
+        print("Path to costumized outliers does not exist or is null")
         outliers_cust = c()
     }
 
     # Evaluate condition depending on whether the function is call before or after QC_POSTNORNMALIZATION
     if(QCNORM == "POST_QCNORM"){
-
+        outliers = outliers_cust
         # Join outliers from Outlier_file_path and from QC_POSTNORMALIZATION
 
-        if(class(try(read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE))) == "try-error"){
-            print("outlier file from QC_NORMALIZATION is empty. Only customized outliers are considered")
-            outliers = outliers_cust
-
-        }else{
-
-            outliers_qc = read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE)
-            outliers_qc = outliers_qc[[1]]
-            outliers = unique(c(outliers_cust, outliers_qc))
-
-        }
+        # if(class(try(read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE))) == "try-error"){
+        #     print("outlier file from QC_NORMALIZATION is empty. Only customized outliers are considered")
+        #     outliers = outliers_cust
+        #
+        # }else{
+        #
+        #     outliers_qc = read.csv("./QC_POSTNORMALIZATION/Outliers_Selected.csv", header = TRUE)
+        #     outliers_qc = outliers_qc[[1]]
+        #     outliers = unique(c(outliers_cust, outliers_qc))
+        #
+        # }
 
         # Create Folder
 
@@ -94,7 +94,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
     # Normalization
     if (METHOD_NORM == 'Standard'){
-        print('Running Standard normalization...')
+        print('Running DESEQ Standard normalization...')
         ##create a DESeq object
         dds <- DESeqDataSetFromMatrix(countData = Count, colData = Metadata, design = ~ CoarseCondition)
         startTime <- Sys.time()
@@ -115,6 +115,55 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
             stop('Choose VST_FILTER method valid')
         }
+
+    }else if(METHOD_NORM == 'Standard_Parallel'){
+
+        print('Running DESEQ Standard normalization in parallel...')
+        NJOBS = 100
+        TIMEOUT = 10000
+        MEMORY = MEM_MB
+
+        options(
+            clustermq.scheduler = "slurm",
+            clustermq.template = clusterTemp,
+            clustermq.data.warning=5000 #megabytes
+        )
+        register(DoparParam())
+        register_dopar_cmq(n_jobs=NJOBS, memory=MEMORY, pkgs="BiocParallel", export=list(
+            .bpworker_EXEC=BiocParallel:::.bpworker_EXEC,
+            .log_buffer_get=BiocParallel:::.log_buffer_get,
+            #.log_data=BiocParallel:::.log_data,
+            .log_buffer_init=BiocParallel:::.log_buffer_init,
+            .VALUE=BiocParallel:::.VALUE
+        ),
+        template=list(
+            timeout=TIMEOUT, #how long to wait on SLURM side
+            memory=5000,
+            cores=1,#how many cores to use (to throttle down memory usage),
+            partition = 'himem',
+            r_path = file.path(R.home("bin"), "R")))
+
+            dds <- DESeqDataSetFromMatrix(countData = Count, colData = Metadata, design = ~ CoarseCondition)
+            startTime <- Sys.time()
+            deseqObj = DESeq(dds,
+                             parallel = TRUE,
+                             fitType = "parametric",
+                             BPPARAM=bpparam())
+            if(VST_FILTER == "VST_ON"){
+                print("Using Vst ")
+                NormCounts = getVarianceStabilizedData(deseqObj)
+                endTime <- Sys.time()
+                print(endTime - startTime)
+            }else if(VST_FILTER == "VST_OFF"){
+                print("Not using vst")
+                NormCounts = counts(deseqObj, normalized=TRUE)
+
+            }else{
+
+                stop('Choose VST_FILTER method valid')
+            }
+
+
 
     }else {
 
@@ -183,7 +232,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
         if("Indication_induction_time_hrs" %in% colnames(Metadata)){
            print("IndicationOn feature in Metadata indicates whether sample received stimulation or not ")
            Metadata$IndicationOn = 1
-           Metadata$IndicationOn[is.na(Metadata$`Indication._induction_time(hrs)`)] = 0
+           Metadata$IndicationOn[is.na(Metadata$Indication_induction_time_hrs)] = 0
         }else if("Stimulant_used" %in% colnames(Metadata)){
             Metadata$IndicationOn = 1
             Metadata$IndicationOn[is.na(Metadata$Stimulant_used)] = 0
@@ -202,12 +251,21 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             print("Treatment concentration column not found")
         }
 
-        PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
+        #PCA = Plot_PC_Invivo_V1(t(NormCounts), Metadata, Color_gg = "Treatment", Title = 'PCA all samples')
+        PCA = Plot_PC_Invivo_PerMol(t(NormCounts), Metadata, Color_gg = 'Treatment', Title = 'PCA all samples')
 
         pdf(file= "PCA_allSamples.pdf")
         print(PCA[[1]])
         print(PCA[[2]])
         print(PCA[[3]])
+        dev.off()
+
+        png(filename=paste("PCA_allSamples1Vs2.png", sep = '_'), width = 1000, height = 1000, res=100)
+        print(PCA[[1]])
+        dev.off()
+
+        png(filename=paste("PCA_allSamples1Vs3.png", sep = '_'), width = 1000, height = 1000, res=100)
+        print(PCA[[2]])
         dev.off()
 
         # Per Mol
