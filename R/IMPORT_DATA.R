@@ -14,6 +14,8 @@ IMPORT_DATA = function(Metadata_path, Count_path, Match_feature, Output_file_pat
 
     Metadata = read_xlsx(Metadata_path)
     Count = read.table(Input_matrix_path,  sep = '\t', header = TRUE, check.names=FALSE)
+    rownames(Count) = Count$Genes
+    Count$Genes = NULL
 
     # Check colnames of Count matrix are within the Metadata match_feature and visceversa
 
@@ -34,7 +36,9 @@ IMPORT_DATA = function(Metadata_path, Count_path, Match_feature, Output_file_pat
 
     # Modify Treatment notation for convenience
     Metadata$Treatment_sci = Metadata$Treatment
-    Metadata$Treatment = gsub("OL-00010", "", Metadata$Treatment)
+    Metadata$Treatment = gsub("OL-000", "", Metadata$Treatment)
+    Metadata$Treatment = unlist(lapply(strsplit(Metadata$Treatment,split = "-"), function(x){x[1]}))
+
 
     # Customizing sample names
     SampleNames <- read.csv(SampleNamepath, header = FALSE)
