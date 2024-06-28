@@ -1,0 +1,52 @@
+## `r name` 
+
+### Differential Expression {.tabset}
+```{r results = 'asis' , echo = FALSE}
+cat('\n')
+cat("####", "Volcano Plot")
+cat('\n')
+plot_enhanced_volcano(all_contrasts[[name]])
+cat('\n')             
+
+
+cat('\n')
+cat("####", "MA Plot")
+cat('\n')
+plot_ma(all_contrasts[[name]])
+cat('\n')
+
+
+cat('\n')
+cat("####", "Top Up/Downregulated Genes {.tabset .tabset-pills}")
+cat('\n')
+
+cat('\n')
+cat("#####", "Top Up-regulated Genes")
+cat('\n')
+Top_up_filename <- file.path(saveDir, "contrasts", name, "Top_up_DEGs.jpeg")
+if(file.exists(Top_up_filename)){
+cat('\n')
+writeLines(paste0("![](",Top_up_filename,")"))
+cat('\n\n')
+}else{
+  cat("No significant upregulated genes")
+}
+cat('\n')
+
+cat('\n')
+cat("#####", "Top Down-regulated Genes")
+cat('\n')
+Top_dn_filename <- file.path(saveDir, "contrasts", name, "Top_dn_DEGs.jpeg")
+if(file.exists(Top_dn_filename)){
+cat('\n')
+writeLines(paste0("![](",Top_dn_filename,")"))
+cat('\n\n')
+}else{
+  cat("No significant upregulated genes")
+}
+cat('\n\n')
+
+
+            
+    
+```
