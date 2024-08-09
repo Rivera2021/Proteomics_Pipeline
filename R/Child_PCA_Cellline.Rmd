@@ -1,0 +1,22 @@
+#### `r feature`  
+```{r, echo=FALSE, results='asis'}
+
+pl = pcaplot(df = pca_res_ct,pca_var_ct, covar = feature, pc1 = "PC1", pc2 = "PC2")
+ggplotly(pl)
+
+# This one worked but its not interactive. Interactive did not display the legend correctly when putting two plots together
+# for(covs in covariates_ct){
+# 
+#    cat("\n")
+#cat("####", 'Hola')
+#cat("\n")
+#     
+#    pl1 = pcaplot(df = pca_res_ct, pca_var = pca_var_ct,covar = covs, pc1 = "PC1", pc2 = "PC2")
+#    pl2 = pcaplot(df = pca_res_ct, pca_var = pca_var_ct, covar = covs, pc1 = "PC1", pc2 = "PC2")
+# 
+#    pl1/pl2
+#    cat('/n')
+# }
+
+
+```

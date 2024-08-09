@@ -149,42 +149,19 @@ Plot_PC_Invivo_PerMol <- function(df, Metadata, Color_gg, Title){
 
   #pca_plot[[4]] <- fviz_eig(res.pca, ncp=10)
 
-  pca_plot[[4]] <- pc_proj %>%
-      # create the plot
-      #ggplot(aes(x = PC1, y = PC2, color=!!Color_gg, label=id)) +
-      ggplot(aes(x = PC1, y = PC2, color=!!Color_gg)) +
-      geom_point(aes(shape=factor(Treatment_Conc)), alpha=0.9, size=2) +
-      #geom_text_repel(size=3, max.overlaps = 60) +
-      coord_fixed(ratio = 0.7) +
-      labs(title = Title, x = paste("PC1: (", format(Percentage_Var[1],digits=2),"%) ",sep = ""),
-           y = paste("PC2: (", format(Percentage_Var[2],digits=2),"%) ",sep = ""))+
-      theme_classic()
-  # scale_shape_manual(values=c(21,24)) +
-  #scale_color_manual(values = sample.type.clrs)
+  # pca_plot[[4]] <- pc_proj %>%
+  #     # create the plot
+  #     #ggplot(aes(x = PC1, y = PC2, color=!!Color_gg, label=id)) +
+  #     ggplot(aes(x = PC1, y = PC2, color=!!Color_gg)) +
+  #     geom_point(aes(shape=factor(Treatment_Conc)), alpha=0.9, size=2) +
+  #     #geom_text_repel(size=3, max.overlaps = 60) +
+  #     coord_fixed(ratio = 0.7) +
+  #     labs(title = Title, x = paste("PC1: (", format(Percentage_Var[1],digits=2),"%) ",sep = ""),
+  #          y = paste("PC2: (", format(Percentage_Var[2],digits=2),"%) ",sep = ""))+
+  #     theme_classic()
+  # # scale_shape_manual(values=c(21,24)) +
+  # #scale_color_manual(values = sample.type.clrs)
 
-  # PC1 vs PC3
-  pca_plot[[5]] <- pc_proj %>%
-      # create the plot
-      ggplot(aes(x = PC1, y = PC3, color=!!Color_gg)) +
-      geom_point(aes(shape=factor(Treatment_Conc)), alpha=0.9, size=2) +
-      #geom_text_repel(size=3, max.overlaps = 40) +
-      coord_fixed(ratio = 0.7) +
-      labs(title = Title, x = paste("PC1: (", format(Percentage_Var[1],digits=2),"%) ",sep = ""),
-           y = paste("PC3: (", format(Percentage_Var[3],digits=2),"%) ",sep = ""))+
-      theme_classic()
-  # scale_shape_manual(values=c(21,24)) +
-  #scale_color_manual(values = cols)
-
-  # PC2 vs PC3
-  pca_plot[[6]] <- pc_proj %>%
-      # create the plot
-      ggplot(aes(x = PC2, y = PC3, color=!!Color_gg)) +
-      geom_point(aes(shape=factor(Treatment_Conc)), alpha=0.9, size=2) +
-      #geom_text_repel(size=3, max.overlaps = 20) +
-      coord_fixed(ratio = 0.7) +
-      labs(title = Title, x = paste("PC2: (", format(Percentage_Var[2],digits=2),"%) ",sep = ""),
-           y = paste("PC3: (", format(Percentage_Var[3],digits=2),"%) ",sep = ""))+
-      theme_classic()
 
   return(pca_plot)
 }

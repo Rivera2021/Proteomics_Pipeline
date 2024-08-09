@@ -1,0 +1,104 @@
+
+```{r results = 'asis' , echo = FALSE, eval = FALSE }
+cat('\n')
+cat("###", geneset)
+cat('\n')
+
+thr <- 3 # threshold
+gseares_list <- lapply(names(all_contrasts), function(name) {
+   
+   filename <- paste(geneset, name,".RDS" , sep = '_')
+   res <- readRDS(file.path(saveDir,"contrasts",name, "gsea_res", geneset, filename ))
+   #res <- readRDS(file.path(saveDir, "gsea_res", paste0(name, " keggs.RDS")))
+   gseares_tb <- na.omit(res$gseares_all@result)
+   gseares_tb <- gseares_tb[order(gseares_tb$ID),]
+   
+   return(gseares_tb)
+   
+})
+
+pathway_list <- lapply(gseares_list, function(gseares){
+  return(gseares$ID)
+})
+
+pathway_isect <- Reduce(intersect, pathway_list,)
+
+gseares_list <- lapply(gseares_list, function(gseares) {
+   gseares  <- gseares[order(gseares$ID),] %>% dplyr::filter(ID %in% pathway_isect)
+   return(gseares)
+})
+
+NES_list <- lapply(gseares_list, function(gseares){
+  return(gseares$NES)
+})
+
+NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+colnames(NES_mat) <- names(all_contrasts)
+rownames(NES_mat) <- pathway_isect
+
+forfiltering <- lapply(gseares_list, function(gseares){
+  return(vapply(gseares$p.adjust, getsigmarker, FUN.VALUE="astring"))
+})
+
+forfiltering_mat <- as.data.frame(matrix(unlist(forfiltering), nrow=length(unlist(forfiltering[1]))))
+colnames(forfiltering_mat) <- names(all_contrasts)
+rownames(forfiltering_mat) <- pathway_isect
+
+rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
+NES_mat <- NES_mat[rowstokeep,]
+forfiltering_mat <- forfiltering_mat[rowstokeep,]
+
+# myfigheight <- calculate_fig_height(NES_mat)
+# old_opts <- knitr::opts_chunk$get()
+# on.exit(knitr::opts_chunk$set(old_opts)) 
+# knitr::opts_chunk$set(fig.height = myfigheight)
+cat('\n')
+ ht = pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison at pathway level", cellwidth = 35, cellheight = 15)
+print(ht)
+cat('\n')
+```
+
+
+
+
+
+
+
+
+```{r results = 'asis' , echo = FALSE, eval = FALSE}
+
+if (nrow(NES_mat)>1) {
+    pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison at pathway level", cellwidth = 35, cellheight = 15)
+  
+  
+} else if (nrow(NES_mat)==1){
+   pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=F,
+           cluster_rows = F,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison at pathway level", cellwidth = 35, cellheight = 15)
+  
+} else  {
+  cat("**", paste("No significantly enriched pathways"), "**\n")
+}
+```
+
+
+

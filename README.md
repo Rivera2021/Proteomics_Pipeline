@@ -7,8 +7,6 @@ Started on 2023-10-27.
 ## Directory structure
 
 * **R** - Resuable R code (functions etc.)
-* **analysis** - R Markdown analysis files
-* **docs** - Rendered analysis reports
 * **data** - Raw data used for analysis
 
 ## Data
@@ -21,6 +19,25 @@ Started on 2023-10-27.
 
 
 ## Code
+
+Three reports are generated:
+* QC_REPORT: Contains technical QC, PCA plots, and correlations plots. Uses the following files
+    - QC_REPORT.Rmd
+    - QC_PRENORMALIZATION_CL
+    - PRE_FILTERING
+    - DESEQ_NORM
+ 
+* DEG_ENRICH: For every cell line and every molecule a report is generated. It contains DEGs and GSEA enriched pathways. Uses the following files
+    - MAIN_DEG_ENRICH_perdrug.R
+    - DEG_ENRICH_perdrug.Rmd
+    - DEG_FUNCTION_DA.R
+    
+* MAIN_INTEGRATION: Contains integration with chemoproteomics across selected conditions. Uses the following files
+    - MAIN_INTEGRATION.R
+    - INTEGRATION_REPORT.Rmd
+
+The following functions have been used throughout the pipeline
+
 
 * IMPORT_DATA.R: Validates consistency between count matrix and Metadata
     - Params:

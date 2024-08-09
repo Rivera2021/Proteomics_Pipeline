@@ -129,7 +129,10 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
   # Data frames to save
   Corr_all = cor(NormCounts, method = "spearman")
   Corr_w_all = data.frame(Condition = character(), Corr_rep = numeric())
-  for (cond in unique(Metadata$RepIdentify)){
+  Cond_Available = Metadata %>% group_by(RepIdentify) %>% summarise(Count = n())
+  Cond_Available = Cond_Available %>% filter(Count >1)
+
+  for (cond in Cond_Available$RepIdentify){
 
       Metadata_cond =  Metadata %>% filter(RepIdentify == cond)
       Corr_w = Corr_all[Metadata_cond$Sample_name,Metadata_cond$Sample_name]
@@ -158,7 +161,7 @@ QC_POSTNORMALIZATION = function(Output_file_path, OUTLIER_FILTER = 'GENTLE_REP',
   print(Plt)
   dev.off()
 
-  png(filename=paste("Correlation_within_replicates.png", sep = '_'), width = 1000, height = 1000, res=100)
+  png(filename=paste("Correlation_within_replicates.png", sep = '_'), width = 1200, height = 800, res=100)
   print(Plt)
   dev.off()
 
