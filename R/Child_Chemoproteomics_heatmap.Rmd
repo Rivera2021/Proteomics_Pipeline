@@ -1,0 +1,34 @@
+
+```{r, echo=FALSE, results='asis'}
+height = (nrow(Heatmap_matrices[[name]]$Matrix) *2/20+5)
+
+knitr::opts_chunk$set(fig.height = height)
+
+```
+
+### `r name`
+```{r, echo=FALSE, results='asis'}
+
+
+library(pheatmap)
+
+# Plot heatmap
+paletteLength <- 50
+myColor <- colorRampPalette(c( "white","#0072B2"))(paletteLength)
+myBreaks <- seq(0,max(Heatmap_matrices[[name]]$Matrix), length.out = paletteLength)
+
+pheatmap(Heatmap_matrices[[name]]$Matrix,
+           breaks=myBreaks,
+           col = myColor,
+           display_numbers=Heatmap_matrices[[name]]$Sign_display,
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           fontsize_row = 7,
+           main="Chemoproteomics over-representation")
+
+
+cat('\n')
+knitr::opts_chunk$set(fig.height = 6)
+```

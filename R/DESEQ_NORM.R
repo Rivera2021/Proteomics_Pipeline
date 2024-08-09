@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = "", MEM_MB = 1600, GENE_ENSEM = TRUE, ORGANISM = 'Human', AdjustDeSeq =c("Plate.id") ){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', PlotPCA = 'PCA_PLOT', Control_Neg_PCA = "", Control_Pos_PCA = "", MEM_MB = 1600, GENE_ENSEM = TRUE, ORGANISM = 'Human', Batch_variable = 'Plate.id' ){
 
     library(DESeq2)
     #library(readxl)
@@ -18,6 +18,8 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     library("cowplot")
     library('pheatmap')
     library("GGally")
+    library("sva")
+
 
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
@@ -124,9 +126,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
         Design = "~ CoarseCondition"
         # To be modified if more than one factor is desired to be adjusted for
-        if(length(AdjustDeSeq) == 1 ){
+        if(length(Batch_variable) == 1 ){
 
-            Design = paste(Design, AdjustDeSeq, sep = ' + ' )
+            Design = paste(Design, Batch_variable, sep = ' + ' )
 
 
 
@@ -182,9 +184,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
             Design = "~ CoarseCondition"
             # To be modified if more than one factor is desired to be adjusted for
-            if(length(AdjustDeSeq) == 1 ){
+            if(length(Batch_variable) == 1 ){
 
-                Design = paste(Design, AdjustDeSeq, sep = ' + ' )
+                Design = paste(Design, Batch_variable, sep = ' + ' )
 
 
 
@@ -254,6 +256,14 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
     }
 
+    # Correct for batch
+    if(Batch_variable != ''){
+        pheno = Metadata %>% dplyr::select(Sample_name, Plate.id, CoarseCondition) %>% column_to_rownames(var = "Sample_name")
+        pheno[[Batch_variable]] = as.factor(pheno[[Batch_variable]])
+        modcombat = model.matrix(~CoarseCondition, data = pheno)
+        NormCounts_corr = ComBat(dat= NormCounts, batch= pheno[[Batch_variable]], mod=modcombat, par.prior=TRUE)
+        NormCounts = NormCounts_corr
+    }
 
 
     #Save RData object
@@ -356,6 +366,12 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
         ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, "PCA_All_Outliers.pdf", sep = '/'), plot=P4, width = 8,height = 8, units = 'in')
         ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, "PCA_All_Outliers.jpeg", sep = '/'), plot=P4, width = 8,height = 8, units = 'in')
 
+        PCA5 = Plot_PC_Invivo_PerMol(t(NormCounts), Metadata, Color_gg = 'Plate.id', Title = 'PCA all samples')
+
+        P5 = plot_grid(PCA5[[1]], PCA5[[2]],  ncol=1, align='v')
+
+        ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, "PCA_All_Plate_id.pdf", sep = '/'), plot=P5, width = 8,height = 8, units = 'in')
+        ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, "PCA_All_Plate_id.jpeg", sep = '/'), plot=P5, width = 8,height = 8, units = 'in')
 
 
 
@@ -364,7 +380,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
         for(Time in Times){
 
-            Metadata_Time = Metadata %>% filter(timeColl == Time)
+            Metadata_Time = Metadata %>% dplyr::filter(timeColl == Time)
             NormCounts_Time = NormCounts[ ,match(Metadata_Time$Sample_name,colnames(NormCounts) ) ]
 
             # Get rid of columns with variance equal to zero
@@ -401,13 +417,20 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATime", Time, 'Outliers',".pdf", sep = '_'), sep = '/'), plot=PT4, width = 8,height = 8, units = 'in')
             ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATime", Time, 'Outliers',".jpeg", sep = '_'), sep = '/'), plot=PT4, width = 8,height = 8, units = 'in')
 
+            PCA5 = Plot_PC_Invivo_PerMol(t(NormCounts_Time), Metadata_Time, Color_gg = 'Plate.id', Title = 'PCA all samples')
+
+            PT5 = plot_grid(PCA5[[1]], PCA5[[2]],  ncol=1, align='v')
+
+            ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATime", Time, 'Plate_id',".pdf", sep = '_'), sep = '/'), plot=PT5, width = 8,height = 8, units = 'in')
+            ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATime", Time, 'Plate_id',".jpeg", sep = '_'), sep = '/'), plot=PT5, width = 8,height = 8, units = 'in')
+
 
             # By molecule
             Mols = unique(Metadata_Time$Treatment)
 
             for(Mol in Mols){
 
-                Metadata_Time_mol = Metadata_Time %>% filter(Treatment == Mol)
+                Metadata_Time_mol = Metadata_Time %>% dplyr::filter(Treatment == Mol)
                 NormCounts_Time_mol = NormCounts_Time[ ,match(Metadata_Time_mol$Sample_name,colnames(NormCounts_Time) ) ]
 
                 # Get rid of columns with variance equal to zero
@@ -442,6 +465,13 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
                 ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATimeMol", Time,Mol, 'Outliers',".pdf", sep = '_'), sep = '/'), plot=PTM4, width = 8,height = 8, units = 'in')
                 ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATimeMol", Time,Mol, 'Outliers',".jpeg", sep = '_'), sep = '/'), plot=PTM4, width = 8,height = 8, units = 'in')
+
+                PCA_M5 = Plot_PC_Invivo_PerMol(t(NormCounts_Time_mol), Metadata_Time_mol, Color_gg = 'Plate.id', Title = paste('PCA: Time point',Time,', Mol',Mol, sep = ' ' ))
+
+                PTM5 = plot_grid(PCA_M5[[1]], PCA_M5[[2]],  ncol=1, align='v')
+
+                ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATimeMol", Time,Mol, 'Plate_id',".pdf", sep = '_'), sep = '/'), plot=PTM5, width = 8,height = 8, units = 'in')
+                ggsave(filename=paste(Output_file_path, Name_folder,Name_folder_PCA, paste("PCATimeMol", Time,Mol, 'Plate_id',".jpeg", sep = '_'), sep = '/'), plot=PTM5, width = 8,height = 8, units = 'in')
 
 
             }
@@ -513,7 +543,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
         Times = unique(Metadata$timeColl)
         for(Time in Times){
 
-            Metadata_Time = Metadata %>% filter(timeColl == Time)
+            Metadata_Time = Metadata %>% dplyr::filter(timeColl == Time)
             NormCounts_Time = NormCounts[ ,match(Metadata_Time$Sample_name,colnames(NormCounts) ) ]
 
             annotation_col = as.data.frame(Metadata_Time %>% dplyr::select( Stimulant_used, Treatment, Treatment_conc_uM, Sample_name))

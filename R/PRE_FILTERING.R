@@ -22,7 +22,7 @@ PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
 
     setwd(Output_file_path)
 
-    Data_file = "./IMPORT_DATA/Import_Data.xlsx"
+    Data_file = "./QC_PRENORMALIZATION/QC_Data.xlsx"
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
 
@@ -38,12 +38,12 @@ PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
     # Pre-filter
     if(PRE_FILTER =='PREV'){
 
-       print("Pre-filtering using prevalence")
+       #print("Pre-filtering using prevalence")
        Count_Filt = Filtered_Prevalence(Count, Prev_perc )
        Metadata = Metadata[match(colnames(Count_Filt), Metadata$Sample_name),]
     }else if(PRE_FILTER =='MNB'){
 
-       print("Pre-filtering using mixture of negative binomial")
+       #print("Pre-filtering using mixture of negative binomial")
 
 
 

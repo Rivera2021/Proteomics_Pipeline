@@ -279,6 +279,13 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
 
     library(DESeq2)
     library(dplyr)
+    library(foreach)
+    library(BioMark)
+    library(stringr)
+    library("openxlsx")
+    library(doParallel)
+    library(BiocParallel)
+    library(parallel)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
@@ -492,7 +499,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         Top_up_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "Top_up_DEGs.jpeg")
         Top_dn_filename <- file.path(saveDir, "contrasts", Contrast_name, "Top_dn_DEGs.RDS")
         Top_dn_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "Top_dn_DEGs.jpeg")
-        All_DEG_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.jpeg")
+        All_DEG_filename_pdf <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.pdf")
 
         mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc_uM, Outliers, Sample_name, Plate.id) %>% column_to_rownames(var = "Sample_name")
         Heat_dat = NormCounts_cons[, match(rownames(mat_anno), colnames(NormCounts_cons))]
@@ -516,7 +523,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                          border_color = NA,
                          fontsize = 10,
                          scale = "row",
-                         cluster_cols = F,
+                         cluster_cols = T,
                          cluster_rows = cluster_rows,
                          fontsize_row = 8)
              }else {
@@ -527,7 +534,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                          border_color = NA,
                          fontsize = 10,
                          scale = "row",
-                         cluster_cols = F,
+                         cluster_cols = T,
                          cluster_rows = F,
                          fontsize_row = 8)
              }
@@ -561,7 +568,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                                border_color = NA,
                                fontsize = 10,
                                scale = "row",
-                               cluster_cols = F,
+                               cluster_cols = T,
                                cluster_rows = cluster_rows,
                                fontsize_row = 8)
             } else {
@@ -572,7 +579,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                                border_color = NA,
                                fontsize = 10,
                                scale = "row",
-                               cluster_cols = F,
+                               cluster_cols = T,
                                cluster_rows = F,
                                fontsize_row = 8)
             }
@@ -602,7 +609,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                                border_color = NA,
                                fontsize = 10,
                                scale = "row",
-                               cluster_cols = F,
+                               cluster_cols = T,
                                cluster_rows = cluster_rows,
                                fontsize_row = 8)
             } else {
@@ -613,12 +620,13 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                                border_color = NA,
                                fontsize = 10,
                                scale = "row",
-                               cluster_cols = F,
+                               cluster_cols = T,
                                cluster_rows = F,
                                fontsize_row = 8)
             }
 
-            jpeg(file = All_DEG_filename_jpeg, width = 12, height = (ceiling(length(deg_genes)/10)+5), units = "in", res = 300)
+            #jpeg(file = All_DEG_filename_jpeg, width = 12, height = (ceiling(length(deg_genes)/10)+5), units = "in", res = 300)
+            pdf(file = All_DEG_filename_pdf, width = 12, height = (ceiling(length(deg_genes)/10)+5))
             print( Hall)
             dev.off()
 

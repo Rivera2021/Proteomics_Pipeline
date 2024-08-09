@@ -1,0 +1,803 @@
+---
+title: "<br><br> `r params$scinamicNum`: Quality Control report includes `r params$cellline`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::html_document2:
+    collapsed: true
+    fig_width: 8
+    highlight: haddock
+    keep_md: false
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: yes
+params:
+  cellline: "K562, HBEC-5i"    
+  scinamicNum: 'A_2024_0139, A_2024_0140, A_2024_0142, A_2024_0143 '
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0139_AND_A_2024_0140_A_2024_0142_A_2024_0143/Results_240809"
+  DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
+  DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
+  CellLine_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0139_AND_A_2024_0140_A_2024_0142_A_2024_0143/Data/CellLine_Dict.csv"
+  Path_metrics: ""
+  QCNORM: "PRE_QCNORM"
+  TPM_path: " "
+  ControlName: "DMSO"
+  ExpDescription: "The cells of interest were seeded in the 96 well plates with planned layout. Four hours before adding the stimulation, cells were pretreated with either MOLs or DMSO. After stimulation for another 4 hours, cells were lysated in TCL or RLT buffer. Cell lysis can be store to -80C.\nRNA was purified by adding 2.2 volume of RNA cleanup beads. DNase digestion was used to remove genomic DNA contamination. 20 ng RNA was used for reverse transcription using mRNA specific oligo dT primers with barcode and UMI. The library was prepared using Nextera XT DNA Library Preparation Kit according to the instruction. NovaSeq6000 seq platform was used to sequence the pooled libraries. Pair-end sequence and 25-8-0-151 sequence cycle were used. The raw data were trimmed to 16-8-0-150 and pre-demulitplexed by Novogene."
+ 
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, error=TRUE, fig.align="left",  dev="png", fig.height=6, fig.width=9, message=F, warning=F)
+
+# load packages
+library(tidyverse)
+library(DT)
+library(biomaRt)
+library(plotly)
+#library(EnhancedVolcano)
+library(knitr)
+#library(kableExtra)
+library(glue)
+library(devtools)
+library(msigdbr)
+library(ggthemes)
+#library(DESeq2)
+library(patchwork)
+library(pheatmap)
+library(metafolio)
+library("rio")
+library("janitor")
+library(patchwork)
+
+# # directories
+# baseDir = "~/projects/empress/cell_line_bulkrnaseq_202404040/"
+# saveDir = file.path(baseDir, "QCoutput", "221028_EXP005_BCH002")
+# dataDir = file.path(baseDir,  "data", "221028_EXP005_BCH002")
+# metaDir <- file.path(baseDir, "meta", "221028_EXP005_BCH002", "meta")
+# multiqcDir <- file.path(dataDir,  "multiqc")
+
+# if(!dir.exists(saveDir)){
+#   dir.create(saveDir, recursive = TRUE)
+# }
+# save = TRUE
+
+# deal with namespace clashes
+library(conflicted)
+conflicts_prefer(
+  dplyr::select,
+  dplyr::select,
+  dplyr::filter,
+  dplyr::rename,
+  dplyr::mutate,
+  base::intersect
+)
+
+theme_set(theme_bw(base_size = 14))
+
+# color blind friendly palette
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+
+```{r functions }
+# load custom functions
+source(file.path(params$DirPipeline, "cleaned_functions.R"))
+
+```
+
+
+```{r load_meta_data}
+library(readxl)
+library(DESeq2)
+
+Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
+count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
+
+
+```
+
+# Experimental design
+
+
+
+```{r Exp,echo=FALSE, warning = FALSE,message=FALSE, fig.cap="Experimental design", fig.height=20, fig.width=24}
+
+cat(params$ExpDescription)
+
+Path_Exp = file.path(params$baseDir, "IMPORT_DATA", "Experimental_design.jpeg")
+if(file.exists(Path_Exp)){
+  
+    #knitr::opts_chunk$set(fig_width=20, fig_height=15)
+    knitr::include_graphics(Path_Exp)
+}else{
+    cat("No experimental design scheme available")
+}
+```
+
+# Distribution of counts per sample
+
+Distribution of log10(counts) per sample. Looking for trends across cell lines or treatment.
+```{r setUpForviolin}
+Celllines_unq = unique(Metadata$Cell_line)
+fig_height_cell = 10* length(Celllines_unq)
+
+```
+
+```{r violinplot, fig.height=fig_height_cell, fig.width=30}
+
+
+temp <- count_data %>% pivot_longer(cols = !Gene, names_to = "Sample_name", values_to = "count")
+temp <- left_join(temp, Metadata, by=c("Sample_name"))
+Met_cell = Metadata %>% group_by(Cell_line) %>% summarize(n= n()) 
+Fontsize = ifelse(max(Met_cell$Cell_line) > 150, 8, 10 )
+
+p1 <- ggplot(data=temp, aes(x=Sample_name, y=log10(count), fill=Treatment)) +
+  geom_violin(alpha=0.8, show.legend = T, trim = F) +
+  ylab("log10(counts)") +
+  xlab("") + facet_wrap(~Cell_line, nrow=length(Celllines_unq), scales="free") +
+  theme(element_text(size=rel(30)), axis.text.x = element_text(angle = 90, hjust = 1, size=Fontsize))
+    #theme(axis.text.x = element_text(angle = 90, hjust = 1, size=Fontsize), axis.text.y = element_text(size=20),axis.title.y = element_text(size = 20), legend.text = element_text(size = 20))+
+  
+p1
+```
+
+
+# Sequencing QC metrics
+
+## Description of various relevant QC metrics 
+
+* **total_reads**
+  - In paired end sequencing, each pair is counted as one read
+* **mapping_percent**
+  - Percentage of total reads mapped anywhere to the genome
+  - Typically we expect to see at least 80% of total reads/fragments mapping to the genome
+* **perc_rrna** 
+  - Percentage of reads mapping to ribosomal transcripts
+  - Ribosomal transcripts make up >80% of the transcriptome
+  - if they are not removed by either polyA or ribo-purification, it can affect the detection of other genes
+  - levels below 5% are ideal
+* **genes_detected**
+  - Genes with at least one count assigned to them, here we are mostly looking for consistency
+
+```{r qcprenormalization, echo=FALSE, warning = FALSE,message=FALSE,  results = "asis"}
+#PARAM FOR QC_PRENORMALIZATION
+
+# Number of IQR below first quartile to consider an outlier. Default is 2
+nMust = 2
+Output_file_path = params$baseDir
+# Mapp in-house cell line annotation to the standard annotation
+#CellLine_Dict = "~/Novogene/RESULTS_FROM_PIPELINE/221020_EXP004_BCH002/Data_For_Pipeline/CellLine_Dict.csv"
+CellLine_Dict = params$CellLine_Dict_path
+# Path to the Human Protein ATLAS file for cell line
+CellLineDB_path = file.path(params$DirDataForPipeline,"rna_celline_240330.tsv")
+# Gene annotation: Either ensemble or symbol
+Gene_annotation = 'Symbol'
+
+TPM_path = params$TPM_path
+
+
+# QC-PRENORMALIZATION -----------------------------------------------------------------------------
+source(paste(params$DirPipeline, "QC_PRENORMALIZATION_CL.R", sep = '/'))
+QC_PRENORMALIZATION_CL(Output_file_path,nMust, CellLine_Dict = CellLine_Dict, CellLineDB_path = CellLineDB_path, Gene_annotation,TPM_path)
+
+```
+
+
+```{r load_meta_data2}
+library(readxl)
+
+Metadata <-read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Metadata')
+Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Count')
+Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
+
+```
+
+
+
+
+
+
+```{r qcmetrics}
+
+
+metric_param = TRUE
+if(file.exists(params$Path_metrics)){
+ multiqc_metrics <- rio::import(file.path(params$Path_metrics))%>% janitor::clean_names() %>% as_tibble()
+
+# total reads per fastq
+totalreads <- multiqc_metrics %>% 
+  select(sample, samtools_mqc_generalstats_samtools_flagstat_total) %>% 
+  rename("total_reads"="samtools_mqc_generalstats_samtools_flagstat_total") 
+
+# get total unique mapping rates 
+mapped_reads <- multiqc_metrics %>%  
+    select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
+    dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
+
+qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
+
+# rrna
+rrna_perc <- multiqc_metrics %>% 
+  select(sample, sort_me_rna_mqc_generalstats_sortmerna_r_rna_pct) %>% 
+  rename("perc_rrna"="sort_me_rna_mqc_generalstats_sortmerna_r_rna_pct")
+
+qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
+
+Metadata <- left_join(Metadata , qcmetrics, by=c("id"="sample")) 
+
+
+
+# clean up the sample metadata a bit to make it easier to read and work with
+# sample_meta <- Metadata %>%  
+#   # remove the dashes as they mess up our automatic naming later
+#   mutate(across(c(id, condition), ~sub("-", "_", .))) %>%
+#   # add sample for the sample id as its standard for the following code
+#   mutate(sample=id) %>% 
+#   # need this for the pca plots
+#   mutate(drug_stim=paste(drug, stim, sep="_"))
+
+}else{
+    metric_param = FALSE
+}
+```
+
+
+## Plots of Sequencing QC metrics {.tabset}
+
+```{r barplotqcmetricss, results="hide"}
+metrics <- c("total_reads", "mapping_percent", "perc_rrna", 'detected_genes')
+#metric_param = FALSE
+#height = as.character(5)
+if(metric_param ==TRUE){
+src_list <- lapply(metrics, function(metric) {
+  src <- c("\n",
+           paste("###", metric, "\n"),
+           "```{r, fig.height=10, fig.width=24}",
+           paste("barplot_metrics_cellline(Metadata, metric =", sQuote(metric), ", sort1='Treatment', sort2='Treatment_conc_uM', colorcol='Treatment')"),
+           "```",
+           "\n")
+  knit_expand(text = src)
+})
+
+
+out <- knit_child(text = unlist(src_list), options = list(cache = FALSE, fig.height=5, fig.width=10))
+} else{
+    out = "No available sequencing QCs"
+}
+```
+
+`r out`
+
+
+## Plots of sequencing saturation {.tabset}
+
+The following QC plots were made before any type of normalization. The number of detected genes should saturate as the number of reads increases up to a high enough value.
+
+```{r QC_PRENORM,echo=FALSE, warning = FALSE,message=FALSE,  results = "asis"}
+
+
+# #Path_Dir = "/fsx/home/crivera/Novogene/usftp21.novogene.com_Exp5/Results_Ramos/Summary_Plots_Nfcore"
+Path_Dir = params$baseDir
+cat('\n')
+cat("###","By treatment")
+cat('\n')
+
+PreNorm_file = "QC_Prenorm_LogGenesVsLogReads.png"
+Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
+knitr::opts_chunk$set(fig_width=15, fig_height=7)
+knitr::include_graphics(Path_PreNorm)
+cat('\n')
+
+cat('\n')
+cat("###","By replicate")
+cat('\n')
+
+PreNorm_file = "QC_Prenorm_LogGenesVsLogReads_V2.png"
+Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
+knitr::opts_chunk$set(fig_width=15, fig_height=7)
+knitr::include_graphics(Path_PreNorm)
+cat('\n')
+
+cat('\n')
+cat("###","By RQN")
+cat('\n')
+
+PreNorm_file = "QC_Prenorm_LogGenesVsLogReads_V3.png"
+Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
+knitr::opts_chunk$set(fig_width=15, fig_height=7)
+knitr::include_graphics(Path_PreNorm)
+cat('\n')
+
+cat('\n')
+cat("###","By treatment (original scale)")
+cat('\n')
+
+PreNorm_file = "QC_Prenorm_GenesVsReads.png"
+Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
+knitr::opts_chunk$set(fig_width=15, fig_height=7)
+knitr::include_graphics(Path_PreNorm)
+cat('\n')
+
+
+```
+
+# {-}
+
+# Outliers from QC-prenormalization
+
+```{r OUtliers, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=8, fig.height=6}
+
+    
+    library(knitr)
+    library(ggplot2)
+    library(ggpubr)
+    library(rstatix)
+    library(tidyverse)
+    library(readxl)
+    
+
+    Path_Dir = params$baseDir
+    Out_file = "Outliers.xlsx"
+    Out_path = paste(Path_Dir,'QC_PRENORMALIZATION',Out_file, sep = "/")
+    
+    cat("\n")
+    outliers_cust = read_excel(Out_path, col_names = TRUE)
+    kable(outliers_cust, caption = "Outliers table")
+    cat("\n")
+    
+   
+```
+
+
+
+```{r PCA_POSTNORM_ALLSAMPLES,eval = FALSE, echo=FALSE, warning = FALSE,message=FALSE, results = "asis"}
+# PRE-FILTERING AND DESEQ NORMALIZATION
+
+#PARAM FOR PRE-FILTERING
+# Prevalence fraction filter. A number between 0 and 1.
+Prev_perc = 0.2
+# PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
+# negative binomial functions
+PRE_FILTER = "PREV"
+Output_file_path = params$baseDir
+
+# PRE-FILTERING -----------------------------------------------------------------------------
+source(paste(params$DirPipeline, "PRE_FILTERING.R", sep = '/'))
+PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER)
+
+#PARAM FOR DESEQ_NORM
+# Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
+QCNORM = params$QCNORM
+# Path to samples that should be excluded in a customize manner. Add "" if no list wants to be submitted
+# See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
+outliers_path = paste(params$baseDir, 'QC_PRENORMALIZATION','Outliers.xlsx',sep = '/' )
+# The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
+CoarseConditions = c("Treatment", "Treatment_conc_uM", "Rna_collection_time_hrs", "Stimulant_used")
+# Normalization method. Only has 'Standard' otherwise it will stop
+METHOD_NORM = 'Standard'
+# Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
+VST_FILTER = "VST_ON"
+# Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
+SVD_FILTER = 'SVD_OFF'
+# Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
+PlotPCA = ''
+# Character with the name of negative control to include in PCA
+Control_Neg_PCA = "DMSO"
+# Character with the name of positive control to include in PCA
+Control_Pos_PCA = ""
+
+Output_file_path = params$baseDir
+# Memory required for parallelization
+MEM_MB = 1600
+# Whether gene annotation is Ensemble
+GENE_ENSEM = FALSE
+# Organism
+ORGANISM = 'Human'
+# Extra term to adjust for normalization
+AdjustDeSeq =c("Plate.id")
+
+# DESEQ NORMALIZATION -----------------------------------------------------------------------------
+source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = 1600, GENE_ENSEM = GENE_ENSEM, ORGANISM = 'Human', AdjustDeSeq  )
+
+
+
+```
+
+
+
+
+```{r runpcaall}
+
+if(params$QCNORM == "PRE_QCNORM"){
+   file_filt_path = file.path(params$baseDir, "DESEQ_NORM", "DESeq_Norm.RData")
+   load(file_filt_path)
+} else if(params$QCNORM == "PRE_QCNORM"){
+    
+    file_filt_path = file.path(params$baseDir, "DESEQ_NORM_QCNORM", "DESeq_Norm.RData")
+    load(file_filt_path)
+    
+}   
+
+# select most variable genes. We are not filtering genes more, but leave it commented in case what to implemented later
+# cv <- apply(NormCounts, 1, compute_cv)
+# cutoff <- 1
+# variable <- NormCounts[rank(cv) / length(cv) > 1 - cutoff, ]
+
+# Order Doses
+sorted_doses <- as.character(sort(unique(as.numeric(Metadata$Treatment_conc_uM))))
+Metadata$Treatment_conc_uM = factor(Metadata$Treatment_conc_uM, levels = sorted_doses)
+Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
+
+pca <- prcomp(t(NormCounts))
+
+pca_res <- left_join(Metadata,
+                     as.data.frame(pca$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+pca_var <-pca$sdev^2/sum(pca$sdev^2)
+
+```
+
+
+# Principal Components Analysis - All samples {.tabset}
+
+We use PCA plots like these to give us an overall view of the samples.
+
+```{r, echo=FALSE, results='asis', fig.show='hide'}
+
+covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc_uM", "Treatment_time_hrs")
+
+
+result <- lapply(covariates, function(covar) {
+   knitr::knit_child(file.path(params$DirPipeline, "Child_PCA.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE
+                    )
+   )
+  })
+
+cat(unlist(result), sep="\n")
+celllines <- unique(Metadata$Cell_line)
+Evalcells = ifelse(length(celllines)>1, TRUE, FALSE)
+
+timepoints = unique(Metadata$Molecule_treatment_time_hrs)
+Evaltime = ifelse(length(timepoints)>1, TRUE, FALSE)
+
+stimulants = unique(Metadata$Stimulant_used)
+Evalstim = ifelse(length(stimulants)>1, TRUE, FALSE)
+
+
+         
+```
+
+
+```{r, eval = Evalcells, results='asis', fig.show='interactive'}
+
+celllines <- unique(Metadata$Cell_line)
+covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc_uM", "Outliers", "RQN")
+
+cat("\n")
+cat("#", 'Principal Component Analysis - Per cell-line', '{.tabset}')
+cat("\n")     
+
+for(cellt in celllines){
+    
+ cat("\n")
+ cat("##", cellt)
+ cat("\n")       
+    
+  Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
+  NormCounts_cellt = NormCounts[, match(Metadata_cellt$Sample_name, colnames(NormCounts))]
+  
+  pca_ct <- prcomp(t(NormCounts_cellt))
+  pca_res_ct <- left_join(Metadata_cellt,
+                     as.data.frame(pca_ct$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+  pca_var_ct <-pca_ct$sdev^2/sum(pca_ct$sdev^2)
+  
+  cat("\n")
+  cat("###", 'Features', '{.tabset}')
+  cat("\n")  
+  
+  res_ct <- lapply(covariates_ct, function(feature) {
+  knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE,
+                      fig.height = 6,
+                      fig.width = 8
+                    )
+  )
+})
+    cat(unlist(res_ct), sep="\n")
+  
+ }  
+```
+
+
+
+
+
+```{r cellline_PCAs_time, eval = Evaltime, results='asis', fig.show='interactive'}
+
+cat("\n")
+cat("#",  'Principal Component Analysis - Per cell-line, per time point', '{.tabset}')
+cat("\n")     
+
+
+celllines <- unique(Metadata$Cell_line)
+covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc_uM", "Outliers", "RQN")
+
+for(cellt in celllines){
+    
+ cat("\n")
+ cat("##", cellt)
+ cat("\n")       
+    
+  Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
+  timepts = unique(Metadata_cellt$Treatment_time_hrs)
+  cat("\n")
+  cat("###", 'Time points', '{.tabset}')
+  cat("\n")     
+  
+  for(timept in timepts){
+    Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
+    NormCounts_ct_time = NormCounts[, match(Metadata_cell_time$Sample_name, colnames(NormCounts))]
+
+    pca_ct_time <- prcomp(t(NormCounts_ct_time))
+
+    pca_res_ct_time <- left_join(Metadata_cell_time,
+                     as.data.frame(pca_ct_time$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+    pca_var_ct_time <-pca_ct_time$sdev^2/sum(pca_ct_time$sdev^2)
+    
+  
+    cat("\n")
+    cat("####", timept)
+    cat("\n")    
+    
+    cat("\n")
+    cat("#####", 'Features', '{.tabset}')
+    cat("\n")  
+  
+    res_t <- lapply(covariates_ct_time, function(feature) {
+  knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE,
+                      fig.height = 6,
+                      fig.width = 8
+                    )
+  )
+})
+    cat(unlist(res_t), sep="\n")
+
+  }
+  
+}  
+```
+
+
+
+```{r , eval = Evalstim, results='asis', fig.show='interactive'}
+
+cat("\n")
+cat("#",  'Principal Component Analysis - Per cell-line, per time point, per stimulation', '{.tabset}')
+cat("\n")   
+
+
+celllines <- unique(Metadata$Cell_line)
+covariates_ct_time_stim = c('Treatment', "Treatment_conc_uM", "Outliers", "RQN")
+
+for(cellt in celllines){
+    
+ cat("\n")
+ cat("##", cellt)
+ cat("\n")       
+    
+  Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
+  timepts = unique(Metadata_cellt$Treatment_time_hrs)
+  cat("\n")
+  cat("###", 'Time points', '{.tabset}')
+  cat("\n")     
+  
+  for(timept in timepts){
+      
+    cat("\n")
+    cat("####", timept)
+    cat("\n")        
+      
+    Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
+    stims = unique(Metadata_cell_time$Stimulant_used)
+    
+    cat("\n")
+    cat("#####", 'Stimulation', '{.tabset}')
+    cat("\n")     
+    
+    for(stimu in stims){
+        
+       cat("\n")
+       cat("######", stimu)
+       cat("\n") 
+       
+       cat("\n")
+       cat("#######", 'Features', '{.tabset}')
+       cat("\n")  
+        
+        Metadata_cell_time_stim <- Metadata_cell_time %>% dplyr::filter(Stimulant_used == stimu)
+        NormCounts_ct_time_stim = NormCounts[, match(Metadata_cell_time_stim$Sample_name, colnames(NormCounts))]
+        
+        pca_ct_time_stim <- prcomp(t(NormCounts_ct_time_stim))
+        pca_res_ct_time_stim <- left_join(Metadata_cell_time_stim,
+                     as.data.frame(pca_ct_time_stim$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+        pca_var_ct_time_stim <-pca_ct_time_stim$sdev^2/sum(pca_ct_time_stim$sdev^2)
+        
+        
+        res_t <- lapply(covariates_ct_time_stim, function(feature) {
+  knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time_stim.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE,
+                      fig.height = 6,
+                      fig.width = 8
+                    )
+  )
+})
+    cat(unlist(res_t), sep="\n")
+    
+    
+    cat("\n") 
+        
+        
+        
+        
+        
+    }
+    
+  }  
+    
+}    
+    
+    
+```
+
+
+# Principal Component Analysis - Per cell-line, per time point, per treatment{.tabset}
+
+```{r , eval = TRUE, results='asis', fig.show='interactive'}
+
+celllines <- unique(Metadata$Cell_line)
+covariates_ct_time_treat = c("Treatment","Treatment_conc_uM", "Stimulant_used", "Outliers", "RQN")
+
+for(cellt in celllines){
+    
+ cat("\n")
+ cat("##", cellt)
+ cat("\n")       
+    
+  Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
+  timepts = unique(Metadata_cellt$Treatment_time_hrs)
+  cat("\n")
+  cat("###", 'Time points', '{.tabset}')
+  cat("\n")     
+  
+  for(timept in timepts){
+      
+    cat("\n")
+    cat("####", timept)
+    cat("\n")        
+      
+    Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
+    drugs = unique(Metadata_cell_time$Treatment)
+    drugs = drugs[drugs != params$ControlName]
+    
+    cat("\n")
+    cat("#####", 'Treatments', '{.tabset}')
+    cat("\n")     
+    
+    for(drug in drugs){
+        
+       cat("\n")
+       cat("######", drug)
+       cat("\n") 
+       
+       cat("\n")
+       cat("#######", 'Features', '{.tabset}')
+       cat("\n")  
+        
+        Metadata_cell_time_treat <- Metadata_cell_time %>% dplyr::filter(Treatment %in% c(drug, params$ControlName))
+        NormCounts_ct_time_treat = NormCounts[, match(Metadata_cell_time_treat$Sample_name, colnames(NormCounts))]
+        
+        pca_ct_time_treat <- prcomp(t(NormCounts_ct_time_treat))
+        pca_res_ct_time_treat <- left_join(Metadata_cell_time_treat,
+                     as.data.frame(pca_ct_time_treat$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+        pca_var_ct_time_treat <-pca_ct_time_treat$sdev^2/sum(pca_ct_time_treat$sdev^2)
+        
+        
+        res_t <- lapply(covariates_ct_time_treat, function(feature) {
+  knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time_treat.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE,
+                      fig.height = 6,
+                      fig.width = 8
+                    )
+  )
+})
+    cat(unlist(res_t), sep="\n")
+    
+    
+    cat("\n") 
+        
+        
+        
+        
+        
+    }
+    
+  }  
+    
+}    
+    
+    
+```
+
+
+# Correlation between samples - All samples{.tabset}
+
+```{r , results='asis', fig.height=10, fig.width=10}
+
+library(pheatmap)
+Methods = c('pearson', 'spearman')
+annotation_col = as.data.frame(Metadata %>% dplyr::select( Cell_line,Treatment_time_hrs, Stimulant_used, Treatment, Treatment_conc_uM, Sample_name)) %>% column_to_rownames("Sample_name")
+
+annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name,  RQN, Outliers)) %>% column_to_rownames("Sample_name")
+
+for(meth in Methods) {        
+    
+    cat("\n")
+    cat("##", meth)
+    cat("\n")      
+    
+    corr_mat<- cor(NormCounts, method = meth)
+    paletteLength <- 50
+    myColor <- viridis::viridis(paletteLength)
+    ann_colors = list(
+                Outliers = c('No' = "navy", 'Yes' = "firebrick")
+            )
+
+    P = pheatmap(corr_mat, 
+                 annotation_col = annotation_col,
+                 annotation_row = annotation_row,
+                 show_colnames = TRUE, 
+                 show_rownames = FALSE,
+                 clustering_method = "ward.D2",
+                 fontsize_col =3, 
+                 color = rev(myColor), 
+                 annotation_colors = ann_colors)
+    cat("\n")    
+    print(P)
+    cat("\n")   
+}            
+
+```
+
+
+
+
+
+
+
+
+
+
