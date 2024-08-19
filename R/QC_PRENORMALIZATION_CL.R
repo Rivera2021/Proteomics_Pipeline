@@ -15,9 +15,9 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
     setwd(Output_file_path)
     Data_file = "./IMPORT_DATA/Import_Data.xlsx"
-    Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
+    Count = read.xlsx(xlsxFile = Data_file, sheet = "Count")
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
-
+    Metadata$Treatment_time_hrs = as.factor(Metadata$Treatment_time_hrs)
 
     # Create Folder
 
@@ -40,6 +40,8 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
     Thr_cellline = data.frame(Cell_line = character(), Thrs_cellline = numeric())
     for(cellline in unique(Metadata$Cell_line)){
 
+        if(cellline %in% CellLine_Dic$Original ){
+
         celllinedb = CellLine_Dic$InDb[CellLine_Dic$Original == cellline]
         df_t = df_atlas %>% dplyr::filter(Cell_line == celllinedb & TPM > 0)
         if(Gene_annotation == 'Ensemble'){
@@ -49,6 +51,12 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
         }
         Thr_cellline = Thr_cellline %>% add_row(Cell_line = cellline, Thrs_cellline = thr )
+
+        }else{
+
+            stop("cell line in directory sheet does not contain the cell line in the metadata")
+        }
+
     }
 
 
@@ -56,6 +64,7 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
     # Quality control on number of reads and  number of non-zero genes
 
     # Num Reads per sample
+    Count = Count %>% column_to_rownames(var="Gene")
     Tot_Reads = colSums(Count)
     # Non-zero genes per sample
     Count_Genes = (Count !=0)
@@ -104,7 +113,7 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
 
 
-    Df = MustDrop_list %>% dplyr::select(Sample_name, ID,Well,ReadNum, detected_genes,)
+    Df = MustDrop_list %>% dplyr::select(Sample_name,well,ReadNum, detected_genes,)
     write.xlsx(Df, file = paste(Output_file_path, "QC_PRENORMALIZATION",'Outliers.xlsx', sep = '/'))
 
     # Import TPM
@@ -170,7 +179,7 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
 
     p3 = ggplot(Metadata, aes(x=LogReadNum, y=Logdetected_genes, group = Treatment)) +
-        geom_point(aes(shape=timeColl, color=Treatment)) +
+        geom_point(aes(shape=Treatment_time_hrs, color=Treatment)) +
         facet_wrap(vars(Cell_line), ncol = min(length(unique(Metadata$Cell_line)),3))+
         xlab("Log10 of number of reads") +
         ylab("Log10 of number of non-zero genes") +
@@ -182,13 +191,14 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
         ggtitle(paste("Number of reads vs Non-zero genes in Log10 space. Dashed: Q1 - ", as.character(nMust), "x IQR, \n Solid: Number of detected genes from ATLAS",sep = " "))+
         theme(plot.title = element_text(size = 13))
 
+
     ggsave(filename=paste(Output_file_path, "QC_PRENORMALIZATION", "QC_Prenorm_LogGenesVsLogReads.pdf", sep = '/'), plot=p3, width = 8,height = 6, units = 'in')
     ggsave(filename=paste(Output_file_path, "QC_PRENORMALIZATION", "QC_Prenorm_LogGenesVsLogReads.png", sep = '/'), plot=p3, width = 8,height = 6, units = 'in')
 
 
 
     p5 = ggplot(Metadata, aes(x=LogReadNum, y=Logdetected_genes, group = Treatment)) +
-        geom_point(aes(shape=timeColl, color=Replicate)) +
+        geom_point(aes(shape=Treatment_time_hrs, color=Replicate)) +
         facet_wrap(vars(Cell_line), ncol = min(length(unique(Metadata$Cell_line)),3))+
         xlab("Log10 of number of reads") +
         ylab("Log10 of number of non-zero genes") +
@@ -205,7 +215,7 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
 
     p6 = ggplot(Metadata, aes(x=LogReadNum, y=Logdetected_genes, group = Treatment)) +
-        geom_point(aes(shape=timeColl, color=RQN)) +
+        geom_point(aes(shape=Treatment_time_hrs, color=RQN)) +
         facet_wrap(vars(Cell_line), ncol = min(length(unique(Metadata$Cell_line)),3))+
         xlab("Log10 of number of reads") +
         ylab("Log10 of number of non-zero genes") +
@@ -230,7 +240,7 @@ QC_PRENORMALIZATION_CL = function(Output_file_path,nMust = 2,CellLine_Dict, Cell
 
 
     p4 = ggplot(Metadata, aes(x=ReadNum, y=detected_genes, group = Treatment)) +
-        geom_point(aes(shape=timeColl, color=Treatment)) +
+        geom_point(aes(shape=Treatment_time_hrs, color=Treatment)) +
         facet_wrap(vars(Cell_line), ncol = min(length(unique(Metadata$Cell_line)),3), scales = 'free') +
         geom_hline(data = IQR_genes, aes(yintercept = 10^(Thrs)), linetype="dashed")+
         geom_hline(data = Thr_cellline, aes(yintercept = Thrs_cellline), linetype="solid")+

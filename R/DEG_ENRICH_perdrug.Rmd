@@ -12,24 +12,25 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "M082"
-  cell_line: "THP-1"
-  stimulation: "LPS"
-  scinamicNum: 'EXP007'
-  baseDir: "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/240708_Results_THP1_LPS"
+  drug: "Deucravacitinib"
+  cell_line: "K562"
+  stimulation: "NONE"
+  scinamicNum: 'A-2024-0143, A-2024-0142'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240814"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-  dataDir:  "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/240708_Results_THP1_LPS/DESEQ_NORM"
-  Contrast_path: "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/Data_Files_Pipeline/List_contrasts.xlsx"
-  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_240728_w_InvitroTargets.RDS"
-  Cell_Dict_path: "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/Data_Files_Pipeline/CellLine_Dict_Chemo.csv"
+  dataDir:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240814/DESEQ_NORM"
+  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Data/List_contrasts_K562.xlsx"
+  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_240814_w_InvitroTargets.RDS"
+  Cell_Dict_path: ""
+  AdjustDeSeq: ""
   
 ---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, error=TRUE, fig.align="left",  dev="png", fig.height=6, fig.width=9, message=F, warning=F)
-#knitr::opts_knit$set(progress = FALSE)
+knitr::opts_knit$set(progress = FALSE)
 
 library(tidyverse)
 library(DT)
@@ -239,17 +240,21 @@ source(file.path(params$DirPipeline, "DEG_FUNCTION.R"))
 List_contrasts = read.xlsx(xlsxFile = params$Contrast_path)
 
 #print("Only contrasts allowed after removing outliers will be calculated")
-List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
-comparisons <- List_contrasts %>%  filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
+#List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
+comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
 comparisons$namecontrast =  paste0(comparisons$treat,"_vs_",comparisons$untreat)
 
+# Remove comparisons where at least one of the groups has 1 sample
+SelectedCond = Metadata %>% dplyr::group_by(CoarseCondition) %>% dplyr::summarise(count = n()) %>% dplyr::filter(count > 1) 
+comparisons = comparisons[comparisons$treat %in% SelectedCond$CoarseCondition,]
+comparisons = comparisons[comparisons$untreat %in% SelectedCond$CoarseCondition,]
 
 if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
   all_contrasts <- readRDS(file.path(saveDir, "contrasts",  "all_contrasts.RDS"))
 } else {
-  print('Here')
+  #print('Here')
   all_contrasts <- apply(comparisons,1, function(x){
-    DEG_FUNCTION_DA(x,saveDir,Drug, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq =c("Plate.id"))
+    DEG_FUNCTION_DA(x,saveDir,Drug, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq)
                     
   })
   names(all_contrasts) <- comparisons$namecontrast
@@ -331,8 +336,8 @@ colnames(forfiltering_mat) <- names(all_contrasts)
 rownames(forfiltering_mat) <- pathway_isect
 
 rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
-NES_mat <- NES_mat[rowstokeep,]
-forfiltering_mat <- forfiltering_mat[rowstokeep,]
+NES_mat <- NES_mat[rowstokeep,, drop = FALSE]
+forfiltering_mat <- forfiltering_mat[rowstokeep,,drop = FALSE]
 
 NES_mat[NES_mat < -thr] <- -thr
 NES_mat[NES_mat > thr] <- thr
@@ -358,6 +363,9 @@ geneset = 'Hallmark'
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
 filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
 saveRDS(NES_mat, filepathMat)
+filenameMatsig <- paste(geneset,"Heatmap_comparison_Pways_SignifDisplay",".RDS", sep = '_' )
+filepathMatsig <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMatsig)
+saveRDS(forfiltering_mat, filepathMatsig)
 
 filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
@@ -448,8 +456,8 @@ colnames(forfiltering_mat) <- names(all_contrasts)
 rownames(forfiltering_mat) <- pathway_isect
 
 rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
-NES_mat <- NES_mat[rowstokeep,]
-forfiltering_mat <- forfiltering_mat[rowstokeep,]
+NES_mat <- NES_mat[rowstokeep,, drop = FALSE]
+forfiltering_mat <- forfiltering_mat[rowstokeep,, drop = FALSE]
 
 NES_mat[NES_mat < -thr] <- -thr
 NES_mat[NES_mat > thr] <- thr
@@ -475,6 +483,9 @@ geneset = 'Kegg'
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
 filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
 saveRDS(NES_mat, filepathMat)
+filenameMatsig <- paste(geneset,"Heatmap_comparison_Pways_SignifDisplay",".RDS", sep = '_' )
+filepathMatsig <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMatsig)
+saveRDS(forfiltering_mat, filepathMatsig)
 
 filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
@@ -568,27 +579,32 @@ colnames(forfiltering_mat) <- names(all_contrasts)
 rownames(forfiltering_mat) <- pathway_isect
 
 rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
-NES_mat <- NES_mat[rowstokeep,]
-forfiltering_mat <- forfiltering_mat[rowstokeep,]
+NES_mat <- NES_mat[rowstokeep,,drop = FALSE]
+forfiltering_mat <- forfiltering_mat[rowstokeep,,drop = FALSE]
 
 NES_mat[NES_mat < -thr] <- -thr
 NES_mat[NES_mat > thr] <- thr
 
 # row.names(NES_mat) <- pathway_lookup[match(row.names(NES_mat), pathway_lookup$ID),"pathway"]
 
+if (nrow(NES_mat) < 500) {
 myfigheight <- calculate_fig_height(NES_mat)
 old_opts <- knitr::opts_chunk$get()
 on.exit(knitr::opts_chunk$set(old_opts)) 
 knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 20)
-
-
+} else{
+    
+    myfigheight <- calculate_fig_height(NES_mat)
+}   
+    
+    
 
 
 
 ```
 
 
-```{r comp_Reacto_plt, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+```{r comp_Reacto_plt, eval =FALSE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
 
 geneset = 'Reactome'
@@ -596,15 +612,33 @@ geneset = 'Reactome'
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
 filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
 saveRDS(NES_mat, filepathMat)
+filenameMatsig <- paste(geneset,"Heatmap_comparison_Pways_SignifDisplay",".RDS", sep = '_' )
+filepathMatsig <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMatsig)
+saveRDS(forfiltering_mat, filepathMatsig)
 
-filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
+
+filename <- paste(geneset,"Heatmap_comparison_Pways",".pdf", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
 
 
-if (nrow(NES_mat)>1) {
+if (nrow(NES_mat)>1 & nrow(NES_mat) < 500) {
  hm <-  pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T, 
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison of enriched pathways")
+ print(hm)
+ ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+ 
+ 
+ 
+}else if(nrow(NES_mat) >=  500){
+    hm <-  pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
@@ -612,9 +646,14 @@ if (nrow(NES_mat)>1) {
            show_rownames = T,
            show_colnames = T,
            main="Comparison of enriched pathways")
- print(hm)
- ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
- 
+
+    #ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+     pdf(file = filepath, width = 20, height = myfigheight)
+        hm
+     dev.off()
+    link <- paste("**[Heatmap Reactome](./..", gsub(pattern = params$baseDir, replacement = "", x = filepath), ")**", sep = "")
+    link
+
 }else if (nrow(NES_mat)==1){
   hm <- pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
@@ -625,7 +664,8 @@ if (nrow(NES_mat)>1) {
            show_colnames = T,
            main="Comparison of enriched pathways")
   print(hm)
-  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
+  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+  
 }else  {
   cat("**", paste("No significantly enriched pathways"), "**\n")
 }
@@ -644,7 +684,7 @@ The asterisks in the heatmap tell you about the p-values associated with that GS
 * p < 0.2
 ```
 
-```{r comp_LogF_plot, echo=FALSE, eval = TRUE, results='asis'}
+```{r comp_LogF_plot, echo=FALSE, eval = FALSE, results='asis'}
 library(pheatmap)
 genesets = c('Reactome', 'Hallmark', 'Kegg')
 

@@ -177,7 +177,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
                 Count_temp = as.data.frame(Count_temp)
                 Design = "~ CoarseCondition"
                 # To be modified if more than one factor is desired to be adjusted for
-                if(length(AdjustDeSeq) == 1 ){
+                if(AdjustDeSeq != 1 ){
 
                         Design = paste(Design, AdjustDeSeq, sep = ' + ' )
 
@@ -418,7 +418,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
             Count_temp = as.data.frame(count_data_temp)
             Design = "~ CoarseCondition"
             # To be modified if more than one factor is desired to be adjusted for
-            if(length(AdjustDeSeq) == 1 ){
+            if(AdjustDeSeq != "" ){
 
                 Design = paste(Design, AdjustDeSeq, sep = ' + ' )
             }
@@ -501,7 +501,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         Top_dn_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "Top_dn_DEGs.jpeg")
         All_DEG_filename_pdf <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.pdf")
 
-        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc_uM, Outliers, Sample_name, Plate.id) %>% column_to_rownames(var = "Sample_name")
+        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc_uM, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
         Heat_dat = NormCounts_cons[, match(rownames(mat_anno), colnames(NormCounts_cons))]
 
         # Top upregulated

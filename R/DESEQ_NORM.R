@@ -22,7 +22,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
 
 
-    source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
+    #source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     clusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
 
     # Import data
@@ -30,6 +30,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     Data_file = "./PRE_FILTERING/Prefilter_Data.xlsx"
     Count = read.xlsx(xlsxFile = Data_file, sheet = "Count", rowNames= TRUE)
     Metadata = read.xlsx(xlsxFile = Data_file, sheet = "Metadata")
+
+    Metadata$Treatment_conc_uM = as.numeric(Metadata$Treatment_conc_uM)
+
 
     # Read customize outliers
     if(file.exists(outliers_path)){
@@ -184,11 +187,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
 
             Design = "~ CoarseCondition"
             # To be modified if more than one factor is desired to be adjusted for
-            if(length(Batch_variable) == 1 ){
+            if(Batch_variable != "" ){
 
                 Design = paste(Design, Batch_variable, sep = ' + ' )
-
-
 
             }
 
