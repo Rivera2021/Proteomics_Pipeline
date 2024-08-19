@@ -23,6 +23,8 @@ Started on 2023-10-27.
 Three reports are generated:
 * QC_REPORT: Contains technical QC, PCA plots, and correlations plots. Uses the following files
     - QC_REPORT.Rmd
+        -Expects to find Count matrix and Metadata in an xlsx format within IMPORT_DATA folder (This will should be optimize once protocol input formats and metadata have been totally determined). Count matrix requires a column named 'Gene'
+        
     - QC_PRENORMALIZATION_CL
     - PRE_FILTERING
     - DESEQ_NORM

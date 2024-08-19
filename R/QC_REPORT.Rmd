@@ -12,18 +12,23 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "K562, HBEC-5i"    
-  scinamicNum: 'A_2024_0139, A_2024_0140, A_2024_0142, A_2024_0143 '
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0139_AND_A_2024_0140_A_2024_0142_A_2024_0143/Results_240809"
+  cellline: "HCT116,K562,THP-1"    
+  scinamicNum: 'A_2024_0185'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Results_240818"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-  CellLine_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0139_AND_A_2024_0140_A_2024_0142_A_2024_0143/Data/CellLine_Dict.csv"
-  Path_metrics: ""
+  CellLine_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Data/CellLine_Dict.csv"
+  Path_metrics: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Data/MultiQC.tsv"
   QCNORM: "PRE_QCNORM"
   TPM_path: " "
   ControlName: "DMSO"
-  ExpDescription: "The cells of interest were seeded in the 96 well plates with planned layout. Four hours before adding the stimulation, cells were pretreated with either MOLs or DMSO. After stimulation for another 4 hours, cells were lysated in TCL or RLT buffer. Cell lysis can be store to -80C.\nRNA was purified by adding 2.2 volume of RNA cleanup beads. DNase digestion was used to remove genomic DNA contamination. 20 ng RNA was used for reverse transcription using mRNA specific oligo dT primers with barcode and UMI. The library was prepared using Nextera XT DNA Library Preparation Kit according to the instruction. NovaSeq6000 seq platform was used to sequence the pooled libraries. Pair-end sequence and 25-8-0-151 sequence cycle were used. The raw data were trimmed to 16-8-0-150 and pre-demulitplexed by Novogene."
- 
+  Batch_variable: ""
+  ExpDescription: "The protocol used for this experiment was watchmaker"
+  Prev_perc: 0.05
+  MEMORY_MB: 4000
+  CoarseCondition:  ["Cell_line","Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used"]
+  Gene_ensemble: FALSE
+  Corr_plot_features: ["Cell_line", "Treatment_time_hrs", "Stimulant_used", "Treatment", "Treatment_conc_uM", "Sample_name"]
 ---
 
 
@@ -190,7 +195,7 @@ library(readxl)
 
 Metadata <-read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Metadata')
 Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Count')
-Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
+#Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
 
 ```
 
@@ -201,15 +206,15 @@ Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
 
 ```{r qcmetrics}
 
-
+# This metrics file has be the output of the multiqc, from samtools
 metric_param = TRUE
 if(file.exists(params$Path_metrics)){
  multiqc_metrics <- rio::import(file.path(params$Path_metrics))%>% janitor::clean_names() %>% as_tibble()
 
 # total reads per fastq
 totalreads <- multiqc_metrics %>% 
-  select(sample, samtools_mqc_generalstats_samtools_flagstat_total) %>% 
-  rename("total_reads"="samtools_mqc_generalstats_samtools_flagstat_total") 
+  select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
+  rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
 
 # get total unique mapping rates 
 mapped_reads <- multiqc_metrics %>%  
@@ -225,7 +230,7 @@ rrna_perc <- multiqc_metrics %>%
 
 qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
 
-Metadata <- left_join(Metadata , qcmetrics, by=c("id"="sample")) 
+Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name"="sample")) 
 
 
 
@@ -266,6 +271,11 @@ out <- knit_child(text = unlist(src_list), options = list(cache = FALSE, fig.hei
 } else{
     out = "No available sequencing QCs"
 }
+
+
+# Set pic dimension for next plots 
+Num_cellline = length(unique(Metadata$Cell_line))
+knitr::opts_chunk$set(fig_width=15, fig_height=ceiling(Num_cellline/2))
 ```
 
 `r out`
@@ -352,12 +362,12 @@ cat('\n')
 
 
 
-```{r PCA_POSTNORM_ALLSAMPLES,eval = FALSE, echo=FALSE, warning = FALSE,message=FALSE, results = "asis"}
+```{r PCA_POSTNORM_ALLSAMPLES,eval = TRUE, echo=FALSE, warning = FALSE,message=FALSE, results = "asis"}
 # PRE-FILTERING AND DESEQ NORMALIZATION
 
 #PARAM FOR PRE-FILTERING
 # Prevalence fraction filter. A number between 0 and 1.
-Prev_perc = 0.2
+Prev_perc = params$Prev_perc
 # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
 # negative binomial functions
 PRE_FILTER = "PREV"
@@ -374,9 +384,9 @@ QCNORM = params$QCNORM
 # See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
 outliers_path = paste(params$baseDir, 'QC_PRENORMALIZATION','Outliers.xlsx',sep = '/' )
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
-CoarseConditions = c("Treatment", "Treatment_conc_uM", "Rna_collection_time_hrs", "Stimulant_used")
+CoarseConditions = params$CoarseCondition
 # Normalization method. Only has 'Standard' otherwise it will stop
-METHOD_NORM = 'Standard'
+METHOD_NORM = 'Standard_Parallel'
 # Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
 VST_FILTER = "VST_ON"
 # Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
@@ -390,17 +400,17 @@ Control_Pos_PCA = ""
 
 Output_file_path = params$baseDir
 # Memory required for parallelization
-MEM_MB = 1600
+MEM_MB = params$MEMORY_MB
 # Whether gene annotation is Ensemble
-GENE_ENSEM = FALSE
+GENE_ENSEM = params$Gene_ensemble
 # Organism
 ORGANISM = 'Human'
-# Extra term to adjust for normalization
-AdjustDeSeq =c("Plate.id")
+# Extra term to adjust for normalization "" for no batch, and the name of the batch to correct for batch using combat. These should be reflected in the PCA plots. Just one variable allowed
+Batch_variable =c("")
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
-DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = 1600, GENE_ENSEM = GENE_ENSEM, ORGANISM = 'Human', AdjustDeSeq  )
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = 'Human', Batch_variable  )
 
 
 
@@ -428,8 +438,8 @@ if(params$QCNORM == "PRE_QCNORM"){
 
 # Order Doses
 sorted_doses <- as.character(sort(unique(as.numeric(Metadata$Treatment_conc_uM))))
-Metadata$Treatment_conc_uM = factor(Metadata$Treatment_conc_uM, levels = sorted_doses)
-Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
+#Metadata$Treatment_conc_uM = factor(Metadata$Treatment_conc_uM, levels = sorted_doses)
+#Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
 
 pca <- prcomp(t(NormCounts))
 
@@ -755,13 +765,13 @@ for(cellt in celllines){
 
 # Correlation between samples - All samples{.tabset}
 
-```{r , results='asis', fig.height=10, fig.width=10}
+```{r , results='asis', fig.height=10, fig.width=12}
 
 library(pheatmap)
 Methods = c('pearson', 'spearman')
-annotation_col = as.data.frame(Metadata %>% dplyr::select( Cell_line,Treatment_time_hrs, Stimulant_used, Treatment, Treatment_conc_uM, Sample_name)) %>% column_to_rownames("Sample_name")
+annotation_col = as.data.frame(Metadata %>% dplyr::select(all_of(params$Corr_plot_features))) %>% column_to_rownames("Sample_name")
 
-annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name,  RQN, Outliers)) %>% column_to_rownames("Sample_name")
+annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers)) %>% column_to_rownames("Sample_name")
 
 for(meth in Methods) {        
     
@@ -794,7 +804,149 @@ for(meth in Methods) {
 
 
 
+# Correlation between samples - per cell lines{.tabset}
 
+```{r , eval = TRUE, results='asis', fig.height=10, fig.width=10}
+
+library(pheatmap)
+Methods = c('pearson', 'spearman')
+
+celllines <- unique(Metadata$Cell_line)
+Corr_plot_features_cell = params$Corr_plot_features[params$Corr_plot_features != "Cell_line"]
+for(cellt in celllines){
+    
+    cat("\n")
+    cat("##", cellt)
+    cat("\n")      
+    
+    
+    
+    
+    
+    Metadata_cellt = Metadata %>% dplyr::filter(Cell_line == cellt)
+    NormCounts_cellt = NormCounts[, match(Metadata_cellt$Sample_name, colnames(NormCounts))]
+    
+    annotation_col = as.data.frame(Metadata_cellt %>% dplyr::select( all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
+
+annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQN, Outliers)) %>% column_to_rownames("Sample_name")
+
+    cat("\n")
+    cat("###", 'Methods', '{.tabset}')
+    cat("\n")  
+    
+    for(meth in Methods) {        
+    
+            cat("\n")
+            cat("####", meth)
+            cat("\n")      
+            
+            corr_mat<- cor(NormCounts_cellt, method = meth)
+            paletteLength <- 50
+            myColor <- viridis::viridis(paletteLength)
+            ann_colors = list(
+                        Outliers = c('No' = "navy", 'Yes' = "firebrick")
+                    )
+        
+            P = pheatmap(corr_mat, 
+                         annotation_col = annotation_col,
+                         annotation_row = annotation_row,
+                         show_colnames = TRUE, 
+                         show_rownames = FALSE,
+                         clustering_method = "ward.D2",
+                         fontsize_col =3, 
+                         color = rev(myColor), 
+                         annotation_colors = ann_colors)
+            cat("\n")    
+            print(P)
+            cat("\n")   
+     }    
+   
+    
+}
+
+
+
+
+```
+
+
+
+# Correlation between samples - per cell lines, per time point{.tabset}
+
+```{r ,eval = FALSE,results='asis', fig.height=10, fig.width=10}
+
+library(pheatmap)
+Methods = c('pearson', 'spearman')
+
+celllines <- unique(Metadata$Cell_line)
+for(cellt in celllines){
+    
+    cat("\n")
+    cat("##", cellt)
+    cat("\n")      
+    
+    
+    
+    
+    
+    Metadata_cellt = Metadata %>% dplyr::filter(Cell_line == cellt)
+    timepts = unique(Metadata_cellt$Treatment_time_hrs)
+    
+    cat("\n")
+    cat("###", 'Time points', '{.tabset}')
+    cat("\n")  
+    
+    for(timept in timepts){
+        
+       cat("\n")
+       cat("####", timept)
+       cat("\n")      
+    
+       Metadata_cellt_time = Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
+       NormCounts_cellt_time = NormCounts[, match(Metadata_cellt_time$Sample_name, colnames(NormCounts))]
+    
+       annotation_col = as.data.frame(Metadata_cellt_time %>% dplyr::select(all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
+
+       annotation_row = as.data.frame(Metadata_cellt_time %>% dplyr::select(Sample_name,RQN, Outliers, Plate)) %>% column_to_rownames("Sample_name")
+
+    cat("\n")
+    cat("#####", 'Methods', '{.tabset}')
+    cat("\n")  
+    
+    for(meth in Methods) {        
+    
+            cat("\n")
+            cat("######", meth)
+            cat("\n")      
+            
+            corr_mat<- cor(NormCounts_cellt_time, method = meth)
+            paletteLength <- 50
+            myColor <- viridis::viridis(paletteLength)
+            ann_colors = list(
+                        Outliers = c('No' = "navy", 'Yes' = "firebrick")
+                    )
+        
+            P = pheatmap(corr_mat, 
+                         annotation_col = annotation_col,
+                         annotation_row = annotation_row,
+                         show_colnames = TRUE, 
+                         show_rownames = FALSE,
+                         #clustering_method = "ward.D2",
+                         fontsize_col =3, 
+                         color = rev(myColor), 
+                         annotation_colors = ann_colors)
+            cat("\n")    
+            print(P)
+            cat("\n")   
+     }    
+   
+    }
+}
+
+
+
+
+```
 
 
 
