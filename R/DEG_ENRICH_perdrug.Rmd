@@ -16,7 +16,7 @@ params:
   cell_line: "K562"
   stimulation: "NONE"
   scinamicNum: 'A-2024-0143, A-2024-0142'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240814"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240820"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
   dataDir:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240814/DESEQ_NORM"
@@ -62,7 +62,7 @@ library(BiocParallel)
 # directories
 Drug = params$drug
 baseDir = params$baseDir
-saveDir = file.path(params$baseDir, "DEG_ENRICHMENT", params$drug)
+saveDir = file.path(params$baseDir, "DEG_ENRICHMENT", paste(params$drug, params$cell_line, sep = '_'))
 #dataDir = file.path(baseDir,  "QCoutput", "221028_EXP005_BCH002")
 
 
@@ -99,6 +99,8 @@ Metadata <-read_xlsx(file.path(params$dataDir, "Norm_Data.xlsx"), sheet = 'Metad
 load(file.path(params$dataDir, "DESeq_Norm.RData"))
 count_data = counts(deseqObj)
 
+
+
 # This needs to be accomodated when mouse
 Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
 Hallmark = read.gmt(file.path(params$DirDataForPipeline, "h.all.v2023.2.Hs.symbols.gmt"))
@@ -106,7 +108,7 @@ Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2
 
 # TPM expression matrix
 
-TPM_expr_path = file.path(params$baseDir,"QC_PRENORMALIZATION", "TPM_count_expr.xlsx")
+TPM_expr_path = file.path(params$baseDir,"QC_PRENORMALIZATION", "TPM_count_expr.RDS")
 Chemo_path = params$Chemo_path
 Cell_Dict_path = params$Cell_Dict_path
 Contrast_path = params$Contrast_path
@@ -242,6 +244,7 @@ List_contrasts = read.xlsx(xlsxFile = params$Contrast_path)
 #print("Only contrasts allowed after removing outliers will be calculated")
 #List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
 comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
+#comparisons <- comparisons %>%  dplyr::filter(grepl(params$cell_line, treat) | grepl(params$cell_line, untreat)) 
 comparisons$namecontrast =  paste0(comparisons$treat,"_vs_",comparisons$untreat)
 
 # Remove comparisons where at least one of the groups has 1 sample
@@ -269,7 +272,7 @@ if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
 
 Childpath = params$DirPipeline
 #names(all_contrasts)
-conts = c("M082_0.1_8_NoLPS_vs_DMSO_0_8_NoLPS")
+
 res <- lapply(names(all_contrasts), function(name) {
    knitr::knit_child(file.path(Childpath, "Child_perComparison.Rmd"),
                     envir = environment(),
@@ -339,8 +342,8 @@ rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
 NES_mat <- NES_mat[rowstokeep,, drop = FALSE]
 forfiltering_mat <- forfiltering_mat[rowstokeep,,drop = FALSE]
 
-NES_mat[NES_mat < -thr] <- -thr
-NES_mat[NES_mat > thr] <- thr
+# NES_mat[NES_mat < -thr] <- -thr
+# NES_mat[NES_mat > thr] <- thr
 
 # row.names(NES_mat) <- pathway_lookup[match(row.names(NES_mat), pathway_lookup$ID),"pathway"]
 
@@ -604,7 +607,7 @@ knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 20)
 ```
 
 
-```{r comp_Reacto_plt, eval =FALSE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+```{r comp_Reacto_plt, eval =TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
 
 geneset = 'Reactome'
@@ -623,52 +626,52 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 
 
 
-if (nrow(NES_mat)>1 & nrow(NES_mat) < 500) {
- hm <-  pheatmap(NES_mat,
-           display_numbers=forfiltering_mat,
-           breaks=seq(from=-thr, to=thr, length=101),
-           cluster_col=T, 
-           cluster_rows = T,
-           show_rownames = T,
-           show_colnames = T,
-           main="Comparison of enriched pathways")
- print(hm)
- ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
- 
- 
- 
-}else if(nrow(NES_mat) >=  500){
-    hm <-  pheatmap(NES_mat,
-           display_numbers=forfiltering_mat,
-           breaks=seq(from=-thr, to=thr, length=101),
-           cluster_col=T,
-           cluster_rows = T,
-           show_rownames = T,
-           show_colnames = T,
-           main="Comparison of enriched pathways")
-
-    #ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
-     pdf(file = filepath, width = 20, height = myfigheight)
-        hm
-     dev.off()
-    link <- paste("**[Heatmap Reactome](./..", gsub(pattern = params$baseDir, replacement = "", x = filepath), ")**", sep = "")
-    link
-
-}else if (nrow(NES_mat)==1){
-  hm <- pheatmap(NES_mat,
-           display_numbers=forfiltering_mat,
-           breaks=seq(from=-thr, to=thr, length=101),
-           cluster_col=F,
-           cluster_rows = F,
-           show_rownames = T,
-           show_colnames = T,
-           main="Comparison of enriched pathways")
-  print(hm)
-  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
-  
-}else  {
-  cat("**", paste("No significantly enriched pathways"), "**\n")
-}
+# if (nrow(NES_mat)>1 & nrow(NES_mat) < 500) {
+#  hm <-  pheatmap(NES_mat,
+#            display_numbers=forfiltering_mat,
+#            breaks=seq(from=-thr, to=thr, length=101),
+#            cluster_col=T, 
+#            cluster_rows = T,
+#            show_rownames = T,
+#            show_colnames = T,
+#            main="Comparison of enriched pathways")
+#  print(hm)
+#  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+#  
+#  
+#  
+# }else if(nrow(NES_mat) >=  500){
+#     hm <-  pheatmap(NES_mat,
+#            display_numbers=forfiltering_mat,
+#            breaks=seq(from=-thr, to=thr, length=101),
+#            cluster_col=T,
+#            cluster_rows = T,
+#            show_rownames = T,
+#            show_colnames = T,
+#            main="Comparison of enriched pathways")
+# 
+#     #ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+#      pdf(file = filepath, width = 20, height = myfigheight)
+#         hm
+#      dev.off()
+#     link <- paste("**[Heatmap Reactome](./..", gsub(pattern = params$baseDir, replacement = "", x = filepath), ")**", sep = "")
+#     link
+# 
+# }else if (nrow(NES_mat)==1){
+#   hm <- pheatmap(NES_mat,
+#            display_numbers=forfiltering_mat,
+#            breaks=seq(from=-thr, to=thr, length=101),
+#            cluster_col=F,
+#            cluster_rows = F,
+#            show_rownames = T,
+#            show_colnames = T,
+#            main="Comparison of enriched pathways")
+#   print(hm)
+#   ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+#   
+# }else  {
+#   cat("**", paste("No significantly enriched pathways"), "**\n")
+# }
 
 
 

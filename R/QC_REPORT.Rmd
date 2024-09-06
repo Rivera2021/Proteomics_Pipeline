@@ -12,23 +12,24 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "HCT116,K562,THP-1"    
-  scinamicNum: 'A_2024_0185'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Results_240818"
+  cellline: "K562"
+  scinamicNum: 'A_2024_0142'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_240905"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-  CellLine_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Data/CellLine_Dict.csv"
-  Path_metrics: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0085/10_million/Data/MultiQC.tsv"
+  Path_metrics: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/MultiQC.tsv"
   QCNORM: "PRE_QCNORM"
-  TPM_path: " "
+  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/TPM.tsv"
   ControlName: "DMSO"
   Batch_variable: ""
-  ExpDescription: "The protocol used for this experiment was watchmaker"
-  Prev_perc: 0.05
+  ExpDescription: "The protocol used for this experiment was Watchmaker"
+  Prev_perc: 0.2
   MEMORY_MB: 4000
-  CoarseCondition:  ["Cell_line","Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used"]
-  Gene_ensemble: FALSE
-  Corr_plot_features: ["Cell_line", "Treatment_time_hrs", "Stimulant_used", "Treatment", "Treatment_conc_uM", "Sample_name"]
+  Corr_plot_features: ["Cell_line", "Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used","Reagent_Percentage","Sample_name"]
+  CoarseCondition:  ["Cell_line", "Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used","Reagent_Percentage"]
+  Gene_annotation: ""
+  Gene_ensemble: TRUE
+
 ---
 
 
@@ -173,20 +174,19 @@ p1
 nMust = 2
 Output_file_path = params$baseDir
 # Mapp in-house cell line annotation to the standard annotation
-#CellLine_Dict = "~/Novogene/RESULTS_FROM_PIPELINE/221020_EXP004_BCH002/Data_For_Pipeline/CellLine_Dict.csv"
-CellLine_Dict = params$CellLine_Dict_path
+#CellLine_Dict = params$CellLine_Dict_path
 # Path to the Human Protein ATLAS file for cell line
-CellLineDB_path = file.path(params$DirDataForPipeline,"rna_celline_240330.tsv")
+#CellLineDB_path = file.path(params$DirDataForPipeline,"rna_celline_240330.tsv")
 # Gene annotation: Either ensemble or symbol
-Gene_annotation = 'Symbol'
+#Gene_annotation = 'Symbol'
 
 TPM_path = params$TPM_path
 
 
 # QC-PRENORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "QC_PRENORMALIZATION_CL.R", sep = '/'))
-QC_PRENORMALIZATION_CL(Output_file_path,nMust, CellLine_Dict = CellLine_Dict, CellLineDB_path = CellLineDB_path, Gene_annotation,TPM_path)
-
+#QC_PRENORMALIZATION_CL(Output_file_path,nMust, CellLine_Dict = CellLine_Dict, CellLineDB_path = CellLineDB_path, Gene_annotation,TPM_path)
+QC_PRENORMALIZATION_CL_V2(Output_file_path,nMust, TPM_path)
 ```
 
 
@@ -213,20 +213,20 @@ if(file.exists(params$Path_metrics)){
 
 # total reads per fastq
 totalreads <- multiqc_metrics %>% 
-  select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
-  rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
+  dplyr::select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
+  dplyr::rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
 
 # get total unique mapping rates 
 mapped_reads <- multiqc_metrics %>%  
-    select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
+    dplyr::select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
     dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
 
 qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
 
 # rrna
 rrna_perc <- multiqc_metrics %>% 
-  select(sample, sort_me_rna_mqc_generalstats_sortmerna_r_rna_pct) %>% 
-  rename("perc_rrna"="sort_me_rna_mqc_generalstats_sortmerna_r_rna_pct")
+  dplyr::select(sample, custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna) %>% 
+  dplyr::rename("perc_rrna"="custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna")
 
 qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
 
@@ -410,7 +410,7 @@ Batch_variable =c("")
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
-DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = 'Human', Batch_variable  )
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = ORGANISM, Batch_variable  )
 
 
 
@@ -873,7 +873,7 @@ annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQ
 
 # Correlation between samples - per cell lines, per time point{.tabset}
 
-```{r ,eval = FALSE,results='asis', fig.height=10, fig.width=10}
+```{r ,eval = TRUE,results='asis', fig.height=10, fig.width=10}
 
 library(pheatmap)
 Methods = c('pearson', 'spearman')

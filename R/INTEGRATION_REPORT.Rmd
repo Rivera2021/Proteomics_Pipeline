@@ -12,13 +12,17 @@ output:
     toc_float:
       collapsed: yes
 params:
-  ConditionsComparisons_path: "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/Data_Files_Pipeline/Integration_Comparisons.xlsx"
-  CoarseCond: "THP-1_LPS_M082"
-  scinamicNums: "EXP007"
-  baseDir : "/fsx/home/crivera/Novogene/RESULTS_FROM_PIPELINE/221101_EXP007_BCH003/240708_Results_THP1_LPS"
+  ConditionsComparisons_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Data/Integration_sheet_50_Percent_Deuc.xlsx"
+  CoarseCond: "K562_NONE_Deucravacitinib"
+  scinamicNums: "A-2024-0142"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240826"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"                    
-  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_240728_w_InvitroTargets.RDS"                              
+  Chemo_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_c20_240826.RDS"  
+  
+
+                              
+                                                
 ---
  
 
@@ -75,6 +79,7 @@ source(file.path(params$DirPipeline, "cleaned_functions.R"))
 ```{r load_meta_data}
 library(readxl)
 library(DESeq2)
+library(clusterProfiler)
 
 
 ConComp_tabl <-read_xlsx(params$ConditionsComparisons_path)
@@ -88,7 +93,7 @@ genesets = c('Hallmark', 'Kegg', 'Reactome')
 
 # Download expression of genes
 Target_list = readRDS(params$Chemo_path)
-TPM_expr_path = file.path(params$baseDir,"QC_PRENORMALIZATION", "TPM_count_expr.xlsx")
+TPM_expr_path = file.path(params$baseDir,"QC_PRENORMALIZATION", "TPM_count_expr.RDS")
 if(file.exists(TPM_expr_path)){
 
                 TPM_expr = readRDS(TPM_expr_path)
@@ -112,8 +117,8 @@ for( i in 1:nrow(ConComp_tabl)){
     
     file_path = ConComp_tabl$PathToGseaTable[i]
     file_name = str_split(ConComp_tabl$PathToGseaTable[i], '/')[[1]][length(str_split(ConComp_tabl$PathToGseaTable[i], '/')[[1]])][[1]]
-    DisplayName = paste(c(ConComp_tabl$Cell_line[1],str_split(file_name, '_')[[1]]),collapse = '_')
-        
+    #DisplayName = paste(c(ConComp_tabl$Cell_line[1],str_split(file_name, '_')[[1]]),collapse = '_')
+    DisplayName = str_split(file_name, '_vs_')[[1]][1]
     
     if(file.exists(file_path)){
         
@@ -125,8 +130,6 @@ for( i in 1:nrow(ConComp_tabl)){
     }
     
 }
-
-
 
 
 
@@ -146,7 +149,7 @@ Chemo_overRepresentation = function(Df, Colname = 'Target_Chemo_all', Geneset, C
     
     Stat_tar = lapply(Targets, function(tar){
          
-         
+         #print(tar)
          Tar_in_Pways = c()
          for(i in 1:nrow(Df)){
              
@@ -355,9 +358,6 @@ The heatmaps show in blue the targets that are over-represented for a particular
 
 ## Using all chemoproteomics targets associated to the molecule {.tabset}
 
-
-
-
 ```{r, echo=FALSE, results='asis', fig.show='hide'}
 library(pheatmap)
 
@@ -374,13 +374,14 @@ if(file.exists(Df_Chemo_hits_path)){
       Heatmap_matrices = list()
       for(geneset in genesets){
           
+         print(geneset) 
          Df_Chemo_hits_sel = Df_Chemo_hits[grep(geneset, names(Df_Chemo_hits))]
          Df_Chemo_hits_sel_filt = list()
          for(k in 1:length(Df_Chemo_hits_sel)){
              
              Df = Df_Chemo_hits_sel[[k]]
              Dfn = Df %>% dplyr::select(gene, padj)
-             colnames(Dfn) = c('gene', names(Df_Chemo_hits_sel)[k])
+             colnames(Dfn) = c('gene',names(Df_Chemo_hits_sel)[k])
              Df_Chemo_hits_sel_filt[[k]] = Dfn
          }
          
@@ -400,14 +401,17 @@ if(file.exists(Df_Chemo_hits_path)){
          MaxNum = max(Df_Chemo_M_log[Df_Chemo_M_log != Inf])
          Df_Chemo_M_log[Df_Chemo_M_log == Inf] = MaxNum +10
          
+         if(nrow(Df_Chemo_M_filt)>1){
          Heatmap_matrices[[geneset]] = list('Matrix' = Df_Chemo_M_log, Sign_display = Df_Chemo_M_sign)
-         
+         }
          
          
       
       }    
         
-        res <- lapply(names(Heatmap_matrices), function(name) {
+        
+      
+      res <- lapply(names(Heatmap_matrices), function(name) {
    knitr::knit_child(file.path(params$DirPipeline, "Child_Chemoproteomics_heatmap.Rmd"),
                     envir = environment(),
                     quiet = TRUE,
@@ -472,7 +476,10 @@ if(file.exists(Df_Chemo_hits_path)){
          MaxNum = max(Df_Chemo_M_log[Df_Chemo_M_log != Inf])
          Df_Chemo_M_log[Df_Chemo_M_log == Inf] = MaxNum +10
          
+         if(nrow(Df_Chemo_M_filt)>1){
          Heatmap_matrices[[geneset]] = list('Matrix' = Df_Chemo_M_log, Sign_display = Df_Chemo_M_sign)
+         }
+         
          
 
       

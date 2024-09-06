@@ -22,26 +22,28 @@ Started on 2023-10-27.
 
 Three reports are generated:
 * QC_REPORT: Contains technical QC, PCA plots, and correlations plots. Uses the following files
-    - QC_REPORT.Rmd
+    - MAIN_QC_REPORT.R: Renders QC_REPORT.Rmd 
         -Expects to find Count matrix and Metadata in an xlsx format within IMPORT_DATA folder (This will should be optimize once protocol input formats and metadata have been totally determined). Count matrix requires a column named 'Gene'
-        
-    - QC_PRENORMALIZATION_CL
-    - PRE_FILTERING
-    - DESEQ_NORM
+        - The following functions are used:
+            - QC_PRENORMALIZATION_CL
+            - PRE_FILTERING
+            - DESEQ_NORM
+            
  
 * DEG_ENRICH: For every cell line and every molecule a report is generated. It contains DEGs and GSEA enriched pathways. Uses the following files
-    - MAIN_DEG_ENRICH_perdrug.R
-    - DEG_ENRICH_perdrug.Rmd
-    - DEG_FUNCTION_DA.R
+    - MAIN_DEG_ENRICH_perdrug.R: Renders MAIN_DEG_ENRICH_perdrug.R
+    - The following functions are used:
+        - DEG_FUNCTION_DA.R
     
-* MAIN_INTEGRATION: Contains integration with chemoproteomics across selected conditions. Uses the following files
-    - MAIN_INTEGRATION.R
-    - INTEGRATION_REPORT.Rmd
+    
+* MAIN_INTEGRATION (In progress): Contains integration with chemoproteomics across selected conditions. Uses the following files
+    - MAIN_INTEGRATION.R: Renders INTEGRATION_REPORT.Rmd
+
 
 The following functions have been used throughout the pipeline
 
 
-* IMPORT_DATA.R: Validates consistency between count matrix and Metadata
+* IMPORT_DATA.R (Not used until protocol is established): Validates consistency between count matrix and Metadata
     - Params:
         - Metadata_path: Path to Metadata in .xlsx format
         - Count_path: Path to matrix with read count in .tsv format
@@ -50,14 +52,16 @@ The following functions have been used throughout the pipeline
         - SampleNamepath: Path to .csv file containing the metadata column names that will be used to uniquely identify a sample using biological features
     - Output:
         - Import_Data.xlsx: File with count matrix and metadata after a few modifications needed to start the pipeline
-* QC_PRENORMALIZATION: QC based on the quality of the sequencing
+* QC_PRENORMALIZATION_CL_V2: QC based on the quality of the sequencing
     - Params:
         - Output_file_path: Directory path for storing results
         - nMust: Number of IQRs below Q1(25% quantile) to identify outlier samples based on number of reads and number of non-zero genes. 2 recommended 
+        - TPM_path: Path where the TPM file is stored. TPM file is usually output by the nfcore nextflow pipeline
     - Output:
         - Outliers.xlsx: List of samples selected as outliers based on the QC of sequencing depth and number of non-zero genes
         - QC_Data.xlsx: File with count matrix and metadata without selected outliers
-        - QC_Prenormalization: QC plots
+        - QC_Prenorm: QC plots
+        - TPM_count_expr.RDS: Saves TPM file with average expression across samples
 * PRE_FILTERING: Filtering genes depending on different criteria 
     - Params:
         - Output_file_path: Directory path for storing results
@@ -68,21 +72,23 @@ The following functions have been used throughout the pipeline
 * DESEQ_NORM: DESeq normalization and PCA plots
     - Params:
         - Output_file_path: Directory path for storing results
-        - QCNORM: Whether the normalization is made before or after the QC based on gene expression behavior. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
+        - QCNORM: Whether the normalization is made before or after the QC and outlier detection. PRE_QCNORM (Normalization before QC), POST_QCNORM (Normalization after QC)
+        - outliers_path: Path to .xlsx file with outliers names
         - CoarseConditions: Features from metadata to build design matrix of DESeq normalization. These features will be used to select comparisons
-        - METHOD_NORM: Normalization method. 'Standard' (Normalization obtained from DESeq object) or 'Standard_Parallel' (Standard DESeq2 method but using parallelization with clustermq) 
+        - METHOD_NORM: Normalization method. "Standard"" (Normalization obtained from DESeq object), 'Standard_Parallel' (Parallel mode to use DESeq )
         - VST_FILTER: Whether to apply Variance Stabilizing transformation to the normalized matrix. VST_ON or VST_OFF. VST_ON recommended
         - SVD_FILTER: Whether to apply SVD truncation to eliminate noisy PCA direction contributions. SVD_OFF or SVD_ON
-        - PlotPCA: Whether to produce PCA plots. 'PCA_PLOT'
-        - Control_Neg_PCA: Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
-        - Control_Pos_PCA: Positive control to show in PCA. Use "" if there is none.
+        - PlotPCA (Not used anymore): Whether to produce PCA plots. 'PCA_PLOT'.
+        - Control_Neg_PCA (Not used anymore): Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
+        - Control_Pos_PCA (Not used anymore): Positive control to show in PCA. Use "" if there is none.
         - MEM_MB: Memory parameter for parallelization with register_dopar_cmq from clustermq package. Only used when METHOD_NORM = 'Standard_Parallel'
+
     - Output:
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
         - Norm_Data.xlsx: Normalized count matrix
-        - PCA_PLOTS: PCA plots using Norm_Data per treatment and for all samples
+        
           
-* QC_POSTNORMALIZATION: Outlier detection based on gene expression and within replicate correlation
+* QC_POSTNORMALIZATION (Currently not used, but should be included in the QC_REPORT): Outlier detection based on gene expression and within replicate correlation
     - Params:
         - Output_file_path: Directory path for storing results
         - OUTLIER_FILTER: Method to detect outliers. GENTLE_REP (Method based on correlation within replicates only)
@@ -96,19 +102,16 @@ The following functions have been used throughout the pipeline
         - Correlation_within_replicates.pdf: Plots showing correlation within replicates across all conditions
         - PCA_WITH_OUTLIERS: PCA plots showing selected outliers
   
-* DEG_FUNCTION: Finds differentially expressed genes
+* DEG_FUNCTION_DA: Finds differentially expressed genes
     - Params:
         - Output_file_path: Directory path for storing results
         - List_contrasts_Path: Path to .xlsx file containing a list with pairs of conditions for which DEG should be estimated. Columns have to be named "treat" and "untreat"
-        - DEG_Method: Method to find DEG. Either 'DESeq' or 'T-Test'
+        - DEG_Method: Method to find DEG. 'DESeq_Cons' (DESeq used only on the samples needed for the commparison)
         - MH_Method: Multiple hypothesis testing method. Either 'BH' or 'High_Cr'(high criticism)
-        - AlphaHC: Significance threshold for high criticism method. A number between 0 and 1
-        - padjval: P adjusted value threshold for significance. A number between 0 and 1. 0.2 is recommended
-        - LogFoldThrs_VolPlot: LogFold threshold to use in Volcano plot and to select DEG for pathway enrichment
-    - Output: A folder per molecule
-        - DEG_MXXX_.xlsx: List containing DEG for every comparison containing the selected molecule
-        - Volcano plots for every comparison
+        -  AdjustDeSeq: A character from the metadata features to correct for batch in the DESeq formula
 
+OLD_FUNCTIONS: (Not used in the current pipeline)        
+        
 * PWAY_ENRICHMENT: Finds enriched pathways for each of the comparisons found in DEG_FUNCTION
        
     - Params:
