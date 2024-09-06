@@ -94,7 +94,7 @@ plot_enhanced_volcano <- function(res_tib){
   p1<-EnhancedVolcano(res_tib,
                       lab = res_tib$symbol,
                       x='log2FC',
-                      y='pvalue',
+                      y='padj',
                       labSize = 4,
                       FCcutoff = 1,
                       drawConnectors = F,
@@ -102,9 +102,28 @@ plot_enhanced_volcano <- function(res_tib){
                       pCutoffCol = 'padj',
                       subtitle = NULL,
                       title = NULL,
-                      legendLabels=c('Not Sig','Sig Log2FC','Sig P-Value',
-                                     'Sig P-Value & Log2FC'))
+                      legendLabels=c('Not Sig','Sig Log2FC','Sig P-adj',
+                                     'Sig P-adj & Log2FC'))
   return(p1)
+}
+
+################################################################################
+
+plot_enhanced_volcano_prot <- function(res_tib){
+    p1<-EnhancedVolcano(res_tib,
+                        lab = res_tib$symbol,
+                        x='log2FC',
+                        y='padj',
+                        labSize = 4,
+                        FCcutoff = 0,
+                        drawConnectors = F,
+                        pCutoff = 0.2,
+                        pCutoffCol = 'padj',
+                        subtitle = NULL,
+                        title = NULL,
+                        legendLabels=c('Not Sig','Sig Log2FC','Sig P-adj',
+                                       'Sig P-adj & Log2FC'))
+    return(p1)
 }
 
 ################################################################################
@@ -172,7 +191,22 @@ display_de_genes4 <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE
 }
 
 
+################################################################################
 
+
+display_de_genes4_prot <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, padj_cutoff = 0.05) {
+    mydat <- merge(geneAnns,mytable, by ="symbol", all.x = FALSE, all.y = TRUE)
+
+    if (filter) {
+        mydat <- mydat %>% dplyr::filter( padj <=  padj_cutoff)
+    }
+    if (distinct) {
+        mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
+    }
+    format_cols <- c("log2FC", "pvalue", "padj")
+    mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    return(mydat)
+}
 
 ################################################################################
 gsea_results_go_kegg <- function(res_tib, geneset = "GO", myorgdb = "org.Hs.eg.db", org = "hsa", name, pval = 0.25, filter = NULL) {
@@ -644,6 +678,270 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 }
 
 ################################################################################
+
+gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline, drug) {
+    require(BiocParallel)
+    require(parallel)
+    set.seed(54321)
+    geneset_name <- deparse(substitute(geneset))
+    filename <- paste(geneset_name, name,".RDS" , sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "gsea_res", geneset_name, filename )
+    dir.create(file.path(saveDir,"contrasts",name, "gsea_res", geneset_name), recursive = TRUE)
+
+
+    if (file.exists(filepath)) {
+        res <- read_rds(filepath)
+    } else {
+
+        res_tib = res_tib %>% dplyr::filter(!is.na(pvalue))
+        # Manage pval that are zero
+
+        if(length(which(res_tib$pvalue == 0))!= 0){
+
+            Pvalue_min = min(res_tib$pvalue[res_tib$pvalue != min(res_tib$pvalue)])/1e4
+            res_tib$pvalue[res_tib$pvalue == 0] = Pvalue_min
+
+        }
+
+        res_tib$gsea_in = sign(res_tib$log2FC) *(-log10(res_tib$pvalue))
+        res_tib = res_tib[order(res_tib$gsea_in, decreasing = TRUE),]
+
+        generank = res_tib$gsea_in
+        names(generank) = res_tib$symbol
+
+
+        gseares_all <- GSEA(generank,
+                            minGSSize = 5,
+                            maxGSSize = 500,
+                            pvalueCutoff = 1,
+                            TERM2GENE = geneset,
+                            eps=0)
+
+        # gseares <- GSEA(generank,
+        #                     minGSSize = 5,
+        #                     maxGSSize = 500,
+        #                     pvalueCutoff = 0.2,
+        #                     TERM2GENE = geneset,
+        #                     eps=0)
+
+
+        gseares_table <- tibble(gseares_all@result) %>%  dplyr::filter(p.adjust < 0.2)
+
+        topPathwaysUp <- gseares_table %>%
+            dplyr::filter(NES > 0 ) %>%
+            arrange(p.adjust, -NES) %>%
+            head(10) %>%
+            pull(Description)
+        topPathwaysDown <- gseares_table %>%
+            dplyr::filter(NES < 0 ) %>%
+            arrange(p.adjust, NES) %>%
+            head(10) %>%
+            pull(Description)
+        topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+
+
+        gseares_table <- gseares_table %>% dplyr::rename(
+            pval = pvalue,
+            pathway = Description,
+            padj = p.adjust,
+            ES = enrichmentScore,
+            size = setSize
+        )
+        if (geneset_name == "Kegg") {
+            # gseares_table <- gseares_table %>%
+            #     left_join(select(keggs_info, id, term), by = c("pathway" = "term")) %>%
+            #     distinct() %>%
+            #     mutate(ID = id) %>%
+            #     select(-id)
+            gseares_table <- gseares_table %>% mutate(link = paste0("<a href='https://www.kegg.jp/entry/", ID, "'>", "KEGG info", "</a>"))
+        } else if (geneset_name == "Hallmark") {
+            gseares_table <- gseares_table %>% mutate(link = paste0("<a href='https://www.gsea-msigdb.org/gsea/msigdb/cards/", pathway, ".html", "'>", "mSigDB \n info", "</a>"))
+        } else if(geneset_name == "Reactome"){
+
+            gseares_table <- gseares_table %>% mutate(link = paste0("<a href='https://www.gsea-msigdb.org/gsea/msigdb/cards/", pathway, ".html", "'>", "mSigDB \n info", "</a>"))
+        }
+
+        # Adding chemoproteomic targets within pathways
+        # First make sure cell line name is the same in both chemoproteomics and transcriptomics experiments
+        # if(file.exists(Celline_Dict_Chemo_path)){
+        #     Dict_cell = read.csv(Celline_Dict_Chemo_path)
+        #     Dict_cell_filt = Dict_cell %>% dplyr::filter(Original == Cellline)
+        #     if(nrow(Dict_cell_filt) > 0 ){
+        #
+        #         Cell_line_chemo = Dict_cell_filt$InChemo[1]
+        #     }
+        #
+        # }else{
+        #
+        #     Cell_line_chemo = Cellline
+        # }
+        #
+        # if(file.exists(Chemo_path)){
+        #
+        #     Target_list = readRDS(Chemo_path)
+        #
+        #
+        #     # Filter list of targets for expressed targets only
+        #
+        #     if(file.exists(TPM_expr_path)){
+        #
+        #         TPM_expr = readRDS(TPM_expr_path)
+        #         Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
+        #         Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+        #     }
+        #
+        #
+        #
+        #
+        #
+        #     # Look for targets within the same type of biological sample
+        #     Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== drug )
+        #     if(nrow(Target_list_esp)>0){
+        #
+        #         gseares_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list_esp , enrichedPathways = gseares_table, geneset, Esp =TRUE)
+        #     }else{
+        #
+        #         gseares_table$Target_Chemo_esp = "No available data"
+        #     }
+        #
+        #     gseares_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list , enrichedPathways = gseares_table, geneset, Esp =FALSE)
+        #
+        #
+        #
+        # }
+
+
+        res <- list(
+            gseares_all = gseares_all,
+            gsea_table = gseares_table,
+            topPathwaysUp = topPathwaysUp,
+            topPathwaysDown = topPathwaysDown
+        )
+
+        saveRDS(res, file = filepath)
+
+    }
+    return(res)
+}
+
+################################################################################
+
+over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, TPM_expr_path) {
+    require(BiocParallel)
+    require(parallel)
+    set.seed(54321)
+    geneset_name <- deparse(substitute(geneset))
+    filename <- paste(geneset_name, name,".RDS" , sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "overrep_res", geneset_name, filename )
+    dir.create(file.path(saveDir,"contrasts",name, "overrep_res", geneset_name), recursive = TRUE)
+
+
+    if (file.exists(filepath)) {
+        res <- read_rds(filepath)
+    } else {
+
+        Univ_genes = base::intersect(res_tib$symbol, geneset$gene)
+        res_tib = res_tib %>% dplyr::filter(padj < 0.2)
+
+        #try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = geneset, universe = Univ_genes))
+
+        try(overrep_all <- enricher(res_tib$symbol, TERM2GENE = geneset,  universe = Univ_genes, pvalueCutoff = 0.2))
+        if(!is.null(overrep_all) ){
+          overrep_table = overrep_all@result %>% dplyr::filter(p.adjust < 0.2 )
+
+          if(nrow(overrep_table) > 0){
+
+
+            if (geneset_name == "Kegg") {
+            # gseares_table <- gseares_table %>%
+            #     left_join(select(keggs_info, id, term), by = c("pathway" = "term")) %>%
+            #     distinct() %>%
+            #     mutate(ID = id) %>%
+            #     select(-id)
+                overrep_table <- overrep_table %>% mutate(link = paste0("<a href='https://www.kegg.jp/entry/", ID, "'>", "KEGG info", "</a>"))
+            } else if (geneset_name == "Hallmark") {
+                 overrep_table <- overrep_table %>% mutate(link = paste0("<a href='https://www.gsea-msigdb.org/gsea/msigdb/cards/", ID, ".html", "'>", "mSigDB \n info", "</a>"))
+            } else if(geneset_name == "Reactome"){
+
+                 overrep_table <- overrep_table %>% mutate(link = paste0("<a href='https://www.gsea-msigdb.org/gsea/msigdb/cards/", ID, ".html", "'>", "mSigDB \n info", "</a>"))
+            }
+
+            # Adding chemoproteomic targets within pathways
+            # First make sure cell line name is the same in both chemoproteomics and transcriptomics experiments
+            if(file.exists(Celline_Dict_Chemo_path)){
+            Dict_cell = read.csv(Celline_Dict_Chemo_path)
+            Dict_cell_filt = Dict_cell %>% dplyr::filter(Original == Cellline)
+            if(nrow(Dict_cell_filt) > 0 ){
+
+                Cell_line_chemo = Dict_cell_filt$InChemo[1]
+            }
+
+        }else{
+
+              Cell_line_chemo = Cellline
+            }
+
+            if(file.exists(Chemo_path)){
+
+            Target_list = readRDS(Chemo_path)
+
+
+            # Filter list of targets for expressed targets only
+
+            if(file.exists(TPM_expr_path)){
+
+                TPM_expr = readRDS(TPM_expr_path)
+                Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
+                Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+            }
+
+
+
+
+
+            # Look for targets within the same type of biological sample
+            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== drug )
+            if(nrow(Target_list_esp)>0){
+
+                overrep_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list_esp , enrichedPathways = overrep_table, geneset, Esp =TRUE)
+            }else{
+
+                overrep_table$Target_Chemo_esp = "No available data"
+            }
+
+            overrep_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list , enrichedPathways = overrep_table, geneset, Esp =FALSE)
+
+
+
+         }
+
+
+
+          }else{
+
+              overrep_table = data.frame()
+
+          }
+
+
+        }else{
+            overrep_table = data.frame()
+
+        }
+
+        res <- list(
+            overrep_all = overrep_all,
+            overrep_table = overrep_table)
+
+
+        saveRDS(res, file = filepath)
+
+    }
+    return(res)
+}
+
+################################################################################
+
 
 sig_genes <- function(res_tib, direction = "up"){
   if(direction == "up"){

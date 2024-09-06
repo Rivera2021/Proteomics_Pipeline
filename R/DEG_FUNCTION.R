@@ -377,7 +377,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         return(Results)
     }
 
-    print(comp_vect)
+    #print(comp_vect)
 
     Contrast_name = paste0(comp_vect['treat'],"_vs_",comp_vect['untreat'])
     # Create dir
@@ -435,7 +435,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
 
             res = results(deseqObj_cons,contrast = c("CoarseCondition",comp_vect['treat'], comp_vect['untreat'] ), parallel = TRUE)
             # shrink the lfcs
-            res <-  lfcShrink(deseqObj_cons, res = res, type = "ashr")
+            #res <-  lfcShrink(deseqObj_cons, res = res, type = "ashr")
             res <- tibble(symbol = rownames(res),
                           log2FC = res$log2FoldChange,
                           pvalue = res$pvalue,

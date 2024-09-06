@@ -276,7 +276,7 @@ cat('\n')
 cat("#####", "Table of enriched pathways")
 cat('\n')
 
-downloadableDTExcel(res_React$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all, TPM_expr_path ), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+downloadableDTExcel(res_React$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all ), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
 
 
