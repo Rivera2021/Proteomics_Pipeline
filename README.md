@@ -81,6 +81,8 @@ The following functions have been used throughout the pipeline
         - PlotPCA (Not used anymore): Whether to produce PCA plots. 'PCA_PLOT'.
         - Control_Neg_PCA (Not used anymore): Negative control to show in PCAs. Use "" if only samples associated to a particular treatment are desired in the plot
         - Control_Pos_PCA (Not used anymore): Positive control to show in PCA. Use "" if there is none.
+        - MEM_MB: Memory parameter for parallelization with register_dopar_cmq from clustermq package. Only used when METHOD_NORM = 'Standard_Parallel'
+
     - Output:
         - DESeq_Norm.RData: DESeq2 object with normalization and DEG information
         - Norm_Data.xlsx: Normalized count matrix
@@ -122,7 +124,21 @@ OLD_FUNCTIONS: (Not used in the current pipeline)
         - Pway_qvalThrs:  P adjusted value threshold for significance of enriched pathways. A number between 0 and 1. 0.2 is recommended
         - ORGANISM: Either "Mouse" or "Human"
         - Target_list_path: Path to target list candidates from chemoproteomics and chemoinformatics
-        - DirData: Path to directory where KEGG and REACTOME gene sets are stored
+        - DirPipeline_Data: Path to directory where KEGG, REACTOME and GO gene sets are stored
+        - GeneDescription_path: Path to where the file containing gene description is stored
+        - TimeToRemove: When an entire category of controls at a given point is removed, use this parameter to remove all samples at this time point, given that no comparison can be made at this time point if there are no controls
+     
+* PWAYS_INTEGRATION: Creates summary data frames across compared conditions for pathway enrichment and data frames for over-representation of chemoproteomics candidate targets
+
+    - Params:
+         - Output_file_path: Directory path for storing results
+         - Target_list_path: Path to target list candidates from chemoproteomics and chemoinformatics
+         - ORGANISM: Either "Mouse" or "Human"
+         - DirPipeline_Data: Path to directory where KEGG, REACTOME and GO gene sets are stored
+         - Control: Name of control used for comparisons
+    
+
+          
         
   
     
