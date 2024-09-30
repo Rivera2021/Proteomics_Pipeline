@@ -1,7 +1,0 @@
-###### `r feature`  
-```{r, echo=FALSE, results='asis'}
-
-pl = pcaplot(df = pca_res_ct_time,pca_var_ct_time, covar = feature, pc1 = "PC1", pc2 = "PC2")
-ggplotly(pl)
-
-```

@@ -25,7 +25,7 @@ Three reports are generated:
     - MAIN_QC_REPORT.R: Renders QC_REPORT.Rmd 
         -Expects to find Count matrix and Metadata in an xlsx format within IMPORT_DATA folder (This will should be optimize once protocol input formats and metadata have been totally determined). Count matrix requires a column named 'Gene'
         - The following functions are used:
-            - QC_PRENORMALIZATION_CL
+            - QC_PRENORMALIZATION_CL_V2
             - PRE_FILTERING
             - DESEQ_NORM
             
@@ -142,4 +142,3 @@ OLD_FUNCTIONS: (Not used in the current pipeline)
         
   
     
-
