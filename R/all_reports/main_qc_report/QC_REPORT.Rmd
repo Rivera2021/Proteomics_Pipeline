@@ -17,9 +17,13 @@ params:
   baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_240905"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
-  Path_metrics: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/MultiQC.tsv"
+  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/241030_EXP000033_metadata_v3_MB.xlsx"
+  CountM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_counts.tsv"
+  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/MultiQC.tsv"
+  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/SampleName.csv"
   QCNORM: "PRE_QCNORM"
   TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/TPM.tsv"
+  Organism_type: "In_vivo"
   ControlName: "DMSO"
   Batch_variable: ""
   ExpDescription: "The protocol used for this experiment was Watchmaker"
@@ -89,7 +93,7 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 
 ```{r functions }
 # load custom functions
-source(file.path(params$DirPipeline, "cleaned_functions.R"))
+source(file.path(params$DirPipeline, "../cleaned_functions.R"))
 
 ```
 
@@ -97,6 +101,9 @@ source(file.path(params$DirPipeline, "cleaned_functions.R"))
 ```{r load_meta_data}
 library(readxl)
 library(DESeq2)
+
+source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
+IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path)
 
 Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
