@@ -12,28 +12,30 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "K562"
-  scinamicNum: 'A_2024_0142'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_240905"
+  cellline: "In vivo"
+  scinamicNum: 'EXP000033'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
-  DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
+  DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
+  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/MultiQC.tsv"
   Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/241030_EXP000033_metadata_v3_MB.xlsx"
-  CountM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_counts.tsv"
-  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/MultiQC.tsv"
+  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_counts.tsv"
   SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/SampleName.csv"
+  Experimental_design_path: ""
+  Column_match: "ID"
+  Organism_type: "In_vivo" # Either In_vivo or In_vitro
   QCNORM: "PRE_QCNORM"
-  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/TPM.tsv"
-  Organism_type: "In_vivo"
-  ControlName: "DMSO"
+  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_tpm.tsv"
+  ControlName: "Vehicle-DMSO"
   Batch_variable: ""
   ExpDescription: "The protocol used for this experiment was Watchmaker"
   Prev_perc: 0.2
   MEMORY_MB: 4000
-  Corr_plot_features: ["Cell_line", "Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used","Reagent_Percentage","Sample_name"]
-  CoarseCondition:  ["Cell_line", "Treatment","Treatment_conc_uM", "Treatment_time_hrs", "Stimulant_used","Reagent_Percentage"]
+  Corr_plot_features: ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used","Sample_name"]
+  CoarseCondition:  ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
   Gene_annotation: ""
   Gene_ensemble: TRUE
-
+    
 ---
 
 
@@ -103,7 +105,7 @@ library(readxl)
 library(DESeq2)
 
 source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
-IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path)
+IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path, Column_match = params$Column_match)
 
 Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
@@ -119,8 +121,8 @@ count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx
 
 cat(params$ExpDescription)
 
-Path_Exp = file.path(params$baseDir, "IMPORT_DATA", "Experimental_design.jpeg")
-if(file.exists(Path_Exp)){
+
+if(file.exists(params$Experimental_design_path)){
   
     #knitr::opts_chunk$set(fig_width=20, fig_height=15)
     knitr::include_graphics(Path_Exp)
@@ -215,8 +217,8 @@ Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"
 
 # This metrics file has be the output of the multiqc, from samtools
 metric_param = TRUE
-if(file.exists(params$Path_metrics)){
- multiqc_metrics <- rio::import(file.path(params$Path_metrics))%>% janitor::clean_names() %>% as_tibble()
+if(file.exists(params$Metrics_path)){
+ multiqc_metrics <- rio::import(file.path(params$Metrics_path))%>% janitor::clean_names() %>% as_tibble()
 
 # total reads per fastq
 totalreads <- multiqc_metrics %>% 
@@ -267,7 +269,7 @@ src_list <- lapply(metrics, function(metric) {
   src <- c("\n",
            paste("###", metric, "\n"),
            "```{r, fig.height=10, fig.width=24}",
-           paste("barplot_metrics_cellline(Metadata, metric =", sQuote(metric), ", sort1='Treatment', sort2='Treatment_conc_uM', colorcol='Treatment')"),
+           paste("barplot_metrics_cellline(Metadata, metric =", sQuote(metric), ", sort1='Treatment', sort2='Treatment_conc', colorcol='Treatment')"),
            "```",
            "\n")
   knit_expand(text = src)
@@ -417,7 +419,8 @@ Batch_variable =c("")
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
-DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , PlotPCA ,Control_Neg_PCA , Control_Pos_PCA,MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = ORGANISM, Batch_variable  )
+
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = ORGANISM, Batch_variable  )
 
 
 
@@ -444,8 +447,8 @@ if(params$QCNORM == "PRE_QCNORM"){
 # variable <- NormCounts[rank(cv) / length(cv) > 1 - cutoff, ]
 
 # Order Doses
-sorted_doses <- as.character(sort(unique(as.numeric(Metadata$Treatment_conc_uM))))
-#Metadata$Treatment_conc_uM = factor(Metadata$Treatment_conc_uM, levels = sorted_doses)
+sorted_doses <- as.character(sort(unique(as.numeric(Metadata$Treatment_conc))))
+#Metadata$Treatment_conc_uM = factor(Metadata$Path_metrics, levels = sorted_doses)
 #Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
 
 pca <- prcomp(t(NormCounts))
@@ -464,7 +467,7 @@ We use PCA plots like these to give us an overall view of the samples.
 
 ```{r, echo=FALSE, results='asis', fig.show='hide'}
 
-covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc_uM", "Treatment_time_hrs")
+covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc", "Treatment_time_hrs")
 
 
 result <- lapply(covariates, function(covar) {
@@ -495,7 +498,7 @@ Evalstim = ifelse(length(stimulants)>1, TRUE, FALSE)
 ```{r, eval = Evalcells, results='asis', fig.show='interactive'}
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc_uM", "Outliers", "RQN")
+covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc", "Outliers", "RQN")
 
 cat("\n")
 cat("#", 'Principal Component Analysis - Per cell-line', '{.tabset}')
@@ -548,7 +551,7 @@ cat("\n")
 
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc_uM", "Outliers", "RQN")
+covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc", "Outliers", "RQN")
 
 for(cellt in celllines){
     
@@ -610,7 +613,7 @@ cat("\n")
 
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time_stim = c('Treatment', "Treatment_conc_uM", "Outliers", "RQN")
+covariates_ct_time_stim = c('Treatment', "Treatment_conc", "Outliers", "RQN")
 
 for(cellt in celllines){
     
@@ -692,7 +695,7 @@ for(cellt in celllines){
 ```{r , eval = TRUE, results='asis', fig.show='interactive'}
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time_treat = c("Treatment","Treatment_conc_uM", "Stimulant_used", "Outliers", "RQN")
+covariates_ct_time_treat = c("Treatment","Treatment_conc", "Stimulant_used", "Outliers", "RQN")
 
 for(cellt in celllines){
     

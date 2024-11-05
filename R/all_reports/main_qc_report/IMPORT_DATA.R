@@ -1,7 +1,7 @@
 
 
 # Reformat raw counts and metadata
-IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_path, TPM_path, Organism_type, SampleName_path){
+IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_path, TPM_path, Organism_type, SampleName_path, Column_match){
 
     library("openxlsx")
     library("readxl")
@@ -21,24 +21,27 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
 
     # Modify Treatment notation for convenience
     Metadata$Treatment = Metadata$`Biosample::Compound Batch::ID`
+    Metadata$Treatment = sub(" ", "-",Metadata$Treatment)
     Metadata$Stimulant_treatment_time_hrs= Metadata$`Biosample::Stimulant Treatment Time (h)`
     Metadata$Replicate = Metadata$`Biosample::Replicate`
 
     # Replace NA by zero in Treatment concentration. Order concentrations
     Metadata$Treatment_conc = Metadata$`Biosample::Compound Concentration`
     if(Organism_type == "In_vivo"){
-        Metadata$Stimulant_used = ifelse(Metadata$`Biosample::Compound Batch::ID`!="NONE", "Stim", "No_Stim")
+        Metadata$Stimulant_used = ifelse(Metadata$`Biosample::Compound Batch::ID`!="NONE", "Stim", "NoStim")
         Metadata$Treatment_time_hrs = Metadata$`Animal Tissue::Time of Collection (h)`
         Metadata$RQN = Metadata$`RNA Sample::RQN`
         Metadata$RNA_Conc = Metadata$`RNA Sample::Concentration (ng/uL)`
+        Metadata$Cell_line = "In_vivo"
 
     }else if(Organism_type == "In_vitro"){
 
         Metadata$Stimulant_used = Metadata$`Biosample::Stimulant`
         Metadata$Treatment_time_hrs = Metadata$`Biosample::Compound Treatment Time (h)`
-        Metadata$RQN = Metadata$RQN
+        Metadata$RQN = Metadata$`RNA Sample::RQN`
         Metadata$RNA_Conc = Metadata$`Concentration (ng/uL)`
         Metadata$Cell_line = Metadata$`Biosample::Cellline::ID`
+
     }else{
         stop("Please provide a valid Organism")
     }
@@ -68,17 +71,23 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     Count <- aggregate(. ~ gene_name, data = Count, FUN = sum)
     Count = Count %>% column_to_rownames("gene_name")
 
-    if(any(!colnames(Count) %in% Metadata$ID)){
+    Metadata$MatchID = Metadata[[Column_match]]
+    # match colnames of matrix and Metadata
+    if(any(!colnames(Count) %in% Metadata$MatchID)){
 
         print("There are samples in the count matrix that do not match any sample in the metadata")
     }
-    if(any(!Metadata$ID %in% colnames(Count))){
+    if(any(!Metadata$MatchID %in% colnames(Count))){
 
         print("There are samples in the metadata that do not match any column in the count matrix")
     }
 
-    Metadata = Metadata %>% dplyr::filter(ID  %in% colnames(Count))
-    Count = Count[,match(Metadata$ID, colnames(Count))]
+    Metadata = Metadata %>% dplyr::filter(MatchID  %in% colnames(Count))
+    Count = Count[,match(Metadata$MatchID, colnames(Count))]
+    colnames(Count) = Metadata$Sample_name
+    Count = Count %>% rownames_to_column("Gene")
+
+
     }else{
         stop("Path for raw count matrix does not exist")
     }
@@ -88,9 +97,10 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     if(file.exists(TPM_path)){
     TPM = read.table(TPM_path,  sep = '\t', header = TRUE, check.names=FALSE)
     TPM$gene_id = NULL
-    TPM <- aggregate(. ~ gene_name, data = TPM1, FUN = sum)
+    TPM <- aggregate(. ~ gene_name, data = TPM, FUN = sum)
     TPM = TPM %>% column_to_rownames("gene_name")
-    TPM = TPM[,match(Metadata$ID, colnames(TPM))]
+    TPM = TPM[,match(Metadata$MatchID, colnames(TPM))]
+    colnames(TPM) = Metadata$Sample_name
 
     write.table(TPM, file='./TPM.tsv', row.names = FALSE,quote=FALSE, sep='\t')
 
@@ -98,15 +108,16 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
         print("TPM file does not exist")
     }
     # Read MultiQC files
-    if (file.exists(Metrics_path)){
-        multiqc_metrics <- rio::import(Metrics_path)%>% janitor::clean_names() %>% as_tibble()
-        multiqc_metrics = multiqc_metrics[!is.na(multiqc_metrics$custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna),]
-
-        write.table(multiqc_metrics, file='./MultiQC.tsv', row.names = FALSE,quote=FALSE, sep='\t')
-
-    }else{
-        print("Path for file with QC metrics does not exist")
-    }
+    # if (file.exists(Metrics_path)){
+    #     multiqc_metrics <- rio::import(Metrics_path)%>% janitor::clean_names() %>% as_tibble()
+    #     multiqc_metrics = multiqc_metrics[!is.na(multiqc_metrics$custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna),]
+    #
+    #     write.table(multiqc_metrics, file='./MultiQC.tsv', row.names = FALSE,quote=FALSE, sep='\t')
+    #
+    #
+    # }else{
+    #     print("Path for file with QC metrics does not exist")
+    # }
 
     # Save metadata and count formatted data frames
 

@@ -501,7 +501,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         Top_dn_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "Top_dn_DEGs.jpeg")
         All_DEG_filename_pdf <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.pdf")
 
-        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc_uM, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
+        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
         Heat_dat = NormCounts_cons[, match(rownames(mat_anno), colnames(NormCounts_cons))]
 
         # Top upregulated

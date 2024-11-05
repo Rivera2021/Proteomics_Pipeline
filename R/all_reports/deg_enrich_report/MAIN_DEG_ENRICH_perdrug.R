@@ -3,15 +3,16 @@ library(tidyverse)
 library(readxl)
 
 
-cell_line = "K562"
-stimulation = "NONE"
-scinamicNum = 'A-2024-0142'
-baseDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_240905"
+cell_line = "In vivo"
+stimulation = "TNBS"
+scinamicNum = 'EXP000033'
+baseDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"
 dataDir =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_240905/DESEQ_NORM"
-Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Data/List_contrasts_K562.xlsx"
-Chemo_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_c20_240826.RDS"
+Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/List_contrasts_Invivo.xlsx"
+Chemo_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241004_w_InvitroTargets_knInh.RDS"
+Experimental_design_path = ""
 Cell_Dict_path = ""
 AdjustDeSeq = ""
 
