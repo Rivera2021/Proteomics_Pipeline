@@ -90,15 +90,15 @@ pcaplot <- function(df,pca_var,  covar, pc1 = "PC1", pc2 = "PC2") {
 
 ################################################################################
 
-plot_enhanced_volcano <- function(res_tib){
+plot_enhanced_volcano <- function(res_tib, FCcut = 1, PadjThr = 0.2){
   p1<-EnhancedVolcano(res_tib,
                       lab = res_tib$symbol,
                       x='log2FC',
                       y='padj',
                       labSize = 4,
-                      FCcutoff = 1,
+                      FCcutoff = FCcut,
                       drawConnectors = F,
-                      pCutoff = 0.2,
+                      pCutoff = PadjThr,
                       pCutoffCol = 'padj',
                       subtitle = NULL,
                       title = NULL,
@@ -564,21 +564,21 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
 
         gseares_all <- GSEA(generank,
+                            minGSSize = 5,
+                            maxGSSize = 500,
+                            pvalueCutoff = 1,
+                            TERM2GENE = geneset,
+                            eps=0)
+
+        gseares <- GSEA(generank,
                         minGSSize = 5,
                         maxGSSize = 500,
-                        pvalueCutoff = 1,
+                        pvalueCutoff = 0.2,
                         TERM2GENE = geneset,
                         eps=0)
 
-        # gseares <- GSEA(generank,
-        #                     minGSSize = 5,
-        #                     maxGSSize = 500,
-        #                     pvalueCutoff = 0.2,
-        #                     TERM2GENE = geneset,
-        #                     eps=0)
 
-
-        gseares_table <- tibble(gseares_all@result) %>%  dplyr::filter(p.adjust < 0.2)
+        gseares_table <- tibble(gseares@result) %>%  dplyr::filter(p.adjust < 0.2)
 
         topPathwaysUp <- gseares_table %>%
             dplyr::filter(NES > 0 ) %>%
@@ -594,12 +594,12 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
 
         gseares_table <- gseares_table %>% dplyr::rename(
-                pval = pvalue,
-                pathway = Description,
-                padj = p.adjust,
-                ES = enrichmentScore,
-                size = setSize
-            )
+            pval = pvalue,
+            pathway = Description,
+            padj = p.adjust,
+            ES = enrichmentScore,
+            size = setSize
+        )
         if (geneset_name == "Kegg") {
             # gseares_table <- gseares_table %>%
             #     left_join(select(keggs_info, id, term), by = c("pathway" = "term")) %>%
@@ -629,6 +629,21 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
             Cell_line_chemo = Cellline
         }
 
+        # Make drugs name eual than in chemoproteomics
+        if(file.exists(Drug_Dict_Chemo_path)){
+            Dict_drug = read.csv(Drug_Dict_Chemo_path)
+            Dict_drug_filt = Dict_drug %>% dplyr::filter(Original == Drug)
+            if(nrow(Dict_drug_filt) > 0 ){
+
+                Drug_chemo = Dict_drug_filt$InChemo[1]
+            }
+
+        }else{
+
+            Drug_chemo = Drug
+        }
+
+
         if(file.exists(Chemo_path)){
 
             Target_list = readRDS(Chemo_path)
@@ -641,6 +656,10 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
                 TPM_expr = readRDS(TPM_expr_path)
                 Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
                 Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+            }else{
+
+                Target_list = Target_list %>% dplyr::filter(gene %in% res_tib$symbol)
+
             }
 
 
@@ -648,7 +667,7 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
 
             # Look for targets within the same type of biological sample
-            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== drug )
+            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== Drug_chemo )
             if(nrow(Target_list_esp)>0){
 
                 gseares_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list_esp , enrichedPathways = gseares_table, geneset, Esp =TRUE)
@@ -666,6 +685,7 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
         res <- list(
             gseares_all = gseares_all,
+            gseares = gseares,
             gsea_table = gseares_table,
             topPathwaysUp = topPathwaysUp,
             topPathwaysDown = topPathwaysDown
@@ -826,7 +846,7 @@ gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_p
 
 ################################################################################
 
-over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, TPM_expr_path) {
+over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, TPM_expr_path, PadjThr, log2FCTHr ) {
     require(BiocParallel)
     require(parallel)
     set.seed(54321)
@@ -841,7 +861,7 @@ over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_pa
     } else {
 
         Univ_genes = base::intersect(res_tib$symbol, geneset$gene)
-        res_tib = res_tib %>% dplyr::filter(padj < 0.2)
+        res_tib = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr )
 
         #try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = geneset, universe = Univ_genes))
 

@@ -5,7 +5,7 @@ library(readxl)
 
 cellline = "In vivo"
 scinamicNum = 'EXP000033'
-baseDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929"
+baseDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
 Metrics_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/MultiQC.tsv"
@@ -26,7 +26,7 @@ Corr_plot_features = c("Treatment","Treatment_conc", "Treatment_time_hrs", "Stim
 CoarseCondition =  c("Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used")
 Gene_annotation = ""
 Gene_ensemble = TRUE
-
+Alias_path = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
 
 
 
@@ -58,7 +58,8 @@ rmarkdown::render(input = paste(DirPipeline,"QC_REPORT.Rmd", sep = '/')  ,
                                     Corr_plot_features = Corr_plot_features,
                                     CoarseCondition =  CoarseCondition,
                                     Gene_annotation = Gene_annotation,
-                                    Gene_ensemble = Gene_ensemble),clean = TRUE,
+                                    Gene_ensemble = Gene_ensemble,
+                                    Alias_path = Alias_path),clean = TRUE,
                       output_file = file.path(Name_folder_path,paste(format(Sys.time(), '%y-%m-%d'), cellline, "QC_REPORT", '.html',sep = '_')))
 
 

@@ -14,7 +14,7 @@ output:
 params:
   cellline: "In vivo"
   scinamicNum: 'EXP000033'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
   Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/MultiQC.tsv"
@@ -35,7 +35,8 @@ params:
   CoarseCondition:  ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
   Gene_annotation: ""
   Gene_ensemble: TRUE
-    
+  Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
+  
 ---
 
 
@@ -105,7 +106,7 @@ library(readxl)
 library(DESeq2)
 
 source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
-IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path, Column_match = params$Column_match)
+IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path, Column_match = params$Column_match, Alias_path = params$Alias_path)
 
 Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
@@ -958,6 +959,17 @@ for(cellt in celllines){
 
 ```
 
+# R session info
+This section includes technical details about the R code used to produce this analysis. Most readers can safely ignore it. 
+
+<button class="btn btn-rcode" data-toggle="collapse" data-target="#BlockName"> Show/Hide R Session Details </button>  
+<div id="BlockName" class="collapse">  
+
+```{r session info}
+sess <- devtools::session_info()
+sess$platform
+knitr::kable(as.data.frame(sess$packages), caption="Package versions")
+```
 
 
 

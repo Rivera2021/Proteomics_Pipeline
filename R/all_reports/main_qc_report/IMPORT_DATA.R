@@ -1,7 +1,7 @@
 
 
 # Reformat raw counts and metadata
-IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_path, TPM_path, Organism_type, SampleName_path, Column_match){
+IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_path, TPM_path, Organism_type, SampleName_path, Column_match, Alias_path){
 
     library("openxlsx")
     library("readxl")
@@ -18,12 +18,32 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     Metadata = read_xlsx(Metadata_path)
     Metadata$scinamicNum = Metadata$`Biosample::Experiment Number`
 
+     if(file.exists(Alias_path)){
+
+         Alias_map <- read.csv(Alias_path)
+         Metadata$Treatment = Metadata$`Biosample::Compound Batch::ID`
+         Metadata$Treatment = unlist(lapply(Metadata$Treatment, function(x){
+             if(x %in% Alias_map$MolID){
+                 y = Alias_map$Treatment[match(x,Alias_map$MolID)]
+             }else{
+                 y = x
+             }
+             return(y)
+         }))
+
+
+     }else{
+
+         Metadata$Treatment = Metadata$`Biosample::Compound Batch::ID`
+     }
 
     # Modify Treatment notation for convenience
-    Metadata$Treatment = Metadata$`Biosample::Compound Batch::ID`
+
     Metadata$Treatment = sub(" ", "-",Metadata$Treatment)
     Metadata$Stimulant_treatment_time_hrs= Metadata$`Biosample::Stimulant Treatment Time (h)`
     Metadata$Replicate = Metadata$`Biosample::Replicate`
+    Metadata$RNA_Sample_plate = Metadata$`RNA Sample::Plate`
+
 
     # Replace NA by zero in Treatment concentration. Order concentrations
     Metadata$Treatment_conc = Metadata$`Biosample::Compound Concentration`

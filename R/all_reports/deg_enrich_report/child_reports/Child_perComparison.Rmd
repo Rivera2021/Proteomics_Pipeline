@@ -5,7 +5,7 @@
 cat('\n')
 cat("####", "Volcano Plot")
 cat('\n')
-plot_enhanced_volcano(all_contrasts[[name]])
+plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene)
 cat('\n')             
 
 
@@ -65,12 +65,20 @@ cat('\n')
 cat("####", "Hallmark {.tabset}")
 cat('\n')
 
-res_hall <- gsea_results_logpval(all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = params$drug, TPM_expr_path )
+gene_expression_fold = all_contrasts[[name]]$log2FC
+names(gene_expression_fold) = all_contrasts[[name]]$symbol
+
+res_hall <- gsea_results_logpval(res_tib = all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = params$drug, TPM_expr_path =  TPM_expr_path)
 
 cat('\n')
 cat("#####", "Signficance and GeneRatios")
 cat('\n')
-dotplot(res_hall$gseares_all)
+if(nrow(res_hall$gseares@result)>0 ){
+dotplot(res_hall$gseares)
+}else{
+ cat("No significant pathways")   
+    
+}    
 cat('\n')
 
 # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
@@ -94,7 +102,12 @@ cat('\n')
 cat('\n')
 cat("#####", "Genes within pathways")
 cat('\n')
-cnetplot(res_hall$gseares_all, cex_label_gene=0.5, cex_label_category = 0.8, showCategory = 10)
+cnetplot(res_hall$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
 cat('\n')
 
 
@@ -102,7 +115,7 @@ cat('\n')
 cat("#####", "Tree: pathway cluster ")
 cat('\n')
 if(nrow(res_hall$gsea_table) > 5){
-sim <- pairwise_termsim(res_hall$gseares_all)
+sim <- pairwise_termsim(res_hall$gseares)
 treeplot(sim, hclust_method = 'average')
 }else{
     cat('\n')
@@ -143,7 +156,12 @@ res_kegg <- gsea_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Ch
 cat('\n')
 cat("#####", "Significance and GeneRatios")
 cat('\n')
-dotplot(res_kegg$gseares_all)
+if(nrow(res_kegg$gseares@result)>0 ){
+dotplot(res_kegg$gseares)
+}else{
+ cat("No significant pathways")   
+    
+}    
 cat('\n')
 
 # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
@@ -167,14 +185,18 @@ cat('\n')
 cat('\n')
 cat("#####", "Genes within pathways")
 cat('\n')
-cnetplot(res_kegg$gseares_all, cex_label_gene=0.5, cex_label_category = 0.8, showCategory = 10)
+cnetplot(res_kegg$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+)
 cat('\n')
 
 cat('\n')
 cat("#####", "Tree: pathway cluster ")
 cat('\n')
 if(nrow(res_kegg$gsea_table) > 5){
-sim <- pairwise_termsim(res_kegg$gseares_all)
+sim <- pairwise_termsim(res_kegg$gseares)
 treeplot(sim, hclust_method = 'average')
 }else{
     cat('\n')
@@ -215,7 +237,12 @@ res_React <- gsea_results_logpval(all_contrasts[[name]], geneset = Reactome, nam
 cat('\n')
 cat("#####", "Significance and GeneRatios")
 cat('\n')
-dotplot(res_React$gseares_all)
+if(nrow(res_React$gseares@result)>0 ){
+dotplot(res_React$gseares)
+}else{
+ cat("No significant pathways")   
+    
+}    
 cat('\n')
 
 # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
@@ -239,7 +266,12 @@ cat('\n')
 cat('\n')
 cat("#####", "Genes within pathways")
 cat('\n')
-cnetplot(res_React$gseares_all, cex_label_gene=0.5, cex_label_category = 0.8, showCategory = 10)
+cnetplot(res_React$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    name = "NES" # Neutral values are white
+  )
 cat('\n')
 
 cat('\n')
@@ -247,7 +279,7 @@ cat("#####", "Tree: pathway cluster ")
 cat('\n')
 
 if(nrow(res_React$gsea_table) > 5){
-sim <- pairwise_termsim(res_React$gseares_all)
+sim <- pairwise_termsim(res_React$gseares)
 treeplot(sim, hclust_method = 'average', fontsize = 3)
 }else{
     cat('\n')
@@ -282,3 +314,236 @@ cat('\n')
 
 
 ```
+
+### Pathway enrichment Over-representation {.tabset}
+```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+# Hallmark visualization
+                               
+res_hall <- over_rep_results_logpval(all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  TPM_expr_path =  TPM_expr_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene)
+ 
+Eval_hall_over = FALSE
+if(!is.null(res_hall$overrep)){
+    if(nrow(res_hall$overrep_table)> 0){
+      
+        Eval_hall_over = TRUE
+    }
+}    
+
+```
+
+```{r results = 'asis' ,eval = Eval_hall_over, echo = FALSE, fig.width=9, fig.height=8}
+cat('\n')
+cat("####", "Hallmark {.tabset}")
+cat('\n')
+                             
+
+
+    cat('\n')
+    cat("#####", "Signficance and GeneRatios")
+    cat('\n')
+    dotplot(res_hall$overrep)
+    cat('\n')
+    
+    # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+    # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+    # dotplot(res_hall$gseares)
+    # cat('\n')
+    # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+    # dotplot(res_hall$gseares)
+    # dev.off()
+    # cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Genes within pathways")
+    cat('\n')
+    cnetplot(res_hall$overrep, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Tree: pathway cluster ")
+    cat('\n')
+    if(nrow(res_hall$overrep_table) > 5){
+    sim <- pairwise_termsim(res_hall$overrep)
+    treeplot(sim, hclust_method = 'average')
+    }else{
+        cat('\n')
+        cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+        cat('\n')
+    }
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Table of enriched pathways")
+    cat('\n')
+
+    downloadableDTExcel(res_hall$overrep_table %>% dplyr::select(ID,GeneRatio, BgRatio, pvalue, p.adjust, geneID,Count,link, Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pvalue','p.adjust'), digits = 3)
+    cat('\n')
+  
+ 
+
+
+```
+
+
+
+```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+# Kegg visualization
+                               
+res_kegg <- over_rep_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  TPM_expr_path =  TPM_expr_path,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene)
+
+Eval_kegg_over = FALSE
+if(!is.null(res_kegg$overrep)){
+    if(nrow(res_kegg$overrep_table)> 0){
+      
+        Eval_kegg_over = TRUE
+    }
+}    
+
+```
+
+```{r results = 'asis' ,eval = Eval_kegg_over, echo = FALSE, fig.width=9, fig.height=8}
+cat('\n')
+cat("####", "Kegg {.tabset}")
+cat('\n')
+                             
+
+
+    cat('\n')
+    cat("#####", "Signficance and GeneRatios")
+    cat('\n')
+    dotplot(res_kegg$overrep)
+    cat('\n')
+    
+    # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+    # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+    # dotplot(res_hall$gseares)
+    # cat('\n')
+    # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+    # dotplot(res_hall$gseares)
+    # dev.off()
+    # cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Genes within pathways")
+    cat('\n')
+    cnetplot(res_kegg$overrep, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Tree: pathway cluster ")
+    cat('\n')
+    if(nrow(res_kegg$overrep_table) > 5){
+    sim <- pairwise_termsim(res_kegg$overrep)
+    treeplot(sim, hclust_method = 'average')
+    }else{
+        cat('\n')
+        cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+        cat('\n')
+    }
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Table of enriched pathways")
+    cat('\n')
+
+    downloadableDTExcel(res_kegg$overrep_table %>% dplyr::select(ID,GeneRatio, BgRatio, pvalue, p.adjust, geneID,Count,link, Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pvalue','p.adjust'), digits = 3)
+    cat('\n')
+  
+ 
+
+```
+
+
+```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+# Reactome visualization
+                               
+res_React <- over_rep_results_logpval(res_tib = all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  TPM_expr_path =  TPM_expr_path,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene)
+
+Eval_React_over = FALSE
+if(!is.null(res_React$overrep)){
+    if(nrow(res_React$overrep_table)> 0){
+      
+        Eval_React_over = TRUE
+    }
+}    
+
+```
+
+```{r results = 'asis' ,eval = Eval_React_over, echo = FALSE, fig.width=9, fig.height=8}
+cat('\n')
+cat("####", "Reactome {.tabset}")
+cat('\n')
+                             
+
+
+    cat('\n')
+    cat("#####", "Signficance and GeneRatios")
+    cat('\n')
+    dotplot(res_React$overrep)
+    cat('\n')
+    
+    # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+    # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+    # dotplot(res_hall$gseares)
+    # cat('\n')
+    # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+    # dotplot(res_hall$gseares)
+    # dev.off()
+    # cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Genes within pathways")
+    cat('\n')
+    cnetplot(res_React$overrep, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Tree: pathway cluster ")
+    cat('\n')
+    if(nrow(res_React$overrep_table) > 5){
+    sim <- pairwise_termsim(res_React$overrep_all)
+    treeplot(sim, hclust_method = 'average')
+    }else{
+        cat('\n')
+        cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+        cat('\n')
+    }
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Table of enriched pathways")
+    cat('\n')
+
+    downloadableDTExcel(res_React$overrep_table %>% dplyr::select(ID,GeneRatio, BgRatio, pvalue, p.adjust, geneID,link, Count,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pvalue', 'p.adjust'), digits = 3)
+    cat('\n')
+  
+ 
+
+```
+
+
+
