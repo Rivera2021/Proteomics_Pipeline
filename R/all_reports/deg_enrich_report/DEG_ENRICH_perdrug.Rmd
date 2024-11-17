@@ -12,24 +12,23 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "MOL-00010255"
-  cell_line: "In vivo"
+  drug: "M255"
+  cell_line: "In_vivo"
   stimulation: "TNBS"
   scinamicNum: 'EXP000033'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-  dataDir:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_240929/DESEQ_NORM"
-  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/List_contrasts_Invivo.xlsx"
-  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_240814_w_InvitroTargets.RDS"
-  Drug_Dict_Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/Drug_Dict_Chemo.csv"
+  dataDir:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105/DESEQ_NORM"
+  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/List_contrasts_Invivo_v2.xlsx"
+  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241112_w_InvitroTargets_knInh.RDS"
+  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105/PRE_FILTERING/Expressed_genes.xlsx"
   Experimental_design_path: ""
   Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/CellLine_Dict_Chemo.csv"
-  AdjustDeSeq: ""
+  AdjustDeSeq: "Plate"
   Organism: "Mouse"
   padj_thr_gene: 0.2
   logFC_thrs_gene: 0
-  
   
 ---
 
@@ -60,6 +59,8 @@ library(metafolio)
 #library(UpSetR)
 library(ashr)
 library(BiocParallel)
+library(UpSetR)
+library(eulerr)
 
 # source("~/repos/DiamondAge/report_templates/R_markdown_templates/_common_R_code/utilities.R")
 # source("~/repos/DiamondAge/report_templates/R_markdown_templates/_common_R_code/rnaseq_de.R") # Most of the functions are in this file
@@ -124,7 +125,7 @@ if(params$Organism == 'Human'){
 
 # TPM expression matrix
 
-TPM_expr_path = file.path(params$baseDir,"IMPORT_DATA", "TPM.RDS")
+#TPM_expr_path = file.path(params$baseDir,"IMPORT_DATA", "TPM.tsv")
 Chemo_path = params$Chemo_path
 Cell_Dict_path = params$Cell_Dict_path
 Contrast_path = params$Contrast_path
@@ -146,6 +147,11 @@ if(params$Organism == 'Human'){
 mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset=organismDataset)
 geneAnns = getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype"), mart = mart)
 colnames(geneAnns)[2] = "symbol"
+# Eliminate redundancy in this data frame for gene symbols present in multiple rows. This is important to keep consistent the lists in the overlaps for the venn diagrams.
+
+geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
+
+
 
 ```
 
@@ -179,13 +185,13 @@ The names of the differential expression results are structured as **treatment**
 
 The volcano plots show us a summary view of the differential expression results. Each point on the plot represents one gene in the experiment. Spots are colored according to the following criteria:
 
-- **Blue**: padj < 0.2 & log2FC < 1
-- **Red**: padj < 0.2 & log2FC > 1
-- **Green**: padj > 0.2 & |log2FC| < 1
+- **Blue**: padj < `r params$padj_thr_gene` & abs(LogFC) < `r params$logFC_thrs_gene`
+- **Red**: padj < `r params$padj_thr_gene` & abs(LogFC) > `r params$logFC_thrs_gene`
+- **Green**: padj > `r params$padj_thr_gene` & abs(LogFC) > `r params$logFC_thrs_gene`
 
 The y-axis position represents the -log p-value: a higher value indicates that the gene is more significant. 
 
-The x-axis position shows the log2 fold change for the gene between the treatment (timepoints) and control (Baseline) groups. Genes on the right-hand side of the plot increase in expression with treatment. Genes on the left-hand side decrease in expression with treatment.
+The x-axis position shows the log2 fold change for the gene between treatment or group 1 and control or group 2. Genes on the right-hand side of the plot increase in expression with treatment. Genes on the left-hand side decrease in expression with treatment.
 
 ## MA Plot
 The MA plot shows the log2 fold change between experimental groups (M) on the y-axis against the log of the mean expression across all of the samples (A) on the x-axis for each gene (represented by dots). Spots are colored according to the following criteria:
@@ -196,11 +202,11 @@ The MA plot shows the log2 fold change between experimental groups (M) on the y-
 
 ## Top Up/Downregulated Genes
 
-Heatmaps showing the scaled expression values of the top 50 up or downregulated genes in all samples. Genes in these heatmaps have an FDR-adjusted p-value < 0.05. 
+Heatmaps showing the scaled expression values of the top 50 up or downregulated genes in all samples. Genes in these heatmaps have a padj < `r params$padj_thr_gene` and  abs(LogFC) > `r params$logFC_thrs_gene`
 
 ## List Of Genes
 
-This table contains the DE results for all genes with a p-value < 0.05. Click the "Download" button to view a version of the data in Excel. The columns are as follows:
+This table contains the DE results for all genes with padj < `r params$padj_thr_gene` and  abs(LogFC) > `r params$logFC_thrs_gene`. Click the "Download" button to view a version of the data in Excel. The columns are as follows:
 
 - **symbol**: Gene symbol
 - **ensembl_gene_id**: ENSEMBL gene ID
@@ -208,10 +214,9 @@ This table contains the DE results for all genes with a p-value < 0.05. Click th
 - **log2FC**: Log2 fold change
 - **pvalue**: Wald test p-value
 - **padj**: Benjamini-Hochberg corrected p-value
-- **statistic**: Wald test statistic
 - **baseMean**: The mean of normalized counts of all samples, normalizing for sequencing depth (This helps to get a sense for the absolute level of expression for a given gene.)
 
-## Gene Set Enrichment Analysis
+## Gene Set Enrichment Analysis GSEA
 
 Since so many genes are differentially expressed, it is difficult to review the entire experiment for biological themes in the expression changes. Gene Set Enrichment Analysis is one of several pathway analysis methods that can give us a bird’s eye view of the data. We’ll test the gene expression data for significant movement of collections of genes in known biological pathways. GSEA was performed on the following measure: sign(Log2FC) * -log10(pvalue)
 
@@ -225,15 +230,19 @@ For more information on the interpretation of these results, please see the "Int
 
 ### Signficance and GeneRatios
 
-These dotplot capture both the significance and the GeneRatio (i.e. (count of core enrichment genes)/(count of pathway genes)) for log2FC ranked results for each GO term or KEGG pathway.
+These dotplot capture both the significance and the GeneRatio (i.e. (count of core enrichment genes)/(count of pathway genes)) 
 
-### Common Genes between terms
+### Visualization pathways
 
-These heatmaps capture the common enriched genes in each gene set. Note that due to restrictions in the KEGG database, KEGG gene IDs are presented as EntrezIDs. 
+These plots show the normalized enrichment score (x axis) for the enriched pathways. The size of the dot corresponds is proportional to the size of the pathway.
 
-### Term relationships
+### Genes within pathways
 
-There is redundacny in the the GO and KEGG terms with many sharing genes/themes. These treeplots capture how the different terms relate to each other. Note that due to restrictions in the KEGG database, KEGG gene IDs are again shown as EntrezIDs. 
+These plots show shared genes among the most significant pathways. 
+
+### Tree:pathway cluster
+
+There is redundancy in the gene sets with many sharing genes/themes. These treeplots capture how the different terms relate to each other. Pathways sharing many genes will be closer in the treeplot. 
 
 ### Top Up/Downregulated Pathways
 
@@ -246,7 +255,7 @@ For upregulated pathways you will see many pathway genes are on the left side of
 
 This table includes all gene sets in the pathway database. The columns are as follows:
 
-* **pathway:** Name of the gene set
+* **ID:** Name of the gene set
 * **link:** A link to information about the gene sets from mSigDB  (This contains information about how the gene sets were created.)
 * **pvalue:** Uncorrected p-value
 * **padj:** The Benjamini-Hochberg adjusted p-value (Generally we use a p-value cutoff of p<0.05 for this type of analysis.)
@@ -254,6 +263,8 @@ This table includes all gene sets in the pathway database. The columns are as fo
 * **NES:** The normalized enrichment score (This is the score used to determine whether a gene set is moving up or down the gene rankings under the tested conditions. A positive score means that the genes are relatively overexpressed under treatment relative to the baseline condition. A negative score means that they are relatively underexpressed.)
 * **size:** Size of the pathway after removing genes not observed in the dataset
 * **core_enrichment:** Subset of genes that contribute most to the ES
+* **Target_Chemo_esp:** Hits from chemoproteomics within the specific cell line associated to the molecule
+* **Target_Chemo_all:** Hits from ALL experiments in chemoproteomics associated to the molecule
 
 # Differential gene expression and pathway enrichment
 
@@ -281,7 +292,7 @@ if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
 } else {
   #print('Here')
   all_contrasts <- apply(comparisons,1, function(x){
-    DEG_FUNCTION_DA(x,saveDir,Drug, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq)
+    DEG_FUNCTION_DA(x,saveDir,Drug, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq, padj_thr_gene = params$padj_thr_gene, logFC_thrs_gene = params$logFC_thrs_gene)
                     
   })
   names(all_contrasts) <- comparisons$namecontrast
@@ -313,18 +324,213 @@ cat(unlist(res), sep="\n")
 
 ```
 
+# Common DE Genes
+In this section a Venn diagram, UpSet plot, and tables of genes are used to visualize the overalap of genes that are signficiantly differentially expressed across multiple comparisons.
+
+An UpSet plot shows the same information as a Venn diagram, but when there are large numbers of groups an UpSet plot is a more straightforward way of visualizing the data. The number of DE genes in each comparison is listed on the left-hand side of the plot. The dots show possible intersections between the comparisons, and the bar graph at the top shows the total number of intersecting genes for each possible combination. It is similar to a Venn diagram, where the bars corresponding to a single dot are showing the number of genes that are unique to that comparison, and the bars corresponding to a column containing two dots are showing the number of genes that overalap between those two comparisons.
+
+## All Comparisons
+
+```{r, eval = TRUE}
+library(VennDiagram)
+library(eulerr)
+library(UpSetR)
+
+comps <- names(all_contrasts)
+sig_genes2 <- function(res_tibble, direction = "up", p_threshold = 0.05, logfc_threshold = 1) {
+    if (direction == "up") {
+        res <- res_tibble %>%
+            dplyr::filter(padj < p_threshold & log2FC >= logfc_threshold) %>%
+            distinct(symbol, .keep_all = TRUE)
+    } else if (direction == "down") {
+        res <- res_tibble %>%
+            dplyr::filter(padj < p_threshold & log2FC <= -logfc_threshold) %>%
+            distinct(symbol, .keep_all = TRUE)
+    } else if (direction == "both") {
+        res <- res_tibble %>%
+            dplyr::filter(padj < p_threshold & abs(log2FC) >= logfc_threshold) %>%
+            distinct(symbol, .keep_all = TRUE)
+    }
+    return(res)
+}
+plot_venn <- function(venn){
+    plot(euler(venn),
+         quantities = list(type = c("counts", "percent"), fontsize=8, col = "black"),
+         lty = 1:3,
+         labels = list(fontsize = 8, col = "black"),
+         shape = "ellipse",
+         edges = list(col = "black"))
+}
+
+sig_up <- sapply(all_contrasts[comps], function(x){sig_genes2(x,direction = "up", p_threshold = params$padj_thr_gene, logfc_threshold = params$logFC_thrs_gene)}, simplify = F, USE.NAMES = T)
+sig_down <- sapply(all_contrasts[comps], function(x){sig_genes2(x,direction = "down", p_threshold = params$padj_thr_gene, logfc_threshold = params$logFC_thrs_gene)}, simplify = F, USE.NAMES = T)
+sig_all <- sapply(all_contrasts[comps], function(x){sig_genes2(x,direction = "both", p_threshold = params$padj_thr_gene, logfc_threshold = params$logFC_thrs_gene)}, simplify = F, USE.NAMES = T)
+
+venn_list_up <- sapply(sig_up, function(x){
+    x %>% dplyr::filter(!is.na(symbol)) %>% dplyr::distinct(symbol) %>% pull(symbol) 
+}
+)
+
+venn_list_down <- sapply(sig_down, function(x){
+    x %>% dplyr::filter(!is.na(symbol)) %>% dplyr::distinct(symbol) %>% pull(symbol) 
+}
+)
+
+upset_data_up <- fromList(venn_list_up)
+upset_data_down <- fromList(venn_list_down)
+```
+
+
+### Upregulated Genes {.tabset}
+
+#### Venn Diagram
+
+```{r, results="asis", eval=TRUE}
+if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
+    plot_venn(venn_list_up)
+} else {
+    cat("*No DE genes*")
+}
+```
+
+#### UpSet Plot
+
+```{r, results="asis", eval=TRUE}
+if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
+    upset(upset_data_up)
+} else {
+    cat("*No DE genes*")
+}
+```
+
+#### Lists Of Genes {.tabset .tabset-dropdown}
+
+```{r, results="asis", eval=TRUE}
+find_all_combinations_overlaps <- function(sets_list) {
+
+    all_overlaps <- list()
+    # Loop through combination sizes
+    for (k in 2:length(sets_list)) {
+        combo_indices <- combn(seq_along(sets_list), k)
+
+        # Loop through each combination of indices
+        for (j in 1:ncol(combo_indices)) {
+            combo <- combo_indices[, j]
+            set_name <- paste("Overlap", paste(names(sets_list)[combo], collapse = "_AND_"), sep = "_")
+            overlap <- Reduce(base::intersect, sets_list[combo])
+            if(length(overlap)> 0 ){
+            all_overlaps[[set_name]] <- overlap
+            }
+        }
+    }
+    return(all_overlaps)
+}
+if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
+    # Find all overlaps
+     tables <- find_all_combinations_overlaps(venn_list_up)
+} 
+
+```
+
+
+```{r, results = "hide", eval=TRUE}
+if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
+  src_list8 <- lapply(names(tables), function(comp) {
+    src8 <- c("##### {{comp}} {.unnumbered}",
+              "```{r}",
+              "x <- as.data.frame(tables[['{{comp}}']])",
+              "colnames(x) <- 'symbol'",
+              "x <- merge(x, geneAnns_unique, all.x = TRUE, all.y = FALSE, by = 'symbol')",
+              "x  %>% downloadableDT()",
+              "```",
+              "")
+    knit_expand(text = src8)
+  })
+  
+  out8 <- knit_child(text = unlist(src_list8), options = list(cache = FALSE, fig.height=10, fig.width=10))
+} else {
+  out8 <- knit_child(text="*No DE genes*")
+}
+
+```
+`r out8`
+
+### Downregulated Genes {.tabset}
+
+#### Venn Diagram
+
+```{r, results="asis", eval=TRUE}
+if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
+  plot_venn(venn_list_down)
+} else {
+  cat("*No DE genes*")
+}
+```
+
+#### UpSet Plot
+
+```{r, results="asis",eval=TRUE}
+if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
+  upset(upset_data_down)
+} else {
+  cat("*No DE genes*")
+}
+```
+
+#### Lists Of Genes {.tabset .tabset-dropdown}
+
+```{r, eval=TRUE}
+if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
+  tables <- find_all_combinations_overlaps(venn_list_down)
+}
+```
+
+```{r, results = "hide",eval=TRUE}
+
+if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
+  src_list9 <- lapply(names(tables), function(comp) {
+    src9 <- c("##### {{comp}} {.unnumbered}",
+              "```{r}",
+              "x <- as.data.frame(tables[['{{comp}}']])",
+              "colnames(x) <- 'symbol'",
+              "x <- merge(x, geneAnns_unique, all.x = TRUE, all.y = FALSE, by = 'symbol')",
+              "x  %>% downloadableDT()",
+              "```",
+              "")
+    knit_expand(text = src9)
+  })
+  
+  out9 <- knit_child(text = unlist(src_list9), options = list(cache = FALSE))
+} else {
+  out9 <- knit_child(text="*No DE genes*")
+}
+
+```
+  
+`r out9`
+
+
+
+
+
+
+
+
+
+
 
 # Comparison of Pathway Enrichment
 
 This heatmap shows a summary of the significant GSEA results for the Hallmark gene sets across the comparisons done above. Each cell in the heatmap represents the gene set enrichment score for the gene set in that differential expression comparison. Each row represents one gene set, labeled on the right. Each column represents one differential expression comparison, where the reference is second group in the column name (control), and the heatmap is showing the pathways being either up or downregulated in the treatment samples as compared to the control samples.
 
-## All Comparisons {.tabset}
+
+## All Comparisons GSEA{.tabset}
 
 ### Hallmark
 
 ```{r comphall, eval = TRUE, results = 'asis' , echo = FALSE}
 
-thr <- 3 # threshold
+#thr <- 3 # threshold
 geneset = 'Hallmark'
 gseares_list <- lapply(names(all_contrasts), function(name) {
    
@@ -340,7 +546,7 @@ gseares_list <- lapply(names(all_contrasts), function(name) {
 pathway_list <- lapply(gseares_list, function(gseares){
   return(gseares$ID)
 })
-pathway_isect <- Reduce(intersect, pathway_list)
+pathway_isect <- Reduce(base::intersect, pathway_list)
 
 gseares_list <- lapply(gseares_list, function(gseares) {
    gseares  <- gseares[order(gseares$ID),] %>% dplyr::filter(ID %in% pathway_isect)
@@ -399,7 +605,7 @@ filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 
 #dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
-
+thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
  hm <-  pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
@@ -444,7 +650,7 @@ The asterisks in the heatmap tell you about the p-values associated with that GS
 
 ```{r compkegg, eval = TRUE, results = 'asis' , echo = FALSE}
 
-thr <- 3 # threshold
+#thr <- 100 # threshold
 geneset = 'Kegg'
 gseares_list <- lapply(names(all_contrasts), function(name) {
    
@@ -460,7 +666,7 @@ gseares_list <- lapply(names(all_contrasts), function(name) {
 pathway_list <- lapply(gseares_list, function(gseares){
   return(gseares$ID)
 })
-pathway_isect <- Reduce(intersect, pathway_list)
+pathway_isect <- Reduce(base::intersect, pathway_list)
 
 gseares_list <- lapply(gseares_list, function(gseares) {
    gseares  <- gseares[order(gseares$ID),] %>% dplyr::filter(ID %in% pathway_isect)
@@ -486,8 +692,8 @@ rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
 NES_mat <- NES_mat[rowstokeep,, drop = FALSE]
 forfiltering_mat <- forfiltering_mat[rowstokeep,, drop = FALSE]
 
-NES_mat[NES_mat < -thr] <- -thr
-NES_mat[NES_mat > thr] <- thr
+# NES_mat[NES_mat < -thr] <- -thr
+# NES_mat[NES_mat > thr] <- thr
 
 # row.names(NES_mat) <- pathway_lookup[match(row.names(NES_mat), pathway_lookup$ID),"pathway"]
 
@@ -518,7 +724,7 @@ filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
-
+thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
  hm <-  pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
@@ -564,7 +770,7 @@ The asterisks in the heatmap tell you about the p-values associated with that GS
 
 ```{r compReac, eval = TRUE, results = 'asis' , echo = FALSE}
 
-thr <- 3 # threshold
+#thr <- 100 # threshold
 geneset = 'Reactome'
 gseares_list <- lapply(names(all_contrasts), function(name) {
    
@@ -583,7 +789,7 @@ gseares_list <- lapply(names(all_contrasts), function(name) {
 pathway_list <- lapply(gseares_list, function(gseares){
   return(gseares$ID)
 })
-pathway_isect <- Reduce(intersect, pathway_list)
+pathway_isect <- Reduce(base::intersect, pathway_list)
 
 gseares_list <- lapply(gseares_list, function(gseares) {
    gseares  <- gseares[order(gseares$ID),] %>% dplyr::filter(ID %in% pathway_isect)
@@ -609,8 +815,8 @@ rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
 NES_mat <- NES_mat[rowstokeep,,drop = FALSE]
 forfiltering_mat <- forfiltering_mat[rowstokeep,,drop = FALSE]
 
-NES_mat[NES_mat < -thr] <- -thr
-NES_mat[NES_mat > thr] <- thr
+# NES_mat[NES_mat < -thr] <- -thr
+# NES_mat[NES_mat > thr] <- thr
 
 # row.names(NES_mat) <- pathway_lookup[match(row.names(NES_mat), pathway_lookup$ID),"pathway"]
 
@@ -618,7 +824,7 @@ if (nrow(NES_mat) < 500) {
 myfigheight <- calculate_fig_height(NES_mat)
 old_opts <- knitr::opts_chunk$get()
 on.exit(knitr::opts_chunk$set(old_opts)) 
-knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 20)
+knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 30)
 } else{
     
     myfigheight <- calculate_fig_height(NES_mat)
@@ -631,7 +837,7 @@ knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 20)
 ```
 
 
-```{r comp_Reacto_plt, eval =TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+```{r comp_Reacto_plt, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
 
 geneset = 'Reactome'
@@ -649,153 +855,155 @@ filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
 
-
-# if (nrow(NES_mat)>1 & nrow(NES_mat) < 500) {
-#  hm <-  pheatmap(NES_mat,
-#            display_numbers=forfiltering_mat,
-#            breaks=seq(from=-thr, to=thr, length=101),
-#            cluster_col=T, 
-#            cluster_rows = T,
-#            show_rownames = T,
-#            show_colnames = T,
-#            main="Comparison of enriched pathways")
-#  print(hm)
-#  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
-#  
-#  
-#  
-# }else if(nrow(NES_mat) >=  500){
-#     hm <-  pheatmap(NES_mat,
-#            display_numbers=forfiltering_mat,
-#            breaks=seq(from=-thr, to=thr, length=101),
-#            cluster_col=T,
-#            cluster_rows = T,
-#            show_rownames = T,
-#            show_colnames = T,
-#            main="Comparison of enriched pathways")
-# 
-#     #ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
-#      pdf(file = filepath, width = 20, height = myfigheight)
-#         hm
-#      dev.off()
-#     link <- paste("**[Heatmap Reactome](./..", gsub(pattern = params$baseDir, replacement = "", x = filepath), ")**", sep = "")
-#     link
-# 
-# }else if (nrow(NES_mat)==1){
-#   hm <- pheatmap(NES_mat,
-#            display_numbers=forfiltering_mat,
-#            breaks=seq(from=-thr, to=thr, length=101),
-#            cluster_col=F,
-#            cluster_rows = F,
-#            show_rownames = T,
-#            show_colnames = T,
-#            main="Comparison of enriched pathways")
-#   print(hm)
-#   ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
-#   
-# }else  {
-#   cat("**", paste("No significantly enriched pathways"), "**\n")
-# }
+thr = max(abs(min(NES_mat)), max(NES_mat))
+if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
+ hm <-  pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           fontsize_row = 4,
+           main="Comparison of enriched pathways")
+ print(hm)
+ ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
 
 
 
-```
+}else if(nrow(NES_mat) >=  450){
+    hm <-  pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           fontsize_row = 5,
+           fontsize_col = 10,
+           silent = TRUE,
+           main="Comparison of enriched pathways",
+           filename = filepath,
+           width = 10,
+           height = myfigheight)
+    
+    split_path <- strsplit(filepath, "Results_\\d+/")[[1]][2]
+    print(paste("Heatmap is too large. Please find the pdf version here: ", split_path))
+    
+
+}else if (nrow(NES_mat)==1){
+  hm <- pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=F,
+           cluster_rows = F,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison of enriched pathways")
+  print(hm)
+  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
+
+}else  {
+  cat("**", paste("No significantly enriched pathways"), "**\n")
+}
 
 
-
-The asterisks in the heatmap tell you about the p-values associated with that GSEA test as such:
 
 ```
-*** p < 0.005
-** p < 0.05
-* p < 0.2
-```
+
+
+
+
+
+
+
 
 ```{r comp_LogF_plot, echo=FALSE, eval = FALSE, results='asis'}
+
 library(pheatmap)
 genesets = c('Reactome', 'Hallmark', 'Kegg')
 
 for(geneset in genesets){
-
-dir.create(file.path(saveDir,"contrasts","ComparisonPathways", geneset), recursive = TRUE)
-
-
-
-filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
-filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
-NES_mat = readRDS(filepathMat)
-
-# Create matrices with all comparisons all genes
-
-LogFC_list = lapply(colnames(NES_mat), function(comp){
     
-    Tblgen <- readRDS(file.path(saveDir,"contrasts",comp, "DEG_df.RDS"))
-    Tblgen_LogFC = Tblgen %>% dplyr::select(symbol, log2FC)
-    colnames(Tblgen_LogFC) = c("symbol", comp)
-    return(Tblgen_LogFC)
+    dir.create(file.path(saveDir,"contrasts","ComparisonPathways", geneset), recursive = TRUE)
     
-})
-LogFC_Mat = LogFC_list %>% purrr::reduce(full_join, by = "symbol")
-
-# Star will be assign to genes with padj < 0.2
-Signif_list = lapply(colnames(NES_mat), function(comp){
     
-    Tblgen <- readRDS(file.path(saveDir,"contrasts",comp, "DEG_df.RDS"))
-    Tblgen_signif = Tblgen %>% dplyr::select(symbol, padj)
-    Tblgen_signif$padj[Tblgen_signif$padj< 0.2] = '*'
-    Tblgen_signif$padj[Tblgen_signif$padj> 0.2] = ' '
-    colnames(Tblgen_signif) = c("symbol", comp)
-    return(Tblgen_signif)
     
-})
-Signif_Mat = Signif_list %>% purrr::reduce(full_join, by = "symbol")
-
-
-
-lapply(rownames(NES_mat), function(pway) {
-   
-    print(pway)
-    # Take leading genes for each significant pathway
-    Lead_gen = lapply(colnames(NES_mat),function(name){
+    filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
+    filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
+    NES_mat = readRDS(filepathMat)
+    
+    # Create matrices with all comparisons all genes
+    
+    LogFC_list = lapply(colnames(NES_mat), function(comp){
         
-        filename <- paste(geneset, name,".RDS" , sep = '_')
-        res <- readRDS(file.path(saveDir,"contrasts",name, "gsea_res", geneset, filename ))
-        SignPwayTable = as.data.frame(res$gseares_all) %>% dplyr::filter(p.adjust < 0.2)
-        SignPwayTable$ID <- sub("REACTOME_", "", SignPwayTable$ID)
+        Tblgen <- readRDS(file.path(saveDir,"contrasts",comp, "DEG_df.RDS"))
+        Tblgen_LogFC = Tblgen %>% dplyr::select(symbol, log2FC)
+        colnames(Tblgen_LogFC) = c("symbol", comp)
+        return(Tblgen_LogFC)
         
-        if(pway %in% SignPwayTable$ID){
-            
-            Lead_genes = str_split(SignPwayTable$core_enrichment[which( SignPwayTable$ID == pway)], '/')[[1]]
-            
-        }else{
-            
-            Lead_genes = c()
-        }
-       
-        return(Lead_genes) 
     })
-    Lead_gen_union = unique(unlist(Lead_gen))
-    if(length(Lead_gen_union) != 0){
-    # Generate heatmap matrix with these leading genes
-    LogFC_Mat_pway = LogFC_Mat[match(Lead_gen_union, LogFC_Mat$symbol), ]
-    LogFC_Mat_pway = LogFC_Mat_pway %>% column_to_rownames(var="symbol")
-    Signif_Mat_pway = Signif_Mat[match(Lead_gen_union,Signif_Mat$symbol), ]
-    Signif_Mat_pway = Signif_Mat_pway %>% column_to_rownames(var="symbol")
+    LogFC_Mat = LogFC_list %>% purrr::reduce(full_join, by = "symbol")
     
-    # plot heatmaps
+    # Star will be assign to genes with padj < 0.2
+    Signif_list = lapply(colnames(NES_mat), function(comp){
+        
+        Tblgen <- readRDS(file.path(saveDir,"contrasts",comp, "DEG_df.RDS"))
+        Tblgen_signif = Tblgen %>% dplyr::select(symbol, padj)
+        Tblgen_signif$padj[Tblgen_signif$padj< 0.2] = '*'
+        Tblgen_signif$padj[Tblgen_signif$padj> 0.2] = ' '
+        colnames(Tblgen_signif) = c("symbol", comp)
+        return(Tblgen_signif)
+        
+    })
+    Signif_Mat = Signif_list %>% purrr::reduce(full_join, by = "symbol")
     
     
-    LogFC_Mat_pway[LogFC_Mat_pway< -1] = -1
-    LogFC_Mat_pway[LogFC_Mat_pway> 1] = 1
-
-    paletteLength <- 50
-    myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
-    myBreaks <- c(seq(min(LogFC_Mat_pway), 0, length.out=ceiling(paletteLength/2) + 1),
-              seq(max(LogFC_Mat_pway)/paletteLength,  max(LogFC_Mat_pway), length.out=floor(paletteLength/2)))
     
-
-    if(nrow(LogFC_Mat_pway)>2){
-    Plt = pheatmap(LogFC_Mat_pway,
+    lapply(rownames(NES_mat), function(pway) {
+        
+        print(pway)
+        # Take leading genes for each significant pathway
+        Lead_gen = lapply(colnames(NES_mat),function(name){
+            
+            filename <- paste(geneset, name,".RDS" , sep = '_')
+            res <- readRDS(file.path(saveDir,"contrasts",name, "gsea_res", geneset, filename ))
+            SignPwayTable = as.data.frame(res$gseares_all) %>% dplyr::filter(p.adjust < 0.2)
+            SignPwayTable$ID <- sub("REACTOME_", "", SignPwayTable$ID)
+            
+            if(pway %in% SignPwayTable$ID){
+                
+                Lead_genes = str_split(SignPwayTable$core_enrichment[which( SignPwayTable$ID == pway)], '/')[[1]]
+                
+            }else{
+                
+                Lead_genes = c()
+            }
+            
+            return(Lead_genes) 
+        })
+        Lead_gen_union = unique(unlist(Lead_gen))
+        if(length(Lead_gen_union) != 0){
+            # Generate heatmap matrix with these leading genes
+            LogFC_Mat_pway = LogFC_Mat[match(Lead_gen_union, LogFC_Mat$symbol), ]
+            LogFC_Mat_pway = LogFC_Mat_pway %>% column_to_rownames(var="symbol")
+            Signif_Mat_pway = Signif_Mat[match(Lead_gen_union,Signif_Mat$symbol), ]
+            Signif_Mat_pway = Signif_Mat_pway %>% column_to_rownames(var="symbol")
+            
+            # plot heatmaps
+            
+            
+            LogFC_Mat_pway[LogFC_Mat_pway< -1] = -1
+            LogFC_Mat_pway[LogFC_Mat_pway> 1] = 1
+            
+            paletteLength <- 50
+            myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+            myBreaks <- c(seq(min(LogFC_Mat_pway), 0, length.out=ceiling(paletteLength/2) + 1),
+                          seq(max(LogFC_Mat_pway)/paletteLength,  max(LogFC_Mat_pway), length.out=floor(paletteLength/2)))
+            
+            
+            if(nrow(LogFC_Mat_pway)>2){
+                Plt = pheatmap(LogFC_Mat_pway,
                                color = myColor,
                                display_numbers = Signif_Mat_pway,
                                show_rownames = TRUE,
@@ -806,9 +1014,9 @@ lapply(rownames(NES_mat), function(pway) {
                                cluster_cols = TRUE,
                                cluster_rows = TRUE,
                                fontsize_row = 8)
-    }else if(nrow(LogFC_Mat_pway) <= 2){
-        
-        Plt = pheatmap(LogFC_Mat_pway,
+            }else if(nrow(LogFC_Mat_pway) <= 2){
+                
+                Plt = pheatmap(LogFC_Mat_pway,
                                color = myColor,
                                display_numbers = Signif_Mat_pway,
                                show_rownames = TRUE,
@@ -819,34 +1027,36 @@ lapply(rownames(NES_mat), function(pway) {
                                cluster_cols = FALSE,
                                cluster_rows = FALSE,
                                fontsize_row = 8)
+                
+                
+                
+                
+                
+            }
+            
+            filePlt_name_pdf = paste(pway, ".pdf", sep = '')
+            filePlt_name_jpeg = paste(pway, ".jpeg", sep = '')
+            filepathPlt = file.path(saveDir,"contrasts","ComparisonPathways", geneset,filePlt_name_pdf)
+            filepathPlt_jpeg = file.path(saveDir,"contrasts","ComparisonPathways", geneset,filePlt_name_jpeg)
+            
+            # 10 genes in 2 inches
+            pdf(file = filepathPlt, width = 12, height = (length(Lead_gen_union) *2/10+5))
+            print( Plt)
+            dev.off()
+            
+            jpeg(file = filepathPlt_jpeg, width = 12, height = (length(Lead_gen_union) *2/10+5), units = 'in', res= 400)
+            print( Plt)
+            dev.off()
+            
+        }
         
         
         
-        
-        
-    }
-
-    filePlt_name_pdf = paste(pway, ".pdf", sep = '')
-    filePlt_name_jpeg = paste(pway, ".jpeg", sep = '')
-    filepathPlt = file.path(saveDir,"contrasts","ComparisonPathways", geneset,filePlt_name_pdf)
-    filepathPlt_jpeg = file.path(saveDir,"contrasts","ComparisonPathways", geneset,filePlt_name_jpeg)
-    
-    # 10 genes in 2 inches
-    pdf(file = filepathPlt, width = 12, height = (length(Lead_gen_union) *2/10+5))
-    print( Plt)
-    dev.off()
-    
-    jpeg(file = filepathPlt_jpeg, width = 12, height = (length(Lead_gen_union) *2/10+5), units = 'in', res= 400)
-    print( Plt)
-    dev.off()
-    
-    }
-    
-
-   
-})
+    })
 }
 ```
+
+
 
 
 

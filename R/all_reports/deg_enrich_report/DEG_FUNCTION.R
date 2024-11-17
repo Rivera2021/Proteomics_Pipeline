@@ -275,7 +275,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
 }
 
 # DEG per condition and the folder structure is per comparison. Volcano plots are being generated in the report itself. Only one comparison is calculated by this function.
-DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Method = 'DESeq_Cons', MH_Method = 'BH', AdjustDeSeq =c("Plate.id")){
+DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Method = 'DESeq_Cons', MH_Method = 'BH', AdjustDeSeq =c("Plate.id"), padj_thr_gene = 0.2, logFC_thrs_gene = 0){
 
     library(DESeq2)
     library(dplyr)
@@ -419,9 +419,11 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
             Design = "~ CoarseCondition"
             # To be modified if more than one factor is desired to be adjusted for
             if(AdjustDeSeq != "" ){
-
+                if(length(unique(Metadata_temp[[AdjustDeSeq]])) > 1){
                 Design = paste(Design, AdjustDeSeq, sep = ' + ' )
+                }
             }
+
 
             dds_temp <- DESeqDataSetFromMatrix(countData = Count_temp, colData = Metadata_temp, design = as.formula(Design) )
             deseqObj_cons = DESeq(dds_temp,
@@ -507,7 +509,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         # Top upregulated
 
         #anno_colors <- list(sample = setNames(gg_color_hue(length(unique(Metadata_temp$sample))), unique(Metadata_temp$sample)))
-        top_genes <- res %>% filter(log2FC > 0 & padj < 0.2) %>% top_n(-50, padj) %>% pull(symbol)
+        top_genes <- res %>% filter(log2FC > logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
 
         if(length(top_genes) > 0){
             Heat_dat_filtered <- Heat_dat[match(top_genes, rownames(Heat_dat)), , drop = FALSE]
@@ -551,7 +553,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
 
 
         # # Top downregulated
-        top_genes_dn <- res %>% filter(log2FC < 0 & padj < 0.2) %>% top_n(-50, padj) %>% pull(symbol)
+        top_genes_dn <- res %>% filter(log2FC < -logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
 
         if(length(top_genes_dn) > 0){
 
@@ -595,7 +597,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
 
 
         # All DEGs
-        deg_genes <- res %>% filter(padj < 0.2) %>% pull(symbol)
+        deg_genes <- res %>% filter(padj < padj_thr_gene) %>% pull(symbol)
         if(length(deg_genes) > 0){
             Heat_dat_filtered <- Heat_dat[match(deg_genes, rownames(Heat_dat)), , drop = FALSE]
             if(length(deg_genes)>1){

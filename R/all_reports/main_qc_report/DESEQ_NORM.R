@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', MEM_MB = 1600, GENE_ENSEM = TRUE, ORGANISM = 'Human', Batch_variable = 'Plate.id' ){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', MEM_MB = 1600, Batch_variable = 'Plate.id' ){
 
     library(DESeq2)
     #library(readxl)

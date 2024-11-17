@@ -12,10 +12,8 @@ Started on 2023-10-27.
 ## Data
 
 * Data_for_pipeline: Contains different type of data that is used along the pipeline
-* raw: Contains the raw count matrix and metadata to start the analysis
+* In_vivo: Contains unit tests data sets, raw count matrix and metadata from an in vivo study. It also contains a few files needed in the pipeline.
 
-
-## Analysis
 
 
 ## Code
@@ -23,7 +21,31 @@ Started on 2023-10-27.
 Three reports are generated:
 * QC_REPORT: Contains technical QC, PCA plots, and correlations plots. Uses the following files
     - MAIN_QC_REPORT.R: Renders QC_REPORT.Rmd 
-        -Expects to find Count matrix and Metadata in an xlsx format within IMPORT_DATA folder (This will should be optimize once protocol input formats and metadata have been totally determined). Count matrix requires a column named 'Gene'
+        - This is the list of parameters required to generate this report:
+            - cellline:  Parameter used ONLY in the title of the QC reports to identify the cell lines included in the QC analysis.
+            - scinamicNum: Either scinamic number or Experiment number. Will be ONLY used in the title of the QC report
+            - baseDir: Directory where all the files will be stored
+            - DirDataForPipeline: Directory where pipeline files are being stored
+            - DirPipeline: Path where the R scripts and .rmd files for QC are being stored
+            - Metrics_path: Path to af file named “multiqc_general_stats.txt” that nf-core rnaseq pipeline generates within the multiqc folder.
+            - Metadata_path: Path to the metadata excel file
+            - CountM_path: Path to the Count matrix. This is the file named as “salmon.merged.gene_counts.tsv” that nf-core rnaseq pipeline within the star_salmon folder. Should have a column with gene_ID and another column with gene_name (using symbol notation). The column names in this file should match one of the columns from the Metadata file
+            - SampleName_path: Path to a file that contains the names in the metadata that should be used to name the samples for the rest of the analysis. Should end up in a unique combination for every sample. Possible options are: Cell_line, Treatment, Treatment_conc,  Stimulant_used, Treatment_time_hrs, Replicate.
+            - Experimental_design_path: Path to a png image with the experimental design
+            - Column_match: Column from metadata to match names in count matrix.
+            - Organism_type: Either “In_vivo” or “In_vitro”
+            - QCNORM: Either “PRE_QCNORM” or  “POST_QCNORM” (use this when want to avoid including the customized list of outliers for the rest of the analysis)
+            - ControlName: Name of the Control. For instance: “DMSO”, “Vehicle”
+            - Batch_variable: single name from the metadata that wants to be batch corrected. For example: Plate
+            - ExpDescription: A text descrbing the experiment
+            - PRE_FILTER: Prefiltering type use to get rid of low express genes. Either “PREV” based on prevalence of the gene across samples, or “LOW_EXPR” getting rid of genes that have less number of samples than the smallest group size with at least 10 reads. 
+            - Prev_perc: Percent prevalence of a genes across all samples. Can be selected based on the percent of the smallest group size. 
+            - MEMORY_MB: Memory usage for using the parallelize version of DeSeq using slurm
+            - Corr_plot_features: Features from the metadata to be added in the correlation plots. Possible values are: Cell_line, Treatment, Treatment_conc,  Stimulant_used, Treatment_time_hrs, RQN.
+            - CoarseCondition: Features from the metadata to select groups of samples for contrasts. Should uniquely categorize samples within conditions to be compared. Possible values are: "Treatment","Treatment_conc", "Treatment_time_hrs"
+            - Alias_path: Path mapping compound names from scinamic to its alias.
+            - TPM_path: Path to the TPM matrix. This is the file named as “salmon.merged.gene_tpm.tsv” that nf-core rnaseq pipeline outputs within the star_salmon folder
+
         - The following functions are used:
             - QC_PRENORMALIZATION_CL_V2
             - PRE_FILTERING
@@ -32,6 +54,27 @@ Three reports are generated:
  
 * DEG_ENRICH: For every cell line and every molecule a report is generated. It contains DEGs and GSEA enriched pathways. Uses the following files
     - MAIN_DEG_ENRICH_perdrug.R: Renders MAIN_DEG_ENRICH_perdrug.R
+    
+        - This is the list of parameters required to generate this report:
+        
+            - Drug:  Treatment for which report is made. Should use the alias name
+            - cell_line: Parameter used ONLY in the title of the DEG_ENRICH reports to identify the cell lines included in the DEG_ENRICH analysis.
+            - Stimulation:  Parameter used ONLY in the title of the DEG_ENRICH reports to identify the stimulations described in this report.
+            -  scinamicNum: Either scinamic number or Experiment number. Will be ONLY used in the title of the report.
+            -  baseDir: Directory where all the files will be stored
+            -  DirDataForPipeline: Directory where pipeline files are being stored
+            -  DirPipeline: Path where the R scripts and .rmd files for DEG and enrichment are being stored
+            -  dataDir: Directory where the deseq object with normalized matrix and filter count matrix can be found. Should be within the DESE_NORM folder generated in the QC analysis
+            - Contrast_path: Path to excel file determining the contrasts desired. Only those related to the molecule associated to this report or controls contrats swill be display in this report. File should have as column names ‘treat’ and ‘untreat’. The analysis will be made treat_vs_untreat. The way to identify conditions should be using the coarse_condition names generated in the QC analysis.
+            - Chemo_path: Path to excel file containing chemoproteomics information
+            - expr_gene_path: Path to file named “Expressed_genes.xlsx ” generated in the QC analysis (PRE_FILTERING folder). This file identifies genes that are expressed in the cell line.
+            - Experimental_design_path: Path to a png image with the experimental design
+            - Cell_Dict_path: path to .csv file mapping cell lines in transcriptomics metadata and cell lines in chemoproteomics metadata
+            - AdjustDeSeq: single name from the metadata that wants to be batch corrected. For example: Plate
+            - Organism: Either “Mouse” or “Human”
+            - padj_thr_gene: Threshold in adjusted pvalue to identify differentially expressed genes
+            - logFC_thrs_gene: Threshold in Log fold-change to identify differentially expressed genes
+
     - The following functions are used:
         - DEG_FUNCTION_DA.R
     

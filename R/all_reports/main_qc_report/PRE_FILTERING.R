@@ -1,7 +1,7 @@
 # PRE-FILTERING
 # 1. REDUCE NUMBER OF GENES EITHER BY PREVALENCE OR BY MIXTURE OF NEGATIVE BINOMIAL
 
-PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
+PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER, CoarseConditions){
 
     library("openxlsx")
     library("dplyr")
@@ -35,13 +35,28 @@ PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
     # Convert to integer
     Count = Count %>% mutate_if(is.numeric, round)
 
+    ##Create coarse Condition feature and useful Metadata
+    Metadata$CoarseCondition = Metadata[[CoarseConditions[1]]]
+
+    for(j in 2:length(CoarseConditions)){
+        Metadata$CoarseCondition = paste(Metadata[["CoarseCondition"]],Metadata[[CoarseConditions[j]]], sep = "_")
+    }
+
+
     # Pre-filter
     if(PRE_FILTER =='PREV'){
 
        #print("Pre-filtering using prevalence")
        Count_Filt = Filtered_Prevalence(Count, Prev_perc )
        Metadata = Metadata[match(colnames(Count_Filt), Metadata$Sample_name),]
-    }else if(PRE_FILTER =='MNB'){
+    }else if(PRE_FILTER == 'LOW_EXPR'){
+        Cond_Num = Metadata %>% group_by(CoarseCondition) %>% summarize(group_size = n())
+        smallestGroupSize <- min(Cond_Num$group_size)
+        keep <- rowSums(Count >= 10) >= smallestGroupSize
+        Count_Filt <- Count[keep,]
+        Metadata = Metadata[match(colnames(Count_Filt), Metadata$Sample_name),]
+    }
+    else if(PRE_FILTER =='MNB'){
 
        #print("Pre-filtering using mixture of negative binomial")
 
@@ -51,7 +66,14 @@ PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
 
     }
 
-   Count = Count_Filt
+
+
+   # To get the set of expressed genes use for chemoproteomics we lower the threshold a bit
+    Cond_Num = Metadata %>% group_by(CoarseCondition) %>% summarize(group_size = n())
+    smallestGroupSize <- min(Cond_Num$group_size)
+    keep_l <- rowSums(Count >= 1) >= smallestGroupSize
+    Count_expr <- Count[keep_l,]
+
 
    # Create Folder
 
@@ -59,13 +81,20 @@ PRE_FILTERING = function(Output_file_path, Prev_perc, PRE_FILTER){
    dir.create(Name_folder)
    setwd(Name_folder)
 
-
+   # save matrix and metadata
+   Count = Count_Filt
    wb <- createWorkbook()
    addWorksheet(wb, "Count")
    addWorksheet(wb, "Metadata")
    writeData(wb, sheet = "Count", x = Count, rowNames = TRUE)
    writeData(wb, sheet = "Metadata", x = Metadata)
    saveWorkbook(wb, "Prefilter_Data.xlsx", overwrite = TRUE)
+
+   # save count metrix for expressed genes
+   wb <- createWorkbook()
+   addWorksheet(wb, "Count_expr")
+   writeData(wb, sheet = "Count_expr", x = Count_expr, rowNames = TRUE)
+   saveWorkbook(wb, "Expressed_genes.xlsx", overwrite = TRUE)
 
    setwd(Output_file_path)
 

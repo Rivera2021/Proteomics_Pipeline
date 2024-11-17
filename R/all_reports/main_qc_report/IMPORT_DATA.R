@@ -121,6 +121,8 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     TPM = TPM %>% column_to_rownames("gene_name")
     TPM = TPM[,match(Metadata$MatchID, colnames(TPM))]
     colnames(TPM) = Metadata$Sample_name
+    temp = length(which(rowSums(TPM) >0))
+    TPM = TPM %>% rownames_to_column("gene_name")
 
     write.table(TPM, file='./TPM.tsv', row.names = FALSE,quote=FALSE, sep='\t')
 

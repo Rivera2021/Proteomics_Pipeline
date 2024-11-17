@@ -14,7 +14,7 @@ output:
 params:
   cellline: "In vivo"
   scinamicNum: 'EXP000033'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241115"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
   Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/MultiQC.tsv"
@@ -33,9 +33,8 @@ params:
   MEMORY_MB: 4000
   Corr_plot_features: ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used","Sample_name"]
   CoarseCondition:  ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
-  Gene_annotation: ""
-  Gene_ensemble: TRUE
   Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
+  PRE_FILTER: "PREV"
   
 ---
 
@@ -380,12 +379,15 @@ cat('\n')
 Prev_perc = params$Prev_perc
 # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
 # negative binomial functions
-PRE_FILTER = "PREV"
+PRE_FILTER = params$PRE_FILTER
 Output_file_path = params$baseDir
+# The Metadata features used to build the Coarse condition to use in DESeq's design matrix. 
+CoarseConditions = params$CoarseCondition
+
 
 # PRE-FILTERING -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "PRE_FILTERING.R", sep = '/'))
-PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER)
+PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER,CoarseConditions )
 
 #PARAM FOR DESEQ_NORM
 # Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
@@ -411,17 +413,14 @@ Control_Pos_PCA = ""
 Output_file_path = params$baseDir
 # Memory required for parallelization
 MEM_MB = params$MEMORY_MB
-# Whether gene annotation is Ensemble
-GENE_ENSEM = params$Gene_ensemble
-# Organism
-ORGANISM = 'Human'
+
 # Extra term to adjust for normalization "" for no batch, and the name of the batch to correct for batch using combat. These should be reflected in the PCA plots. Just one variable allowed
 Batch_variable =c("")
 
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
 
-DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, GENE_ENSEM = GENE_ENSEM, ORGANISM = ORGANISM, Batch_variable  )
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, Batch_variable  )
 
 
 

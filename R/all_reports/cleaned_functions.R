@@ -532,7 +532,7 @@ gsea_results2 <- function(res_tib, geneset = hallmarks, name, filter = NULL) {
 
 ################################################################################
 
-gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, TPM_expr_path) {
+gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, expr_gene_path, Organism) {
     require(BiocParallel)
     require(parallel)
     set.seed(54321)
@@ -629,33 +629,40 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
             Cell_line_chemo = Cellline
         }
 
-        # Make drugs name eual than in chemoproteomics
-        if(file.exists(Drug_Dict_Chemo_path)){
-            Dict_drug = read.csv(Drug_Dict_Chemo_path)
-            Dict_drug_filt = Dict_drug %>% dplyr::filter(Original == Drug)
-            if(nrow(Dict_drug_filt) > 0 ){
-
-                Drug_chemo = Dict_drug_filt$InChemo[1]
-            }
-
-        }else{
-
-            Drug_chemo = Drug
-        }
+        # # Make drugs name eual than in chemoproteomics
+        # if(file.exists(Drug_Dict_Chemo_path)){
+        #     Dict_drug = read.csv(Drug_Dict_Chemo_path)
+        #     Dict_drug_filt = Dict_drug %>% dplyr::filter(Original == Drug)
+        #     if(nrow(Dict_drug_filt) > 0 ){
+        #
+        #         Drug_chemo = Dict_drug_filt$InChemo[1]
+        #     }
+        #
+        # }else{
+        #
+        #     Drug_chemo = Drug
+        # }
 
 
         if(file.exists(Chemo_path)){
 
             Target_list = readRDS(Chemo_path)
 
+            # If organism is mouse then convert gene symbol to Mouse symbol
+            if(Organism == "Mouse"){
+
+                Target_list$gene = Target_list$gene_mouse
+
+            }
+
 
             # Filter list of targets for expressed targets only
 
-            if(file.exists(TPM_expr_path)){
+            if(file.exists(expr_gene_path)){
 
-                TPM_expr = readRDS(TPM_expr_path)
-                Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
-                Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+                Count_expr = read.xlsx(expr_gene_path, sheet = "Count_expr",rowNames= TRUE)
+                Target_list = Target_list %>% dplyr::filter(gene %in% rownames(Count_expr))
+
             }else{
 
                 Target_list = Target_list %>% dplyr::filter(gene %in% res_tib$symbol)
@@ -667,7 +674,7 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
 
             # Look for targets within the same type of biological sample
-            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== Drug_chemo )
+            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== Drug )
             if(nrow(Target_list_esp)>0){
 
                 gseares_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list_esp , enrichedPathways = gseares_table, geneset, Esp =TRUE)
@@ -846,7 +853,7 @@ gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_p
 
 ################################################################################
 
-over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, TPM_expr_path, PadjThr, log2FCTHr ) {
+over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, expr_gene_path, PadjThr, log2FCTHr,Organism  ) {
     require(BiocParallel)
     require(parallel)
     set.seed(54321)
@@ -865,9 +872,10 @@ over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_pa
 
         #try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = geneset, universe = Univ_genes))
 
-        try(overrep_all <- enricher(res_tib$symbol, TERM2GENE = geneset,  universe = Univ_genes, pvalueCutoff = 0.2))
-        if(!is.null(overrep_all) ){
-          overrep_table = overrep_all@result %>% dplyr::filter(p.adjust < 0.2 )
+        try(overrep_all <- enricher(res_tib$symbol, TERM2GENE = geneset,  universe = Univ_genes, qvalueCutoff = 1, pvalueCutoff = 1))
+        try(overrep <- enricher(res_tib$symbol, TERM2GENE = geneset,  universe = Univ_genes, pvalueCutoff = 0.2))
+        if(!is.null(overrep) ){
+          overrep_table = overrep@result %>% dplyr::filter(p.adjust < 0.2 )
 
           if(nrow(overrep_table) > 0){
 
@@ -905,14 +913,23 @@ over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_pa
 
             Target_list = readRDS(Chemo_path)
 
+            # If organism is mouse then convert gene symbol to Mouse symbol
+            if(Organism == "Mouse"){
 
-            # Filter list of targets for expressed targets only
+                Target_list$gene = Target_list$gene_mouse
 
-            if(file.exists(TPM_expr_path)){
+            }
 
-                TPM_expr = readRDS(TPM_expr_path)
-                Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
-                Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+            # Filter list of targets by expressed genes only
+
+            if(file.exists(expr_gene_path)){
+
+                Count_expr = read.xlsx(expr_gene_path, sheet = "Count_expr",rowNames= TRUE)
+                Target_list = Target_list %>% dplyr::filter(gene %in% rownames(Count_expr))
+
+            }else{
+
+                print("File for expression matrix does not exists")
             }
 
 
@@ -951,6 +968,7 @@ over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_pa
 
         res <- list(
             overrep_all = overrep_all,
+            overrep = overrep,
             overrep_table = overrep_table)
 
 
