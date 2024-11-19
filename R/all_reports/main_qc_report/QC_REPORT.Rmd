@@ -12,27 +12,27 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "In vivo"
-  scinamicNum: 'EXP000033'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241115"
+  cellline: "K562"
+  scinamicNum: 'A_2024_0142'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_Test_Pipeline_241115"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
-  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/MultiQC.tsv"
-  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/241030_EXP000033_metadata_v3_MB.xlsx"
-  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_counts.tsv"
-  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/SampleName.csv"
+  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/multiqc_general_stats.txt"
+  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/Metadata_mod.xlsx"
+  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/salmon.merged.gene_counts.tsv"
+  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/SampleName.csv"
   Experimental_design_path: ""
-  Column_match: "ID"
-  Organism_type: "In_vivo" # Either In_vivo or In_vitro
+  Column_match: "OriginalName"
+  Organism_type: "In_vitro" # Either In_vivo or In_vitro
   QCNORM: "PRE_QCNORM"
-  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/salmon.merged.gene_tpm.tsv"
-  ControlName: "Vehicle-DMSO"
+  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/salmon.merged.gene_tpm.tsv"
+  ControlName: "DMSO"
   Batch_variable: ""
   ExpDescription: "The protocol used for this experiment was Watchmaker"
   Prev_perc: 0.2
   MEMORY_MB: 4000
   Corr_plot_features: ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used","Sample_name"]
-  CoarseCondition:  ["Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
+  CoarseCondition:  ["Cell_line","Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
   Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
   PRE_FILTER: "PREV"
   
@@ -64,17 +64,9 @@ library("rio")
 library("janitor")
 library(patchwork)
 
-# # directories
-# baseDir = "~/projects/empress/cell_line_bulkrnaseq_202404040/"
-# saveDir = file.path(baseDir, "QCoutput", "221028_EXP005_BCH002")
-# dataDir = file.path(baseDir,  "data", "221028_EXP005_BCH002")
-# metaDir <- file.path(baseDir, "meta", "221028_EXP005_BCH002", "meta")
-# multiqcDir <- file.path(dataDir,  "multiqc")
-
-# if(!dir.exists(saveDir)){
-#   dir.create(saveDir, recursive = TRUE)
-# }
-# save = TRUE
+# Save parameters to a JSON file
+library(jsonlite)
+write_json(params, file.path(params$baseDir,"params_QC.json"))
 
 # deal with namespace clashes
 library(conflicted)
@@ -105,7 +97,7 @@ library(readxl)
 library(DESeq2)
 
 source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
-IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = 'In_vivo', SampleName_path = params$SampleName_path, Column_match = params$Column_match, Alias_path = params$Alias_path)
+IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = params$Organism_type, SampleName_path = params$SampleName_path, Column_match = params$Column_match, Alias_path = params$Alias_path)
 
 Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
@@ -917,7 +909,7 @@ for(cellt in celllines){
     
        annotation_col = as.data.frame(Metadata_cellt_time %>% dplyr::select(all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
 
-       annotation_row = as.data.frame(Metadata_cellt_time %>% dplyr::select(Sample_name,RQN, Outliers, Plate)) %>% column_to_rownames("Sample_name")
+       annotation_row = as.data.frame(Metadata_cellt_time %>% dplyr::select(Sample_name,RQN, Outliers,RNA_Sample_plate)) %>% column_to_rownames("Sample_name")
 
     cat("\n")
     cat("#####", 'Methods', '{.tabset}')

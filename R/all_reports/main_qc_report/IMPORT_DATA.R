@@ -59,7 +59,7 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
         Metadata$Stimulant_used = Metadata$`Biosample::Stimulant`
         Metadata$Treatment_time_hrs = Metadata$`Biosample::Compound Treatment Time (h)`
         Metadata$RQN = Metadata$`RNA Sample::RQN`
-        Metadata$RNA_Conc = Metadata$`Concentration (ng/uL)`
+        Metadata$RNA_Conc = Metadata$`RNA Sample::Concentration (ng/uL)`
         Metadata$Cell_line = Metadata$`Biosample::Cellline::ID`
 
     }else{
@@ -105,7 +105,8 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     Metadata = Metadata %>% dplyr::filter(MatchID  %in% colnames(Count))
     Count = Count[,match(Metadata$MatchID, colnames(Count))]
     colnames(Count) = Metadata$Sample_name
-    Count = Count %>% rownames_to_column("Gene")
+    Count$Gene = rownames(Count)
+    #Count = Count %>% rownames_to_column(var = "Gene")
 
 
     }else{
@@ -122,7 +123,7 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     TPM = TPM[,match(Metadata$MatchID, colnames(TPM))]
     colnames(TPM) = Metadata$Sample_name
     temp = length(which(rowSums(TPM) >0))
-    TPM = TPM %>% rownames_to_column("gene_name")
+    TPM$gene_name = rownames(TPM)
 
     write.table(TPM, file='./TPM.tsv', row.names = FALSE,quote=FALSE, sep='\t')
 
