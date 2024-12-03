@@ -12,17 +12,15 @@ output:
     toc_float:
       collapsed: yes
 params:
-  ConditionsComparisons_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Data/Integration_sheet_50_Percent_Deuc.xlsx"
-  CoarseCond: "K562_NONE_Deucravacitinib"
-  scinamicNums: "A-2024-0142"
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142_AND_A_20204_0143/Results_240826"
+  ConditionsComparisons_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/Integration_sheet.xlsx"
+  CoarseCond: ""
+  scinamicNums: "EXP000033"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241119_Complete"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
-  DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R"                    
-  Chemo_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_c20_240826.RDS"  
-  
+  DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_integration_report"                    
+  Chemo_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241112_w_InvitroTargets_knInh.RDS" 
+  Organism: "Mouse"
 
-                              
-                                                
 ---
  
 
@@ -48,7 +46,9 @@ library(pheatmap)
 library(metafolio)
 library(ashr)
 library(BiocParallel)
-
+library(ComplexHeatmap)
+library(circlize)
+library(grid)
 # source("~/repos/DiamondAge/report_templates/R_markdown_templates/_common_R_code/utilities.R")
 # source("~/repos/DiamondAge/report_templates/R_markdown_templates/_common_R_code/rnaseq_de.R") # Most of the functions are in this file
 
@@ -72,7 +72,8 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 ```
 
 ```{r functions }
-source(file.path(params$DirPipeline, "cleaned_functions.R"))
+source(file.path(params$DirPipeline, "../cleaned_functions.R"))
+
 ```
 
 
@@ -85,20 +86,35 @@ library(clusterProfiler)
 ConComp_tabl <-read_xlsx(params$ConditionsComparisons_path)
 
 # This needs to be accomodated when mouse
-Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
-Hallmark = read.gmt(file.path(params$DirDataForPipeline, "h.all.v2023.2.Hs.symbols.gmt"))
-Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt"))
+if(params$Organism == 'Human'){
+    print(paste("Organism selected", params$Organism, sep = " "))
+ Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
+ Hallmark = read.gmt(file.path(params$DirDataForPipeline, "h.all.v2023.2.Hs.symbols.gmt"))
+ Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt")) 
+ 
+}else if (params$Organism == 'Mouse'){
+    print(paste("Organism selected", params$Organism, sep = " "))
+ Kegg = read.gmt(file.path(params$DirDataForPipeline,  "c2.cp.kegg.v6.2.symbols_mouse.gmt"))
+ Hallmark = read.gmt(file.path(params$DirDataForPipeline, "mh.all.v2024.1.Mm.symbols.gmt"))
+ Reactome = read.gmt(file.path(params$DirDataForPipeline, "m2.cp.reactome.v2024.1.Mm.symbols.gmt"))  
+    
+    
+}
 
 genesets = c('Hallmark', 'Kegg', 'Reactome')
 
 # Download expression of genes
 Target_list = readRDS(params$Chemo_path)
-TPM_expr_path = file.path(params$baseDir,"QC_PRENORMALIZATION", "TPM_count_expr.RDS")
-if(file.exists(TPM_expr_path)){
+expr_path = file.path(params$baseDir,"PRE_FILTERING", "Expressed_genes.xlsx")
+if(file.exists(expr_path)){
 
-                TPM_expr = readRDS(TPM_expr_path)
-                Target_list = Target_list %>% dplyr::filter(gene %in% TPM_expr$gene_name)
-                Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
+                expr_mat = read_xlsx(expr_path)
+                colnames(expr_mat)[1] = "gene_name"
+                if (params$Organism == 'Mouse'){
+                 Target_list$gene = Target_list$gene_mouse
+                }
+                Target_list = Target_list %>% dplyr::filter(gene %in% expr_mat$gene_name)
+                #Target_list$tpm_median = TPM_expr$median_tpm[match(Target_list$gene, TPM_expr$gene_name)]
 }
 
 ```
@@ -329,6 +345,50 @@ for(colname in Colnames){
 ```
 
 
+
+```{r SaveDfs,  eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
+
+
+Colnames = c('Target_Chemo_all', 'Target_Chemo_esp')
+
+
+for(colname in Colnames){
+    
+    Df_Chemo_hits_path = file.path(Integration_Folder_Chemo,paste("Chemo_hits", "Colname" ,colname, ".RDS", sep = '_'))
+    Df_t = data.frame(pvalue = as.numeric(), Ratio_enrich = as.character(), Ratio_geneset = as.character(), padj = as.numeric(), gene = as.character(), geneset = as.character(), Treatment = as.character(), Dose = as.character(), Time = as.character(), Name = as.character())
+    if(file.exists(Df_Chemo_hits_path)){
+    
+        Df_Chemo_hits = readRDS(Df_Chemo_hits_path)
+        
+        for(k in 1:length(Df_Chemo_hits)){
+             
+             Df = Df_Chemo_hits[[k]]
+             Name = names(Df_Chemo_hits)[k]
+             Df$Treatment = str_split(Name, "_")[[1]][2]
+             Df$Dose = str_split(Name, "_")[[1]][3]
+             Df$Time = str_split(Name, "_")[[1]][4]
+             Df$Name = Name
+             Df_t = rbind(Df_t,Df)
+        }
+         
+       
+      
+    
+    }
+    
+    
+    OneDf_Chemo_hits_path = file.path(Integration_Folder_Chemo,paste("Chemo_hits", "Colname" ,colname, "OneDf.RDS", sep = '_'))
+    if(length(Df_t)>0){
+        saveRDS(Df_t, file = OneDf_Chemo_hits_path)
+    }
+    
+}
+
+```
+
+
+
+
 # Over-representation of chemoproteomic targets 
 
 Here we estimate whether the chemoproteomics target candidates are over-represented within the enriched pathways. Mainly whether we find them within the enriched pathways more often than what we would find them by chance in the total gene set collection, for example KEGG or REACTOME.
@@ -358,7 +418,7 @@ The heatmaps show in blue the targets that are over-represented for a particular
 
 ## Using all chemoproteomics targets associated to the molecule {.tabset}
 
-```{r, echo=FALSE, results='asis', fig.show='hide'}
+```{r, echo=FALSE, results='asis', eval = TRUE}
 library(pheatmap)
 
 
@@ -374,7 +434,7 @@ if(file.exists(Df_Chemo_hits_path)){
       Heatmap_matrices = list()
       for(geneset in genesets){
           
-         print(geneset) 
+         #print(geneset) 
          Df_Chemo_hits_sel = Df_Chemo_hits[grep(geneset, names(Df_Chemo_hits))]
          Df_Chemo_hits_sel_filt = list()
          for(k in 1:length(Df_Chemo_hits_sel)){
@@ -412,7 +472,7 @@ if(file.exists(Df_Chemo_hits_path)){
         
       
       res <- lapply(names(Heatmap_matrices), function(name) {
-   knitr::knit_child(file.path(params$DirPipeline, "Child_Chemoproteomics_heatmap.Rmd"),
+   knitr::knit_child(file.path(params$DirPipeline,"child_reports", "Child_Chemoproteomics_heatmap_V3.Rmd"),
                     envir = environment(),
                     quiet = TRUE,
                     options = list(
@@ -432,9 +492,10 @@ if(file.exists(Df_Chemo_hits_path)){
 
 ```
 
+
 ## Using chemoproteomics targets only associated to the specific cellline/tissue {.tabset}
 
-```{r, echo=FALSE, results='asis', fig.show='hide'}
+```{r, echo=FALSE, results='asis', eval = TRUE}
 library(pheatmap)
 
 genesets = c('Hallmark', 'Kegg', 'Reactome')
@@ -486,7 +547,7 @@ if(file.exists(Df_Chemo_hits_path)){
       }    
         
         res <- lapply(names(Heatmap_matrices), function(name) {
-   knitr::knit_child(file.path(params$DirPipeline, "Child_Chemoproteomics_heatmap.Rmd"),
+   knitr::knit_child(file.path(params$DirPipeline,"child_reports", "Child_Chemoproteomics_heatmap_V3.Rmd"),
                     envir = environment(),
                     quiet = TRUE,
                     options = list(
@@ -514,7 +575,7 @@ if(file.exists(Df_Chemo_hits_path)){
 
 # Concordance chemoproteomics and transcriptomics
 
-```{r Concordance,  eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
+```{r Concordance,  eval=FALSE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
 library(openxlsx)
 
 # Enrichment of all chemoproteomic targets for a given molecule
@@ -609,7 +670,7 @@ for(geneset in names(genesets)){
 
 
 ## Using all chemoproteomics targets associated to the molecule {.tabset}
-```{r, echo=FALSE, results='asis', fig.show='hide', eval = TRUE}
+```{r, echo=FALSE, results='asis', fig.show='hide', eval = FALSE}
 library(pheatmap)
 
 genesets = c('Hallmark', 'Kegg', 'Reactome')
