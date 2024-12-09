@@ -45,8 +45,11 @@ Three reports are generated:
             - CoarseCondition: Features from the metadata to select groups of samples for contrasts. Should uniquely categorize samples within conditions to be compared. Possible values are: "Treatment","Treatment_conc", "Treatment_time_hrs"
             - Alias_path: Path mapping compound names from scinamic to its alias.
             - TPM_path: Path to the TPM matrix. This is the file named as “salmon.merged.gene_tpm.tsv” that nf-core rnaseq pipeline outputs within the star_salmon folder
+            - outliers_path: Path to the outliers that want to be removed if used QCNORM = “POST_QCNORM”. If QCNORM = “PRE_QCNORM” leave as "". This is a file that contains the user-selected outliers after looking at the QC_REPORT generated with all samples, QCNORM = “PRE_QCNORM”. It is a .xlsx file. Use the example generated from the file Outliers.xlsx within QC_PRENORMALIZATION folder, or the file within In_vitro_EXP72. Notice that outlier samples should be identified using the Sample_name column from the metadata generated in QC_PRENORMALIZATION.
+            
 
         - The following functions are used:
+            - IMPORT_DATA
             - QC_PRENORMALIZATION_CL_V2
             - PRE_FILTERING
             - DESEQ_NORM

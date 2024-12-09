@@ -48,6 +48,7 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     # Replace NA by zero in Treatment concentration. Order concentrations
     Metadata$Treatment_conc = Metadata$`Biosample::Compound Concentration`
     if(Organism_type == "In_vivo"){
+        # Check this assignation depending on whether Sham was given NONE
         Metadata$Stimulant_used = ifelse(Metadata$`Biosample::Compound Batch::ID`!="NONE", "Stim", "NoStim")
         Metadata$Treatment_time_hrs = Metadata$`Animal Tissue::Time of Collection (h)`
         Metadata$RQN = Metadata$`RNA Sample::RQN`
@@ -56,7 +57,7 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
 
     }else if(Organism_type == "In_vitro"){
 
-        Metadata$Stimulant_used = Metadata$`Biosample::Stimulant`
+        Metadata$Stimulant_used = Metadata$`Cotreatment Batch::ID`
         Metadata$Treatment_time_hrs = Metadata$`Biosample::Compound Treatment Time (h)`
         Metadata$RQN = Metadata$`RNA Sample::RQN`
         Metadata$RNA_Conc = Metadata$`RNA Sample::Concentration (ng/uL)`
@@ -130,17 +131,9 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
     }else{
         print("TPM file does not exist")
     }
-    # Read MultiQC files
-    # if (file.exists(Metrics_path)){
-    #     multiqc_metrics <- rio::import(Metrics_path)%>% janitor::clean_names() %>% as_tibble()
-    #     multiqc_metrics = multiqc_metrics[!is.na(multiqc_metrics$custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna),]
-    #
-    #     write.table(multiqc_metrics, file='./MultiQC.tsv', row.names = FALSE,quote=FALSE, sep='\t')
-    #
-    #
-    # }else{
-    #     print("Path for file with QC metrics does not exist")
-    # }
+
+
+
 
     # Save metadata and count formatted data frames
 

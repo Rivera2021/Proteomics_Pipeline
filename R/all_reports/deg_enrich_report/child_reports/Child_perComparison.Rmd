@@ -51,7 +51,7 @@ cat('\n')
 cat("####", "Table of DE genes")
 cat('\n')
 
-display_de_genes4(mytable = all_contrasts[[name]], geneAnns = geneAnns, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
+display_de_genes4(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
 
 cat('\n')
 

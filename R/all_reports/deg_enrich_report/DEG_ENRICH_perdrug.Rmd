@@ -12,21 +12,21 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "M255"
-  cell_line: "In_vivo"
-  stimulation: "TNBS"
-  scinamicNum: 'EXP000033'
-  baseDir: "~/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241119_Complete"
+  drug: "dBET6" 
+  cell_line: "K562.3"
+  stimulation: "NONE"
+  scinamicNum: 'EXP000072'
+  baseDir: "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-  dataDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241115/DESEQ_NORM"
-  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/List_contrasts_Invivo.xlsx"
+  dataDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102/DESEQ_NORM"
+  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/List_contrasts_K562.xlsx"
   Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241112_w_InvitroTargets_knInh.RDS"
-  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105/PRE_FILTERING/Expressed_genes.xlsx"
+  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102/PRE_FILTERING/Expressed_genes.xlsx"
   Experimental_design_path: ""
-  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/CellLine_Dict_Chemo.csv"
+  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/CellLine_Dict_Chemo.csv"
   AdjustDeSeq: ""
-  Organism: "Mouse"
+  Organism: "Human"
   padj_thr_gene: 0.2
   logFC_thrs_gene: 0
   
@@ -135,25 +135,52 @@ Cell_Dict_path = params$Cell_Dict_path
 Contrast_path = params$Contrast_path
 ```
 
-```{r get_gene_annotation}
+```{r get_gene_annotation, eval = TRUE}
 library(biomaRt)
 
 # gene annotations
 if(params$Organism == 'Human'){
     
-    organismDataset <- "hsapiens_gene_ensembl"
+    if(file.exists(file.path(params$DirDataForPipeline, "geneAnns_Human.RDS"))){
+        geneAnns = readRDS(file.path(params$DirDataForPipeline, "geneAnns_Human.RDS"))
+        colnames(geneAnns)[2] = "symbol"
+        geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
+        
+    }else{
+        organismDataset <- "hsapiens_gene_ensembl"
+        mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset=organismDataset)
+        geneAnns = getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype"), mart = mart)
+        saveRDS(geneAnns, file = file.path(params$DirDataForPipeline, "geneAnns_Human.RDS"))
+        colnames(geneAnns)[2] = "symbol"
+        # Eliminate redundancy in this data frame for gene symbols present in multiple rows. This is important to keep consistent the lists in the overlaps for the venn diagrams.
+
+        geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
+        
+    }
+    
     
 }else if(params$Organism == 'Mouse'){
     
-    organismDataset <- "mmusculus_gene_ensembl"
+    if(file.exists(file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))){
+        geneAnns = readRDS(file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))
+        colnames(geneAnns)[2] = "symbol"
+        geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
+        
+    }else{
+        organismDataset <- "mmusculus_gene_ensembl"
+        mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset=organismDataset)
+        geneAnns = getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype"), mart = mart)
+        saveRDS(geneAnns, file = file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))
+        colnames(geneAnns)[2] = "symbol"
+        # Eliminate redundancy in this data frame for gene symbols present in multiple rows. This is important to keep consistent the lists in the overlaps for the venn diagrams.
+
+        geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
+    }
+    
+    
 }
 
-mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset=organismDataset)
-geneAnns = getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype"), mart = mart)
-colnames(geneAnns)[2] = "symbol"
-# Eliminate redundancy in this data frame for gene symbols present in multiple rows. This is important to keep consistent the lists in the overlaps for the venn diagrams.
 
-geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
 
 
 
@@ -282,7 +309,8 @@ List_contrasts = read.xlsx(xlsxFile = params$Contrast_path)
 
 #print("Only contrasts allowed after removing outliers will be calculated")
 #List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
-comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat)) | (grepl('NONE', treat) & grepl('DMSO', untreat)) ) 
+#comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat)) | (grepl('NONE', treat) & grepl('DMSO', untreat)) ) 
+comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
 #comparisons <- comparisons %>%  dplyr::filter(grepl(params$cell_line, treat) | grepl(params$cell_line, untreat)) 
 comparisons$namecontrast =  paste0(comparisons$treat,"_vs_",comparisons$untreat)
 
@@ -459,6 +487,8 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
 ```
 `r out8`
 
+
+
 ### Downregulated Genes {.tabset}
 
 #### Venn Diagram
@@ -511,14 +541,7 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
 
 ```
   
-`r out9`
-
-
-
-
-
-
-
+`r out9`  
 
 
 

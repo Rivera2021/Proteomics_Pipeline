@@ -2,22 +2,25 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-cell_line = "In_vivo"
-stimulation = "TNBS"
-scinamicNum = 'EXP000033'
-baseDir = "~/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241119_Complete"
+
+cell_line = "K562.3"
+stimulation =  "NONE"
+scinamicNum = 'EXP000072'
+baseDir = "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-dataDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241115/DESEQ_NORM"
-Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/List_contrasts_Invivo.xlsx"
+dataDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106/DESEQ_NORM_QCNORM"
+Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/List_contrasts_K562.xlsx"
 Chemo_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241112_w_InvitroTargets_knInh.RDS"
-expr_gene_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Results_241105/PRE_FILTERING/Expressed_genes.xlsx"
+expr_gene_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102/PRE_FILTERING/Expressed_genes.xlsx"
 Experimental_design_path = ""
-Cell_Dict_path ="/fsx/home/crivera/BULK-TRANSCRIPTOMICS/InVivo/EXP000033/Data/CellLine_Dict_Chemo.csv"
+Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/CellLine_Dict_Chemo.csv"
 AdjustDeSeq = ""
-Organism = "Mouse"
+Organism = "Human"
 padj_thr_gene = 0.2
 logFC_thrs_gene = 0
+
+
 
 
 
@@ -26,9 +29,8 @@ dir.create(Name_folder_path, recursive = TRUE)
 
 Metadata <-read_xlsx(file.path(dataDir, "Norm_Data.xlsx"), sheet = 'Metadata')
 drugs = unique(Metadata$Treatment)
-drugs = drugs[!drugs %in% c('NONE', "Vehicle-DMSO")]
-
-
+drugs = drugs[!drugs %in% c('DMSO')]
+#drugs = c("dBET6", "TAK-279","Selisistat" )
 
 for(x in drugs){
     rmarkdown::render(input = paste(DirPipeline,"DEG_ENRICH_perdrug.Rmd", sep = '/')  ,

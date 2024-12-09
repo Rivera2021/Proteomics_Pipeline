@@ -13,19 +13,19 @@ output:
       collapsed: yes
 params:
   cellline: "K562"
-  scinamicNum: 'A_2024_0142'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/A_2024_0142/Results_Test_Pipeline_241115"
+  scinamicNum: 'EXP000072'
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
-  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/multiqc_general_stats.txt"
-  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/Metadata_mod.xlsx"
-  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/salmon.merged.gene_counts.tsv"
-  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/SampleName.csv"
+  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data"
+  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/EXP000072_metadata.xlsx"
+  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/salmon.merged.gene_counts.tsv"
+  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/SampleName.csv"
   Experimental_design_path: ""
-  Column_match: "OriginalName"
+  Column_match: "ID"
   Organism_type: "In_vitro" # Either In_vivo or In_vitro
-  QCNORM: "PRE_QCNORM"
-  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/In_vitro/salmon.merged.gene_tpm.tsv"
+  QCNORM: "POST_QCNORM"
+  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/salmon.merged.gene_tpm.tsv"
   ControlName: "DMSO"
   Batch_variable: ""
   ExpDescription: "The protocol used for this experiment was Watchmaker"
@@ -35,6 +35,7 @@ params:
   CoarseCondition:  ["Cell_line","Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
   Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
   PRE_FILTER: "PREV"
+  outliers_path: "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/Outliers_customized.xlsx" # or if all the detected outliers from PRE_QCNORM run want to be removed then used then path within folder "params$baseDir/QC_PRENORMALIZATION/QCOutliers.xlsx"
   
 ---
 
@@ -66,7 +67,7 @@ library(patchwork)
 
 # Save parameters to a JSON file
 library(jsonlite)
-write_json(params, file.path(params$baseDir,"params_QC.json"))
+
 
 # deal with namespace clashes
 library(conflicted)
@@ -102,6 +103,7 @@ IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_
 Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
 
+write_json(params, file.path(params$baseDir,"params_QC.json"))
 
 ```
 
@@ -207,46 +209,28 @@ Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"
 
 ```{r qcmetrics}
 
-# This metrics file has be the output of the multiqc, from samtools
+# We need to define this part depending on the multiqc
 metric_param = TRUE
-if(file.exists(params$Metrics_path)){
- multiqc_metrics <- rio::import(file.path(params$Metrics_path))%>% janitor::clean_names() %>% as_tibble()
+# This metrics file has be the output of the multiqc, from samtools
+samtools_metrics <- rio::import(file.path(params$Metrics_path,"multiqc_samtools_flagstat.txt")) %>% janitor::clean_names() %>% as_tibble()
+    totalreads <- samtools_metrics %>% select(sample, flagstat_total) %>% rename("total_reads"="flagstat_total")
 
-# total reads per fastq
-totalreads <- multiqc_metrics %>% 
-  dplyr::select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
-  dplyr::rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
-
-# get total unique mapping rates 
-mapped_reads <- multiqc_metrics %>%  
-    dplyr::select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
-    dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
+# get total unique mapping rates
+star_metrics <- rio::import(file.path(params$Metrics_path,"multiqc_star.txt")) %>% janitor::clean_names() %>% as_tibble()
+    mapped_reads <- star_metrics %>%  select(sample, uniquely_mapped_percent) %>% dplyr::rename("mapping_percent"="uniquely_mapped_percent")
 
 qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
 
-# rrna
-rrna_perc <- multiqc_metrics %>% 
-  dplyr::select(sample, custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna) %>% 
-  dplyr::rename("perc_rrna"="custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna")
+sortmerna_metrics <- rio::import(file.path(params$Metrics_path,"multiqc_sortmerna.txt")) %>% janitor::clean_names() %>% as_tibble() %>% filter(grepl("_2$",sample )) %>% mutate(sample=sub("_2$", "", sample))
 
+    rrna_perc <- sortmerna_metrics %>% select(sample, contains("euk")) %>% select(sample, contains("pct")) %>% mutate(perc_rrna = select(., contains("pct")) %>%
+                   purrr::reduce(`+`)) %>%
+        select(-contains("pct"))
 qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
+qcmetrics$Sample_name = Metadata$Sample_name[match(qcmetrics$sample, Metadata$MatchID)]
 
-Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name"="sample")) 
+Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name")) 
 
-
-
-# clean up the sample metadata a bit to make it easier to read and work with
-# sample_meta <- Metadata %>%  
-#   # remove the dashes as they mess up our automatic naming later
-#   mutate(across(c(id, condition), ~sub("-", "_", .))) %>%
-#   # add sample for the sample id as its standard for the following code
-#   mutate(sample=id) %>% 
-#   # need this for the pca plots
-#   mutate(drug_stim=paste(drug, stim, sep="_"))
-
-}else{
-    metric_param = FALSE
-}
 ```
 
 
@@ -386,7 +370,7 @@ PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER,CoarseConditions )
 QCNORM = params$QCNORM
 # Path to samples that should be excluded in a customize manner. Add "" if no list wants to be submitted
 # See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
-outliers_path = paste(params$baseDir, 'QC_PRENORMALIZATION','Outliers.xlsx',sep = '/' )
+outliers_path = params$outliers_path
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = params$CoarseCondition
 # Normalization method. Only has 'Standard' otherwise it will stop
@@ -426,7 +410,7 @@ DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseCondi
 if(params$QCNORM == "PRE_QCNORM"){
    file_filt_path = file.path(params$baseDir, "DESEQ_NORM", "DESeq_Norm.RData")
    load(file_filt_path)
-} else if(params$QCNORM == "PRE_QCNORM"){
+} else if(params$QCNORM == "POST_QCNORM"){
     
     file_filt_path = file.path(params$baseDir, "DESEQ_NORM_QCNORM", "DESeq_Norm.RData")
     load(file_filt_path)
