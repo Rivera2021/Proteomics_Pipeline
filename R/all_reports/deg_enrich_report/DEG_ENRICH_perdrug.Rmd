@@ -12,23 +12,24 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "dBET6" 
+  drug: "GSK2982772"
   cell_line: "K562.3"
   stimulation: "NONE"
   scinamicNum: 'EXP000072'
-  baseDir: "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102"
+  baseDir: "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-  dataDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102/DESEQ_NORM"
+  dataDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106/DESEQ_NORM_QCNORM"
   Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/List_contrasts_K562.xlsx"
-  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241112_w_InvitroTargets_knInh.RDS"
-  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241102/PRE_FILTERING/Expressed_genes.xlsx"
+  Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
+  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106/PRE_FILTERING/Expressed_genes.xlsx"
   Experimental_design_path: ""
   Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/CellLine_Dict_Chemo.csv"
   AdjustDeSeq: ""
   Organism: "Human"
   padj_thr_gene: 0.2
   logFC_thrs_gene: 0
+  ReportNum: "1"
   
 ---
 
@@ -71,9 +72,9 @@ write_json(params, file.path(params$baseDir,"params_DEG.json"))
 
 
 # directories
-Drug = params$drug
+
 baseDir = params$baseDir
-saveDir = file.path(params$baseDir, "DEG_ENRICHMENT", paste(params$drug, params$cell_line, sep = '_'))
+saveDir = file.path(params$baseDir, "DEG_ENRICHMENT", paste(params$drug,"Report",  params$ReportNum, sep = '_'))
 #dataDir = file.path(baseDir,  "QCoutput", "221028_EXP005_BCH002")
 
 
@@ -195,10 +196,10 @@ if(params$Organism == 'Human'){
 cat(params$ExpDescription)
 
 
-if(file.exists(Experimental_design_path)){
+if(file.exists(params$Experimental_design_path)){
   
     #knitr::opts_chunk$set(fig_width=20, fig_height=15)
-    knitr::include_graphics(Path_Exp)
+    knitr::include_graphics(params$Experimental_design_path)
 }else{
     cat("No experimental design scheme available")
 }
@@ -299,7 +300,7 @@ This table includes all gene sets in the pathway database. The columns are as fo
 
 # Differential gene expression and pathway enrichment
 
-```{r comparisons,  eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
+```{r comparisons,  eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results="asis", fig.show='hide'}
 library(openxlsx)
 
 source(file.path(params$DirPipeline, "DEG_FUNCTION.R"))
@@ -310,8 +311,10 @@ List_contrasts = read.xlsx(xlsxFile = params$Contrast_path)
 #print("Only contrasts allowed after removing outliers will be calculated")
 #List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
 #comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat)) | (grepl('NONE', treat) & grepl('DMSO', untreat)) ) 
-comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
+#comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
 #comparisons <- comparisons %>%  dplyr::filter(grepl(params$cell_line, treat) | grepl(params$cell_line, untreat)) 
+
+comparisons  = List_contrasts %>%  dplyr::filter(reportNum == params$ReportNum)
 comparisons$namecontrast =  paste0(comparisons$treat,"_vs_",comparisons$untreat)
 
 # Remove comparisons where at least one of the groups has 1 sample
@@ -324,7 +327,7 @@ if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
 } else {
   #print('Here')
   all_contrasts <- apply(comparisons,1, function(x){
-    DEG_FUNCTION_DA(x,saveDir,Drug, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq, padj_thr_gene = params$padj_thr_gene, logFC_thrs_gene = params$logFC_thrs_gene)
+    DEG_FUNCTION_DA(x,saveDir, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq, padj_thr_gene = params$padj_thr_gene, logFC_thrs_gene = params$logFC_thrs_gene)
                     
   })
   names(all_contrasts) <- comparisons$namecontrast
@@ -427,9 +430,9 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
 
 #### UpSet Plot
 
-```{r, results="asis", eval=TRUE}
+```{r, results="asis", eval=TRUE, fig.width = 24}
 if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
-    upset(upset_data_up)
+    upset(upset_data_up, text.scale = c(1, 1, 1, 1, 1, 2))
 } else {
     cat("*No DE genes*")
 }
@@ -503,9 +506,9 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
 
 #### UpSet Plot
 
-```{r, results="asis",eval=TRUE}
+```{r, results="asis",eval=TRUE, fig.width = 24}
 if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
-  upset(upset_data_down)
+  upset(upset_data_down, text.scale = c(1, 1, 1, 1, 1, 2))
 } else {
   cat("*No DE genes*")
 }

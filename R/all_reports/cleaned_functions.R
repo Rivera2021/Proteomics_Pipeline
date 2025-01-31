@@ -66,7 +66,7 @@ barplot_metrics_cellline <- function(mydf, metric = NULL, sort1 = NULL, sort2 = 
         geom_bar(stat = "identity") +
         facet_wrap(~Cell_line, nrow=length(Celllines_unq), scales="free")+
         theme_bw() %+replace%
-        theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1, size=6))
+        theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1, size=10), axis.text.y = element_text(size=16))
     return(p)
 }
 
@@ -674,7 +674,7 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 
 
             # Look for targets within the same type of biological sample
-            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== Drug )
+            Target_list_esp = Target_list %>% dplyr::filter(Matrix == Cell_line_chemo & drugs== drug )
             if(nrow(Target_list_esp)>0){
 
                 gseares_table = Add_Chemo_Enrich_V2(drug, Target_list = Target_list_esp , enrichedPathways = gseares_table, geneset, Esp =TRUE)
@@ -1010,8 +1010,9 @@ plot_euler <- function(euler){
 ################################################################################
 
 calculate_fig_height <- function(mat) {
-  base_height <- 4  # Minimum height in inches
-  per_row_height <- 0.2  # Additional height per row in inches
+  lenchar = round(max(nchar(colnames(mat)))/10)
+  base_height <- lenchar  # Minimum height in inches
+  per_row_height <- 0.15  # Additional height per row in inches
   height <- base_height + nrow(mat) * per_row_height
   return(height)
 }

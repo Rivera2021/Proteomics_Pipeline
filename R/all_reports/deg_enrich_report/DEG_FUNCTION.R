@@ -275,7 +275,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
 }
 
 # DEG per condition and the folder structure is per comparison. Volcano plots are being generated in the report itself. Only one comparison is calculated by this function.
-DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Method = 'DESeq_Cons', MH_Method = 'BH', AdjustDeSeq =c("Plate.id"), padj_thr_gene = 0.2, logFC_thrs_gene = 0){
+DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method = 'DESeq_Cons', MH_Method = 'BH', AdjustDeSeq =c("Plate.id"), padj_thr_gene = 0.2, logFC_thrs_gene = 0){
 
     library(DESeq2)
     library(dplyr)
@@ -514,6 +514,8 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         if(length(top_genes) > 0){
             Heat_dat_filtered <- Heat_dat[match(top_genes, rownames(Heat_dat)), , drop = FALSE]
 
+            lenchar = round(max(nchar(colnames(Heat_dat_filtered)))/10)
+
             if(length(top_genes)>1){
                 require(dendsort)
                 sort_hclust <- function(...) as.hclust(dendsort(as.dendrogram(...), isReverse = TRUE))
@@ -541,7 +543,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                          fontsize_row = 8)
              }
 
-            jpeg(file = Top_up_filename_jpeg, width = 10, height = 10, units = "in", res = 300)
+            jpeg(file = Top_up_filename_jpeg, width = 10, height = (lenchar + nrow(Heat_dat_filtered) * 0.2), units = "in", res = 300)
             print(Hup)
             dev.off()
 
@@ -558,7 +560,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
         if(length(top_genes_dn) > 0){
 
             Heat_dat_filtered <- Heat_dat[match(top_genes_dn, rownames(Heat_dat)), , drop = FALSE]
-
+            lenchar = round(max(nchar(colnames(Heat_dat_filtered)))/10)
             if(length(top_genes_dn)>1){
                 require(dendsort)
                 sort_hclust <- function(...) as.hclust(dendsort(as.dendrogram(...), isReverse = TRUE))
@@ -586,7 +588,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir, mol,Metadata, count_data, DEG_Met
                                fontsize_row = 8)
             }
 
-            jpeg(file = Top_dn_filename_jpeg, width = 10, height = 10, units = "in", res = 300)
+            jpeg(file = Top_dn_filename_jpeg, width = 10, height = (lenchar + nrow(Heat_dat_filtered) * 0.2), units = "in", res = 300)
             print(Hdn)
             dev.off()
 

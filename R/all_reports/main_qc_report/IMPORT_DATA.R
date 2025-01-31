@@ -16,6 +16,18 @@ IMPORT_DATA = function(Output_file_path, Metadata_path, CountM_path, Metrics_pat
 
     if(file.exists(Metadata_path)){
     Metadata = read_xlsx(Metadata_path)
+
+    # Replace spaces for "_" in the metadata, except for column names
+    replace_spaces <- function(x) {
+        if(is.character(x)) {
+            return(gsub(" ", "_", x))
+        }
+        return(x)
+    }
+
+    Metadata[] <- lapply(Metadata, replace_spaces)
+
+
     Metadata$scinamicNum = Metadata$`Biosample::Experiment Number`
 
      if(file.exists(Alias_path)){

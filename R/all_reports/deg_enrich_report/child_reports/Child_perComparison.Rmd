@@ -61,6 +61,10 @@ cat('\n')
 
 ### Pathway enrichment GSEA {.tabset}
 ```{r results = 'asis' , echo = FALSE, fig.width=9, fig.height=8}
+# Define the cell line and drug to use in this comparison by using the info in comparisons
+Cell_line = comparisons$cell_line[which(comparisons$namecontrast == name)]
+Drug = comparisons$drug[which(comparisons$namecontrast == name)]
+
 cat('\n')
 cat("####", "Hallmark {.tabset}")
 cat('\n')
@@ -68,7 +72,7 @@ cat('\n')
 gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
 
-res_hall <- gsea_results_logpval(res_tib = all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = params$drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+res_hall <- gsea_results_logpval(res_tib = all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Signficance and GeneRatios")
@@ -151,7 +155,7 @@ cat('\n')
 cat("####", "Kegg {.tabset}")
 cat('\n')
 
-res_kegg <- gsea_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = params$drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+res_kegg <- gsea_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -232,7 +236,7 @@ cat('\n')
 cat("####", "Reactome {.tabset}")
 cat('\n')
 
-res_React <- gsea_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = params$drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+res_React <- gsea_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -319,7 +323,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Hallmark visualization
 
-res_hall <- over_rep_results_logpval(all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_hall <- over_rep_results_logpval(all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
  
 Eval_hall_over = FALSE
 if(!is.null(res_hall$overrep)){
@@ -397,7 +401,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Kegg visualization
                                
-res_kegg <- over_rep_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_kegg <- over_rep_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
 Eval_kegg_over = FALSE
 if(!is.null(res_kegg$overrep)){
@@ -473,7 +477,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Reactome visualization
                                
-res_React <- over_rep_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_React <- over_rep_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
 Eval_React_over = FALSE
 if(!is.null(res_React$overrep)){
