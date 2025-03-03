@@ -353,7 +353,7 @@ QC_PRENORMALIZATION_CL_V2 = function(Output_file_path,nMust = 2, TPM_path){
 
 
 
-    Df = MustDrop_list %>% dplyr::select(Sample_name,Well,ReadNum, detected_genes,)
+    Df = MustDrop_list %>% dplyr::select(Sample_name,Well,ReadNum, detected_genes)
     write.xlsx(Df, file = paste(Output_file_path, "QC_PRENORMALIZATION",'Outliers.xlsx', sep = '/'))
 
     # Import TPM
@@ -471,9 +471,10 @@ QC_PRENORMALIZATION_CL_V2 = function(Output_file_path,nMust = 2, TPM_path){
 
 
     # Plot of Number reads per million vs Number of non-zero genes. In original space and show outliers selected
-    Metadata$Out_QC_Prenorm = ""
+    Metadata$Out_QC_Prenorm  = ""
     Metadata$Out_QC_Prenorm[Metadata$Sample_name %in% Df$Sample_name] = Metadata$Sample_name[Metadata$Sample_name %in% Df$Sample_name]
-
+    Metadata$Outliers_QC  = "No"
+    Metadata$Outliers_QC[Metadata$Sample_name %in% Df$Sample_name] = "yes"
 
 
     p4 = ggplot(Metadata, aes(x=ReadNum, y=detected_genes, group = Treatment)) +

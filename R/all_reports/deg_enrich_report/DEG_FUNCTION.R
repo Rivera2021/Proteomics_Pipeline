@@ -142,7 +142,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
             #Name_contr = paste(List_contrasts_mol$treat[i])
             print(Name_contr)
             # Filter necessary data for comparison from Metadata
-            Metadata_temp = Metadata %>% filter(CoarseCondition %in% c(List_contrasts_mol$treat[i],List_contrasts_mol$untreat[i]))
+            Metadata_temp = Metadata %>% dplyr::filter(CoarseCondition %in% c(List_contrasts_mol$treat[i],List_contrasts_mol$untreat[i]))
             NormCounts_temp = NormCounts[,match(Metadata_temp$Sample_name, colnames(NormCounts))]
 
             curConc = Metadata_temp$CoarseCondition
@@ -222,13 +222,13 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
                     ModelInfo$pvaj =0
                     ModelInfo$pvaj[Ind] = 1
                 }
-                ModelInfo_sig = ModelInfo %>% filter(pvajSig == 1)
+                ModelInfo_sig = ModelInfo %>% dplyr::filter(pvajSig == 1)
 
             }else if(MH_Method == 'BH'){
                 if(DEG_Method == 'T-Test'){
                     ModelInfo$padj =p.adjust(as.numeric(ModelInfo$p.value), method='BH')
-                    ModelInfo_sig = ModelInfo %>% filter(padj < padjval)
-                }else if(DEG_Method %in%  c('DESeq', 'DESeq_Cons')){
+                    ModelInfo_sig = ModelInfo %>% dplyr::filter(padj < padjval)
+                }else if(DEG_Method %in%  c('DESeq', 'DESeq_Cons', 'limma_voom')){
 
                     ModelInfo_sig = ModelInfo %>% filter(padj < padjval)
                     print(nrow(ModelInfo_sig))
@@ -286,6 +286,8 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
     library(doParallel)
     library(BiocParallel)
     library(parallel)
+    library(edgeR)
+    library(limma)
 
     source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
@@ -385,6 +387,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
     resfilename <- file.path(saveDir, "contrasts", Contrast_name, "DEG_df.RDS")
 
     # Filter necessary data for comparison from Metadata
+    Metadata$CoarseCondition = gsub("-", "_",Metadata$CoarseCondition)
     Metadata_temp = Metadata %>% dplyr::filter(CoarseCondition %in% c(comp_vect['treat'],comp_vect['untreat']))
     NormCounts_temp = NormCounts[,match(Metadata_temp$Sample_name, colnames(NormCounts))]
     count_data_temp =count_data[,match(Metadata_temp$Sample_name, colnames(count_data))]
@@ -452,6 +455,51 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
             saveRDS(NormCounts_cons, norm_filename)
 
 
+        }else if(DEG_Method == 'limma_voom'){
+
+            print('limma-voom method')
+            voom_filename <- file.path(saveDir, "contrasts", Contrast_name, "voomObj_cons.RDS")
+            norm_filename <- file.path(saveDir, "contrasts", Contrast_name, "Norm_cons.RDS")
+
+            if(AdjustDeSeq != "" ){
+                stop("limma_voom method has not been adapted to adjust for batch")
+            }
+
+            # To be modified if more than one factor is desired to be adjusted for
+
+            design <- model.matrix(~ 0 + CoarseCondition, data=Metadata_temp)
+            colnames(design) = gsub("CoarseCondition", "",colnames(design)  )
+            Count_temp = as.data.frame(count_data_temp)
+            keep <- rowSums(Count_temp) > 1
+            Count_temp <- Count_temp[keep,]
+            kept_genes <- rownames(Count_temp)[keep]
+            dge <- DGEList(counts = Count_temp )
+            dge <- calcNormFactors(dge, method="TMM")
+
+            v <- voom(dge, design, plot = TRUE)
+            fit <- lmFit(v, design)
+            # Make the contrast correctly
+            contr_expr <- paste0(comp_vect['treat'], " - ", comp_vect['untreat'])
+            contr <- makeContrasts(contrasts = contr_expr, levels = colnames(coef(fit)))
+            tmp <- contrasts.fit(fit, contr)
+            tmp <- eBayes(tmp)
+            res0 <- topTable(tmp, number=Inf)
+
+            res <- tibble(symbol = rownames(res0),
+                         log2FC = res0$logFC,
+                         pvalue = res0$P.Value,
+                         padj = res0$adj.P.Val,
+                         AveExpr = res0$AveExpr)
+
+            # Get normalized counts
+            NormCounts_cons = v$E
+
+            saveRDS(res, resfilename)
+            saveRDS(fit, voom_filename)
+            saveRDS(NormCounts_cons, norm_filename)
+
+
+
         }else{
 
             stop('DEG method not valid')
@@ -503,13 +551,13 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
         Top_dn_filename_jpeg <- file.path(saveDir, "contrasts", Contrast_name, "Top_dn_DEGs.jpeg")
         All_DEG_filename_pdf <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.pdf")
 
-        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% select(Treatment, Stimulant_used, Treatment_conc, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
+        mat_anno <- Metadata_temp %>% arrange(Treatment) %>% dplyr::select(Treatment, Stimulant_used, Treatment_conc, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
         Heat_dat = NormCounts_cons[, match(rownames(mat_anno), colnames(NormCounts_cons))]
 
         # Top upregulated
 
         #anno_colors <- list(sample = setNames(gg_color_hue(length(unique(Metadata_temp$sample))), unique(Metadata_temp$sample)))
-        top_genes <- res %>% filter(log2FC > logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
+        top_genes <- res %>% dplyr::filter(log2FC > logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
 
         if(length(top_genes) > 0){
             Heat_dat_filtered <- Heat_dat[match(top_genes, rownames(Heat_dat)), , drop = FALSE]
@@ -555,7 +603,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
 
 
         # # Top downregulated
-        top_genes_dn <- res %>% filter(log2FC < -logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
+        top_genes_dn <- res %>% dplyr::filter(log2FC < -logFC_thrs_gene & padj < padj_thr_gene) %>% top_n(-50, padj) %>% pull(symbol)
 
         if(length(top_genes_dn) > 0){
 
@@ -599,7 +647,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
 
 
         # All DEGs
-        deg_genes <- res %>% filter(padj < padj_thr_gene) %>% pull(symbol)
+        deg_genes <- res %>% dplyr::filter(padj < padj_thr_gene) %>% pull(symbol)
         if(length(deg_genes) > 0){
             Heat_dat_filtered <- Heat_dat[match(deg_genes, rownames(Heat_dat)), , drop = FALSE]
             if(length(deg_genes)>1){

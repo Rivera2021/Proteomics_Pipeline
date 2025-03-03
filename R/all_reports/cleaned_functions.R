@@ -139,7 +139,7 @@ plot_ma <- function(res_tib){
            log2fc_rank = rank(-abs_log2FC, ties.method = "first"),
            label = case_when(sig != "not sig" ~ symbol))
 
-  top <- plot_df %>% filter(sig != "padj > 0.05") %>% top_n(-20, log2fc_rank)
+  top <- plot_df %>% dplyr::filter(sig != "padj > 0.05") %>% top_n(-20, log2fc_rank)
 
   plot_df %>%
     ggplot(aes(x = log(baseMean), y = log2FC, color = sig)) +
@@ -185,8 +185,15 @@ display_de_genes4 <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE
     if (distinct) {
         mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
     }
-    format_cols <- c("log2FC", "pvalue", "padj", "lfcSE", "baseMean")
-    mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    if(params$DEG_Method == 'DESeq_Cons'){
+     format_cols <- c("log2FC", "pvalue", "padj", "lfcSE", "baseMean")
+     mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    }else if(params$DEG_Method == 'limma_voom'){
+
+        format_cols <- c("log2FC", "pvalue", "padj")
+        mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+
+    }
     return(mydat)
 }
 

@@ -1,5 +1,5 @@
 # DESeq normalization and DEG
-DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', MEM_MB = 1600, Batch_variable = 'Plate.id' ){
+DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, CoarseConditions, METHOD_NORM = 'Standard', VST_FILTER = "VST_ON",  SVD_FILTER = 'SVD_OFF', MEM_MB = 1600, Batch_variable = 'Plate.id', DataForPipeline ){
 
     library(DESeq2)
     #library(readxl)
@@ -19,11 +19,14 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     library('pheatmap')
     library("GGally")
     library("sva")
+    library(limma)
+    library(edgeR)
 
 
 
     #source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
-    clusterTemp = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/slurmMqBoris.tmpl"
+
+    clusterTemp = file.path(DataForPipeline, "slurmMqBoris.tmpl")
 
     # Import data
     setwd(Output_file_path)
@@ -156,6 +159,9 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
             stop('Choose VST_FILTER method valid')
         }
 
+        #Save RData object
+        save(deseqObj, NormCounts,Metadata, file = 'DEG_Norm.RData')
+
     }else if(METHOD_NORM == 'Standard_Parallel'){
 
         print('Running DESEQ Standard normalization in parallel...')
@@ -213,7 +219,19 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
                 stop('Choose VST_FILTER method valid')
             }
 
+            #Save RData object
+            save(deseqObj, NormCounts,Metadata, file = 'DEG_Norm.RData')
 
+    }else if(METHOD_NORM == "limma_voom"){
+
+        # To be modified if more than one factor is desired to be adjusted for
+        design <- model.matrix(~ CoarseCondition, data = Metadata)
+        dge <- DGEList(counts = Count)
+        dge <- calcNormFactors(dge, method="TMM")
+        v <- voom(dge, design)
+        NormCounts = v$E
+
+        save(dge, NormCounts,Metadata, file = 'DEG_Norm.RData')
 
     }else {
 
@@ -266,8 +284,7 @@ DESEQ_NORM = function(Output_file_path, QCNORM = "PRE_QCNORM", outliers_path, Co
     }
 
 
-    #Save RData object
-    save(deseqObj, NormCounts,Metadata, file = 'DESeq_Norm.RData')
+
     # Save excel file
     wb <- createWorkbook()
     addWorksheet(wb, "NormCounts")

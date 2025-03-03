@@ -12,30 +12,31 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "THP-1, K562"
-  scinamicNum: 'EXP000064'
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Results_250130"
+  cellline: "Intestinal Epithelial"
+  scinamicNum: "EXP000085"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Results_250225_PerDonorReport"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
-  Metrics_path: " "
-  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/EXP000064_metadata.xlsx"
-  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/salmon.merged.gene_counts.tsv"
-  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/SampleName.csv"
-  Experimental_design_path: " "
+  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/multiqc_general_stats.txt"
+  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/Metadata_EXP000085.xlsx"
+  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/salmon.merged.gene_counts.tsv"
+  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/SampleName.csv"
+  Experimental_design_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/Organoids_exp_design_exp85_exp88.png"
   Column_match: "ID"
   Organism_type: "In_vitro" # Either In_vivo or In_vitro
   QCNORM: "PRE_QCNORM"
-  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/salmon.merged.gene_tpm.tsv"
+  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/salmon.merged.gene_tpm.tsv"
   ControlName: "DMSO"
   Batch_variable: ""
-  ExpDescription: "Experiment on THP-1 and K562 for M255 and M082. Study M255 in the context of a FABP5 inhibitor "
+  ExpDescription: "Experiment with organoids of intestinal epithelial cells"
   Prev_perc: 0.2
   MEMORY_MB: 4000
-  Corr_plot_features: ["Cell_line","Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used","Sample_name"]
-  CoarseCondition:  ["Cell_line","Treatment","Treatment_conc", "Treatment_time_hrs", "Stimulant_used"]
+  Corr_plot_features: ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used","Sample_name"]
+  CoarseCondition:  ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used"]
   Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
   PRE_FILTER: "PREV"
   outliers_path: "" # or if all the detected outliers from PRE_QCNORM run want to be removed then used then path within folder "params$baseDir/QC_PRENORMALIZATION/QCOutliers.xlsx"
+  METHOD_NORM: 'Standard_Parallel'
   
 ---
 
@@ -427,7 +428,7 @@ outliers_path = params$outliers_path
 # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
 CoarseConditions = params$CoarseCondition
 # Normalization method. Only has 'Standard' otherwise it will stop
-METHOD_NORM = 'Standard_Parallel'
+METHOD_NORM = params$METHOD_NORM
 # Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
 VST_FILTER = "VST_ON"
 # Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
@@ -442,6 +443,7 @@ Control_Pos_PCA = ""
 Output_file_path = params$baseDir
 # Memory required for parallelization
 MEM_MB = params$MEMORY_MB
+DataForPipeline = params$DirDataForPipeline
 
 # Extra term to adjust for normalization "" for no batch, and the name of the batch to correct for batch using combat. These should be reflected in the PCA plots. Just one variable allowed
 Batch_variable =c("")
@@ -449,7 +451,7 @@ Batch_variable =c("")
 # DESEQ NORMALIZATION -----------------------------------------------------------------------------
 source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
 
-DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, Batch_variable  )
+DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, Batch_variable,DataForPipeline )
 
 
 
@@ -461,11 +463,11 @@ DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseCondi
 ```{r runpcaall}
 
 if(params$QCNORM == "PRE_QCNORM"){
-   file_filt_path = file.path(params$baseDir, "DESEQ_NORM", "DESeq_Norm.RData")
+   file_filt_path = file.path(params$baseDir, "DESEQ_NORM", "DEG_Norm.RData")
    load(file_filt_path)
 } else if(params$QCNORM == "POST_QCNORM"){
     
-    file_filt_path = file.path(params$baseDir, "DESEQ_NORM_QCNORM", "DESeq_Norm.RData")
+    file_filt_path = file.path(params$baseDir, "DESEQ_NORM_QCNORM", "DEG_Norm.RData")
     load(file_filt_path)
     
 }   
@@ -496,7 +498,7 @@ We use PCA plots like these to give us an overall view of the samples.
 
 ```{r, echo=FALSE, results='asis', fig.show='hide'}
 
-covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc", "Treatment_time_hrs")
+covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc", "Treatment_time_hrs", "Outliers_QC")
 
 
 result <- lapply(covariates, function(covar) {
@@ -527,7 +529,7 @@ Evalstim = ifelse(length(stimulants)>1, TRUE, FALSE)
 ```{r, eval = Evalcells, results='asis', fig.show='interactive'}
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc", "Outliers", "RQN")
+covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc", "Outliers_QC", "RQN")
 
 cat("\n")
 cat("#", 'Principal Component Analysis - Per cell-line', '{.tabset}')
@@ -580,7 +582,7 @@ cat("\n")
 
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc", "Outliers", "RQN")
+covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc", "Outliers_QC", "RQN")
 
 for(cellt in celllines){
     
@@ -642,7 +644,7 @@ cat("\n")
 
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time_stim = c('Treatment', "Treatment_conc", "Outliers", "RQN")
+covariates_ct_time_stim = c('Treatment', "Treatment_conc", "Outliers_QC", "RQN")
 
 for(cellt in celllines){
     
@@ -724,7 +726,7 @@ for(cellt in celllines){
 ```{r , eval = TRUE, results='asis', fig.show='interactive'}
 
 celllines <- unique(Metadata$Cell_line)
-covariates_ct_time_treat = c("Treatment","Treatment_conc", "Stimulant_used", "Outliers", "RQN")
+covariates_ct_time_treat = c("Treatment","Treatment_conc", "Stimulant_used", "Outliers_QC", "RQN")
 
 for(cellt in celllines){
     
@@ -810,7 +812,7 @@ library(pheatmap)
 Methods = c('pearson', 'spearman')
 annotation_col = as.data.frame(Metadata %>% dplyr::select(all_of(params$Corr_plot_features))) %>% column_to_rownames("Sample_name")
 
-annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers)) %>% column_to_rownames("Sample_name")
+annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
 
 for(meth in Methods) {        
     
@@ -867,7 +869,7 @@ for(cellt in celllines){
     
     annotation_col = as.data.frame(Metadata_cellt %>% dplyr::select( all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
 
-annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQN, Outliers)) %>% column_to_rownames("Sample_name")
+annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
 
     cat("\n")
     cat("###", 'Methods', '{.tabset}')

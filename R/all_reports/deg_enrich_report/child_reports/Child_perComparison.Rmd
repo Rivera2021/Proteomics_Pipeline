@@ -12,7 +12,9 @@ cat('\n')
 cat('\n')
 cat("####", "MA Plot")
 cat('\n')
-plot_ma(all_contrasts[[name]])
+if(params$DEG_Method == c('DESeq_Cons') ){
+   plot_ma(all_contrasts[[name]])
+}    
 cat('\n')
 
 

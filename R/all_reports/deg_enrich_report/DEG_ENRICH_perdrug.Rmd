@@ -30,7 +30,8 @@ params:
   padj_thr_gene: 0.2
   logFC_thrs_gene: 0
   ReportNum: "1"
-  
+  METHOD_NORM: 'limma_voom'
+  DEG_Method: 'limma_voom'
 ---
 
 
@@ -108,8 +109,18 @@ library(DESeq2)
 
 Metadata <-read_xlsx(file.path(params$dataDir, "Norm_Data.xlsx"), sheet = 'Metadata')
 #geneAnns <- readRDS(file.path(dataDir, "geneAnns.RDS"))
-load(file.path(params$dataDir, "DESeq_Norm.RData"))
-count_data = counts(deseqObj)
+load(file.path(params$dataDir, "DEG_Norm.RData"))
+
+
+
+if(params$METHOD_NORM ==  'limma_voom'){
+    count_data = dge$counts
+    
+}else if (params$METHOD_NORM == 'Standard_Parallel' | params$METHOD_NORM == 'Standard'){
+    
+    count_data = counts(deseqObj)
+}
+
 
 
 
@@ -322,12 +333,19 @@ SelectedCond = Metadata %>% dplyr::group_by(CoarseCondition) %>% dplyr::summaris
 comparisons = comparisons[comparisons$treat %in% SelectedCond$CoarseCondition,]
 comparisons = comparisons[comparisons$untreat %in% SelectedCond$CoarseCondition,]
 
+# Make contrast names valid names in r
+replace_hyphens <- function(x) {
+  gsub("-", "_", x)
+}
+
+comparisons <- data.frame(lapply(comparisons, replace_hyphens), stringsAsFactors = FALSE)
+
 if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
   all_contrasts <- readRDS(file.path(saveDir, "contrasts",  "all_contrasts.RDS"))
 } else {
   #print('Here')
   all_contrasts <- apply(comparisons,1, function(x){
-    DEG_FUNCTION_DA(x,saveDir, Metadata, count_data, DEG_Method = "DESeq_Cons",MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq, padj_thr_gene = params$padj_thr_gene, logFC_thrs_gene = params$logFC_thrs_gene)
+    DEG_FUNCTION_DA(x,saveDir, Metadata, count_data, DEG_Method = params$DEG_Method,MH_Method = 'BH', AdjustDeSeq = params$AdjustDeSeq, padj_thr_gene = params$padj_thr_gene, logFC_thrs_gene = params$logFC_thrs_gene)
                     
   })
   names(all_contrasts) <- comparisons$namecontrast
@@ -432,7 +450,7 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
 
 ```{r, results="asis", eval=TRUE, fig.width = 24}
 if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
-    upset(upset_data_up, text.scale = c(1, 1, 1, 1, 1, 2))
+    upset(upset_data_up, text.scale = c(1, 1, 1, 1, 1, 2), nsets = 10, nintersects = 100)
 } else {
     cat("*No DE genes*")
 }
@@ -508,7 +526,7 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
 
 ```{r, results="asis",eval=TRUE, fig.width = 24}
 if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
-  upset(upset_data_down, text.scale = c(1, 1, 1, 1, 1, 2))
+  upset(upset_data_down, text.scale = c(1, 1, 1, 1, 1, 2), nsets = 10, nintersects = 100)
 } else {
   cat("*No DE genes*")
 }
