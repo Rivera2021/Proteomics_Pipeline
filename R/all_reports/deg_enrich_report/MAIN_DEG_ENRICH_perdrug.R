@@ -3,30 +3,23 @@ library(tidyverse)
 library(readxl)
 
 
-library(rmarkdown)
-library(tidyverse)
-library(readxl)
 
-scinamicNum = 'EXP000090'
-baseDir = "/fsx/home/john/projects/empress/EXP000090/Results_250218"
+scinamicNum = 'EXP000064'
+baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/"
 DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
-DirPipeline =  "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report/"
-dataDir = "/fsx/home/john/projects/empress/EXP000090/Results_250213/DESEQ_NORM"
-Contrast_path = "/fsx/home/john/projects/empress/EXP000090/meta/EXP90_contrasts.xlsx"
-Chemo_path = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
-expr_gene_path = "/fsx/home/john/projects/empress/EXP000090/Results_250213/PRE_FILTERING/Expressed_genes.xlsx"
-Experimental_design_path = "/fsx/home/john/projects/empress/EXP000090/meta/EXP90_exp_design.png"
-Cell_Dict_path = "/fsx/home/john/projects/empress/EXP000090/meta/CellLine_Dict_Chemo.csv"
+DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
+dataDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Results_250130/DESEQ_NORM"
+Contrast_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/contrasts_THP1.1.xlsx"
+Chemo_path = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS" # not pulled down by git!!
+expr_gene_path = "/fsx/home/john/projects/empress/EXP000064/Results_241211/PRE_FILTERING/Expressed_genes.xlsx"
+Experimental_design_path = ""
+Cell_Dict_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/CellLine_Dict_Chemo.csv"
 AdjustDeSeq = ""
 Organism = "Human"
 padj_thr_gene = 0.2
 logFC_thrs_gene = 0
 METHOD_NORM = 'Standard_Parallel'
 DEG_Method = 'DESeq_Cons'
-List_contrasts = read_xlsx("/fsx/home/john/projects/empress/EXP000090/meta/EXP90_contrasts.xlsx")
-Name_folder_path =  file.path(baseDir, "REPORTS")
-dir.create(Name_folder_path, recursive = TRUE)
-
 
 List_contrasts = read_excel("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/List_contrasts_perDonor.xlsx")
 Name_folder_path =  file.path(baseDir, "REPORTS")
