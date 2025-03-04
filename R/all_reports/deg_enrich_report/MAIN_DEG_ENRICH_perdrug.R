@@ -3,17 +3,16 @@ library(tidyverse)
 library(readxl)
 
 
-
 scinamicNum = 'EXP000064'
 baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/"
 DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
 DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 dataDir = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Results_250130/DESEQ_NORM"
-Contrast_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/contrasts_THP1.1.xlsx"
+Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/List_contrasts_M255_test.xlsx"
 Chemo_path = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS" # not pulled down by git!!
-expr_gene_path = "/fsx/home/john/projects/empress/EXP000064/Results_241211/PRE_FILTERING/Expressed_genes.xlsx"
+expr_gene_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Results_250130/PRE_FILTERING/Expressed_genes.xlsx"
 Experimental_design_path = ""
-Cell_Dict_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/CellLine_Dict_Chemo.csv"
+Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/CellLine_Dict_Chemo.csv"
 AdjustDeSeq = ""
 Organism = "Human"
 padj_thr_gene = 0.2
@@ -21,7 +20,7 @@ logFC_thrs_gene = 0
 METHOD_NORM = 'Standard_Parallel'
 DEG_Method = 'DESeq_Cons'
 
-List_contrasts = read_excel("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/List_contrasts_perDonor.xlsx")
+List_contrasts = readxl::read_excel(Contrast_path)
 Name_folder_path =  file.path(baseDir, "REPORTS")
 dir.create(Name_folder_path, recursive = TRUE)
 
