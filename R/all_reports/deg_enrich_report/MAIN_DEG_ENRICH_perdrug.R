@@ -6,6 +6,7 @@ library(readxl)
 scinamicNum = 'EXP000064'
 baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/"
 DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
+Customgenesets_path = file.path(DirDataForPipeline, "250303_Disease_genesets.xlsx")
 DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 dataDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/DESEQ_NORM"
 Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/List_contrasts_M255_test.xlsx"
@@ -46,6 +47,7 @@ for(reportnum in unique(List_contrasts$reportNum)){
                                     scinamicNum = scinamicNum,
                                     baseDir = baseDir,
                                     DirDataForPipeline = DirDataForPipeline,
+                                    Customgenesets_path = Customgenesets_path,
                                     DirPipeline = DirPipeline,
                                     dataDir = dataDir,
                                     Contrast_path = Contrast_path,
