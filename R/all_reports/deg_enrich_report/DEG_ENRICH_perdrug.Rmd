@@ -121,9 +121,6 @@ if(params$METHOD_NORM ==  'limma_voom'){
     count_data = counts(deseqObj)
 }
 
-
-
-
 if(params$Organism == 'Human'){
     print(paste("Organism selected", params$Organism, sep = " "))
  Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
@@ -149,12 +146,12 @@ if(params$Organism == 'Human'){
          return(genesets_df)
      })
      names(enrichr_genesets) <- db_names
-     saveRDS(enrichr_genesets, file="~/resources/enrichr/enrichr_genesets.RDS")
+     saveRDS(enrichr_genesets, file = file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))
      Enrichr <- enrichr_genesets
-     rm(list=c("enrichr_genesets", "dbs", "db_names", "To_remove"))
+     rm(list = c("enrichr_genesets", "dbs", "db_names", "To_remove"))
   } else{
-     
- }
+     Enrichr <- loadRDS(file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))
+  }
  
  
  
