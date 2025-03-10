@@ -99,9 +99,17 @@ library(readxl)
 library(DESeq2)
 
 source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
-IMPORT_DATA(Output_file_path = params$baseDir,  Metadata_path = params$Metadata_path, CountM_path = params$CountM_path, Metrics_path = params$Metrics_path, TPM_path = params$TPM_path, Organism_type = params$Organism_type, SampleName_path = params$SampleName_path, Column_match = params$Column_match, Alias_path = params$Alias_path)
+IMPORT_DATA(Output_file_path = params$baseDir, 
+            Metadata_path = params$Metadata_path, 
+            CountM_path = params$CountM_path, 
+            Metrics_path = params$Metrics_path, 
+            TPM_path = params$TPM_path, 
+            Organism_type = params$Organism_type, 
+            SampleName_path = params$SampleName_path, 
+            Column_match = params$Column_match, 
+            Alias_path = params$Alias_path)
 
-Metadata <-read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
+Metadata <- read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
 count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
 
 write_json(params, file.path(params$baseDir,"params_QC.json"))
@@ -240,46 +248,46 @@ Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"
 # This metrics file has be the output of the multiqc, from samtools
 metric_param = TRUE
 if(file.exists(params$Metrics_path)){
- multiqc_metrics <- rio::import(file.path(params$Metrics_path))%>% janitor::clean_names() %>% as_tibble()
-
-# total reads per fastq
-totalreads <- multiqc_metrics %>% 
-  dplyr::select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
-  dplyr::rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
-
-# get total unique mapping rates 
-mapped_reads <- multiqc_metrics %>%  
-    dplyr::select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
-    dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
-
-qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
-
-# rrna
-rrna_perc <- multiqc_metrics %>% 
-  dplyr::select(sample, custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna) %>% 
-  dplyr::rename("perc_rrna"="custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna")
-
-qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
-
-qcmetrics$Sample_name = Metadata$Sample_name[match(qcmetrics$sample, Metadata$MatchID)]
-Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name")) 
-
-wb <- loadWorkbook(paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'))
-removeWorksheet(wb, "Metadata")
-addWorksheet(wb, "Metadata")
-writeData(wb, sheet = "Metadata", x = Metadata)
-saveWorkbook(wb, paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'), overwrite = TRUE)
-
-# clean up the sample metadata a bit to make it easier to read and work with
-# sample_meta <- Metadata %>%  
-#   # remove the dashes as they mess up our automatic naming later
-#   mutate(across(c(id, condition), ~sub("-", "_", .))) %>%
-#   # add sample for the sample id as its standard for the following code
-#   mutate(sample=id) %>% 
-#   # need this for the pca plots
-#   mutate(drug_stim=paste(drug, stim, sep="_"))
-
-}else{
+    multiqc_metrics <- rio::import(file.path(params$Metrics_path)) %>% janitor::clean_names() %>% as_tibble()
+    
+    # total reads per fastq
+    totalreads <- multiqc_metrics %>% 
+        dplyr::select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
+        dplyr::rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
+    
+    # get total unique mapping rates 
+    mapped_reads <- multiqc_metrics %>%  
+        dplyr::select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
+        dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
+    
+    qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
+    
+    # rrna
+    rrna_perc <- multiqc_metrics %>% 
+        dplyr::select(sample, custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna) %>% 
+        dplyr::rename("perc_rrna"="custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna")
+    
+    qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
+    
+    qcmetrics$Sample_name = Metadata$Sample_name[match(qcmetrics$sample, Metadata$MatchID)]
+    Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name")) 
+    
+    wb <- loadWorkbook(paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'))
+    removeWorksheet(wb, "Metadata")
+    addWorksheet(wb, "Metadata")
+    writeData(wb, sheet = "Metadata", x = Metadata)
+    saveWorkbook(wb, paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'), overwrite = TRUE)
+    
+    # clean up the sample metadata a bit to make it easier to read and work with
+    # sample_meta <- Metadata %>%  
+    #   # remove the dashes as they mess up our automatic naming later
+    #   mutate(across(c(id, condition), ~sub("-", "_", .))) %>%
+    #   # add sample for the sample id as its standard for the following code
+    #   mutate(sample=id) %>% 
+    #   # need this for the pca plots
+    #   mutate(drug_stim=paste(drug, stim, sep="_"))
+    
+} else {
     metric_param = FALSE
 }
 ```

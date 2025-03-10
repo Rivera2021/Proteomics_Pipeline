@@ -13,7 +13,7 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
     library(BiocParallel)
     library(parallel)
 
-    source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
+    # source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
     print("Getting DEG...")
 
@@ -289,7 +289,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
     library(edgeR)
     library(limma)
 
-    source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
+    # source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
     print("Getting DEG...")
 
