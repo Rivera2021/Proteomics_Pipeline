@@ -619,19 +619,20 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
         } else if(geneset_name == "Reactome"){
 
             gseares_table <- gseares_table %>% mutate(link = paste0("<a href='https://www.gsea-msigdb.org/gsea/msigdb/cards/", pathway, ".html", "'>", "mSigDB \n info", "</a>"))
+        } else {
+            gseares_table <- gseares_table #NO LINKS for enrichr or custom genesets yet
         }
 
         # Adding chemoproteomic targets within pathways
         # First make sure cell line name is the same in both chemoproteomics and transcriptomics experiments
-        if(file.exists(Celline_Dict_Chemo_path)){
+        if (file.exists(Celline_Dict_Chemo_path)) {
             Dict_cell = read.csv(Celline_Dict_Chemo_path)
             Dict_cell_filt = Dict_cell %>% dplyr::filter(Original == Cellline)
             if(nrow(Dict_cell_filt) > 0 ){
 
                 Cell_line_chemo = Dict_cell_filt$InChemo[1]
             }
-
-        }else{
+        } else {
 
             Cell_line_chemo = Cellline
         }
