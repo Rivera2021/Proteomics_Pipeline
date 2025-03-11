@@ -277,17 +277,17 @@ DEG_FUNCTION = function(Output_file_path, List_contrasts_Path, DEG_Method = 'DES
 # DEG per condition and the folder structure is per comparison. Volcano plots are being generated in the report itself. Only one comparison is calculated by this function.
 DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method = 'DESeq_Cons', MH_Method = 'BH', AdjustDeSeq =c("Plate.id"), padj_thr_gene = 0.2, logFC_thrs_gene = 0){
 
-    library(DESeq2)
-    library(dplyr)
-    library(foreach)
-    library(BioMark)
-    library(stringr)
-    library("openxlsx")
-    library(doParallel)
-    library(BiocParallel)
-    library(parallel)
-    library(edgeR)
-    library(limma)
+    require(DESeq2)
+    require(dplyr)
+    require(foreach)
+    require(BioMark)
+    require(stringr)
+    require("openxlsx")
+    require(doParallel)
+    require(BiocParallel)
+    require(parallel)
+    require(edgeR)
+    require(limma)
 
     # source("~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/Functions_Invivo.R")
     # Intro message
