@@ -123,13 +123,13 @@ if(params$METHOD_NORM ==  'limma_voom'){
 }
 
 # load genesets
-if(params$Organism == 'Human'){
+if (params$Organism == 'Human') {
     print(paste("Organism selected", params$Organism, sep = " "))
     Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
     Hallmark = read.gmt(file.path(params$DirDataForPipeline, "h.all.v2023.2.Hs.symbols.gmt"))
     Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt")) 
     # get enrichr genesets
-    if (!file.exists(file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))){
+    if (!file.exists(file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))) {
         library(hypeR)
         library(tidyverse)
         dbs <- enrichr_available(
@@ -139,42 +139,41 @@ if(params$Organism == 'Human'){
         dbs <- dbs[!dbs$Geneset %in% To_remove, ]
         db_names <- dbs$Geneset
         # make the term2gene dfs for all dbs and genesets
-        Enrichr <- lapply(db_names, function(x){
+        enrichr_l <- lapply(db_names[1:5], function(x){
             print(x)
             genesets_l <- enrichr_download(x,db = c("Enrichr"))
             genesets_df <- genesets_l %>%
                 enframe(name = "geneset", value = "symbol") %>%
                 unnest(symbol)
+            genesets_df <- genesets_df %>% mutate(geneset=paste(x, geneset, sep=" - "))
+            names(genesets_df) <- c("term", "gene")
             return(genesets_df)
         })
-        names(Enrichr) <- db_names
+        Enrichr <- do.call(rbind, enrichr_l)
         saveRDS(Enrichr, file = file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))
-        rm(list = c("dbs", "db_names", "To_remove"))
-    } else{
-        Enrichr <- loadRDS(file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))
+        rm(list = c("dbs", "db_names", "To_remove", "enrichr_l"))
+    } else {
+        Enrichr <- readRDS(file.path(params$DirDataForPipeline, "enrichr_genesets.RDS"))
     }
-    
     # get custom genesets
-    if(file.exists(params$Customgenesets_path)) {
+    if (file.exists(params$Customgenesets_path)) {
         sheet_names <- excel_sheets(params$Customgenesets_path)
         sheet_names <- sheet_names[!sheet_names %in% c("INSTRUCTIONS", "SUMMARY", "Sheet1")]
         all_sheets <- sheet_names %>%
-            map(~read_excel(params$Customgenesets_path, sheet = .) %>% select(1))
+            map(~read_excel(params$Customgenesets_path, sheet = .) %>% dplyr::select(1))
         names(all_sheets) <- sheet_names
-        Custom <- bind_rows(all_sheets, .id = "sheet_name")
+        Customgenesets <- bind_rows(all_sheets, .id = "sheet_name")
         names(Custom) <- c("term", "gene")
     } else {
         print("No custom genesets file found")
     }
     
-
-}else if (params$Organism == 'Mouse'){
+} else if (params$Organism == 'Mouse') {
+    
     print(paste("Organism selected", params$Organism, sep = " "))
- Kegg = read.gmt(file.pathhead(Cu(params$DirDataForPipeline,  "c2.cp.kegg.v6.2.symbols_mouse.gmt"))
- Hallmark = read.gmt(file.path(params$DirDataForPipeline, "mh.all.v2024.1.Mm.symbols.gmt"))
- Reactome = read.gmt(file.path(params$DirDataForPipeline, "m2.cp.reactome.v2024.1.Mm.symbols.gmt"))  
-    
-    
+    Kegg = read.gmt(file.pathhead(Cu(params$DirDataForPipeline,  "c2.cp.kegg.v6.2.symbols_mouse.gmt")))
+    Hallmark = read.gmt(file.path(params$DirDataForPipeline, "mh.all.v2024.1.Mm.symbols.gmt"))
+    Reactome = read.gmt(file.path(params$DirDataForPipeline, "m2.cp.reactome.v2024.1.Mm.symbols.gmt"))
 }
 
 # TPM expression matrix
@@ -209,9 +208,9 @@ if(params$Organism == 'Human'){
     }
     
     
-}else if(params$Organism == 'Mouse'){
+} else if (params$Organism == 'Mouse') {
     
-    if(file.exists(file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))){
+    if (file.exists(file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))) {
         geneAnns = readRDS(file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))
         colnames(geneAnns)[2] = "symbol"
         geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
@@ -223,11 +222,8 @@ if(params$Organism == 'Human'){
         saveRDS(geneAnns, file = file.path(params$DirDataForPipeline, "geneAnns_Mouse.RDS"))
         colnames(geneAnns)[2] = "symbol"
         # Eliminate redundancy in this data frame for gene symbols present in multiple rows. This is important to keep consistent the lists in the overlaps for the venn diagrams.
-
         geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
     }
-    
-    
 }
 
 
