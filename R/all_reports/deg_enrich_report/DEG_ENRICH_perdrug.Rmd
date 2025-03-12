@@ -139,7 +139,7 @@ if (params$Organism == 'Human') {
         dbs <- dbs[!dbs$Geneset %in% To_remove, ]
         db_names <- dbs$Geneset
         # make the term2gene dfs for all dbs and genesets
-        enrichr_l <- lapply(db_names[1:5], function(x){
+        enrichr_l <- lapply(db_names, function(x){ ### CHANGE THIS BACK WHEN REST OF CODE IN PLACE - JH
             print(x)
             genesets_l <- enrichr_download(x,db = c("Enrichr"))
             genesets_df <- genesets_l %>%
@@ -163,7 +163,7 @@ if (params$Organism == 'Human') {
             map(~read_excel(params$Customgenesets_path, sheet = .) %>% dplyr::select(1))
         names(all_sheets) <- sheet_names
         Customgenesets <- bind_rows(all_sheets, .id = "sheet_name")
-        names(Custom) <- c("term", "gene")
+        names(Customgenesets) <- c("term", "gene")
     } else {
         print("No custom genesets file found")
     }
