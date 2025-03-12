@@ -4,14 +4,14 @@ library(readxl)
 
 
 scinamicNum = 'EXP000064'
-baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/"
+baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250312_DE/"
 DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
 Customgenesets_path = file.path(DirDataForPipeline, "250303_Disease_genesets.xlsx")
 DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 dataDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/DESEQ_NORM"
-Contrast_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Data/List_contrasts_M255_test.xlsx"
+Contrast_path = "/fsx/home/john/projects/empress/EXP000064/List_contrasts_M255.xlsx"
 Chemo_path = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS" # not pulled down by git!!
-expr_gene_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000064/Results_250130/PRE_FILTERING/Expressed_genes.xlsx"
+expr_gene_path = "/fsx/home/john/projects/empress/EXP000064/Results_250301/PRE_FILTERING/Expressed_genes.xlsx"
 Experimental_design_path = ""
 Cell_Dict_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/CellLine_Dict_Chemo.csv"
 AdjustDeSeq = ""
