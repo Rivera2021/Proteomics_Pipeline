@@ -4,7 +4,7 @@ library(readxl)
 
 
 scinamicNum = 'EXP000064'
-baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250312_DE/"
+baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250313_DE/"
 DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
 Customgenesets_path = file.path(DirDataForPipeline, "250303_Disease_genesets.xlsx")
 DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
