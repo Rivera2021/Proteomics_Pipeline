@@ -1,3 +1,64 @@
+enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 1, databases = "KEGG_2021_Human", run_all = FALSE, background=NULL) {
+    require(tidyverse)
+    require(enrichR)
+    set.seed(54321)
+    # Create directory for results
+    dir.create(file.path(saveDir, "contrasts", name, "enrichr_res"), recursive = TRUE)
+    # Check if all results already exist
+    all_exist <- TRUE
+    all_results <- list()
+    # Filter DE genes based on thresholds
+    de_genes <- res_tib %>%
+        dplyr::filter(padj < PadjThr & abs(log2FC) > log2FCThr) %>%
+        pull(symbol)
+    # Check if Enrichr is accessible
+    websiteLive <- TRUE
+    all_dbs <- listEnrichrDbs()
+    if (is.null(all_dbs)) {
+        websiteLive <- FALSE
+        warning("Enrichr website not responding, could not perform enrichment analysis")
+        return(list())
+    }
+    # If run_all is TRUE, use all available databases
+    if (run_all) {
+        databases <- all_dbs$libraryName
+    }
+    # Check if results already exist for all databases
+    for (db in databases) {
+        filename <- paste("enrichr", name, gsub("/|\\s", "_", db), ".RDS", sep = '_')
+        filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", filename)
+        if (file.exists(filepath)) {
+            all_results[[db]] <- read_rds(filepath)
+        } else {
+            all_exist <- FALSE
+            break
+        }
+    }
+    # If any results don't exist, run enrichr on all specified databases at once
+    if (!all_exist && websiteLive && length(de_genes) > 0) {
+        tryCatch({
+            enrichr_res <- enrichr(de_genes, databases, background=background)
+            # Save results for each database
+            for (db in names(enrichr_res)) {
+                filename <- paste("enrichr", name, gsub("/|\\s", "_", db), ".RDS", sep = '_')
+                filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", filename)
+                saveRDS(enrichr_res[[db]], file = filepath)
+                all_results[[db]] <- enrichr_res[[db]]
+            }
+        }, error = function(e) {
+            warning(paste("Error in enrichr analysis:", e$message))
+        })
+    } else if (length(de_genes) == 0) {
+        warning("No DE genes passed thresholds")
+    }
+    return(all_results)
+}
+
+
+################################################################################
+
+
+
 downloadableDT2 <- function(mytable, rownames=NULL, pageLength=10,...) {
   require(DT)
   if("pvalue" %in% colnames(mytable)){
