@@ -2,26 +2,10 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
+source("/fsx/home/john/projects/empress/EXP000090/params_de_groupeddonors.txt")
 
-scinamicNum = 'EXP000064'
-baseDir = "/fsx/home/john/projects/empress/EXP000064/Results_250313_DE/"
-DirDataForPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
-Customgenesets_path = file.path(DirDataForPipeline, "250303_Disease_genesets.xlsx")
-DirPipeline = "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-dataDir = "/fsx/home/john/projects/empress/EXP000064/Results_250301/DESEQ_NORM"
-Contrast_path = "/fsx/home/john/projects/empress/EXP000064/List_contrasts_M255.xlsx"
-Chemo_path = "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS" # not pulled down by git!!
-expr_gene_path = "/fsx/home/john/projects/empress/EXP000064/Results_250301/PRE_FILTERING/Expressed_genes.xlsx"
-Experimental_design_path = ""
-Cell_Dict_path = "/fsx/home/john/projects/empress/EXP000064/rawdata/CellLine_Dict_Chemo.csv"
-AdjustDeSeq = ""
-Organism = "Human"
-padj_thr_gene = 0.2
-logFC_thrs_gene = 0
-METHOD_NORM = 'Standard_Parallel'
-DEG_Method = 'DESeq_Cons'
 
-List_contrasts = readxl::read_excel(Contrast_path)
+List_contrasts = read_xlsx(Contrast_path)
 Name_folder_path =  file.path(baseDir, "REPORTS")
 dir.create(Name_folder_path, recursive = TRUE)
 
