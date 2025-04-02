@@ -28,7 +28,7 @@ params:
   Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/CellLine_Dict_Chemo.csv"
   AdjustDeSeq: ""
   Organism: "Human"
-  padj_thr_gene: 0.2
+  padj_thr_gene: 0.05
   logFC_thrs_gene: 0
   ReportNum: "1"
   METHOD_NORM: 'limma_voom'
@@ -130,6 +130,7 @@ if (params$Organism == 'Human') {
     Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt")) 
     # get custom genesets
     if (file.exists(params$Customgenesets_path)) {
+        # get the genesets
         sheet_names <- excel_sheets(params$Customgenesets_path)
         sheet_names <- sheet_names[!sheet_names %in% c("INSTRUCTIONS", "SUMMARY", "Sheet1")]
         all_sheets <- sheet_names %>%
@@ -137,12 +138,14 @@ if (params$Organism == 'Human') {
         names(all_sheets) <- sheet_names
         Customgenesets <- bind_rows(all_sheets, .id = "sheet_name")
         names(Customgenesets) <- c("term", "gene")
+        # get the geneset sumamry table
+        sheet_names <- "SUMMARY"
+        cutomgenesetsummarytable <- read_excel(params$Customgenesets_path, sheet = "SUMMARY")
     } else {
         print("No custom genesets file found")
     }
     
 } else if (params$Organism == 'Mouse') {
-    
     print(paste("Organism selected", params$Organism, sep = " "))
     Kegg = read.gmt(file.pathhead(Cu(params$DirDataForPipeline,  "c2.cp.kegg.v6.2.symbols_mouse.gmt")))
     Hallmark = read.gmt(file.path(params$DirDataForPipeline, "mh.all.v2024.1.Mm.symbols.gmt"))
@@ -198,11 +201,6 @@ if(params$Organism == 'Human'){
         geneAnns_unique <- geneAnns %>% group_by(symbol) %>% slice_sample(n = 1)
     }
 }
-
-
-
-
-
 ```
 
 
