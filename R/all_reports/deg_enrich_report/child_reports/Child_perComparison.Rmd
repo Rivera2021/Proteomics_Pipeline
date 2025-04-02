@@ -332,6 +332,8 @@ cat('\n')
 cat("####", "Custom genesets {.tabset}")
 cat('\n')
 
+kable(cutomgenesetsummarytable)
+
 gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
 
@@ -647,11 +649,88 @@ cat('\n')
 ```
 
 
-# Enrichr
+```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+# Reactome visualization
+                               
+res_custom <- over_rep_results_logpval(all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+
+Eval_custom_over = FALSE
+if(!is.null(res_custom$overrep)){
+    if(nrow(res_custom$overrep_table)> 0){
+      
+        Eval_custom_over = TRUE
+    }
+}    
+
+```
+
+```{r results = 'asis' ,eval = Eval_custom_over, echo = FALSE, fig.width=9, fig.height=8}
+cat('\n')
+cat("####", "Custom genesets {.tabset}")
+cat('\n')
+kable(cutomgenesetsummarytable)                             
+
+
+cat('\n')
+cat("#####", "Signficance and GeneRatios")
+cat('\n')
+dotplot(res_custom$overrep)
+cat('\n')
+
+# filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+    # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+    # dotplot(res_hall$gseares)
+    # cat('\n')
+    # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+    # dotplot(res_hall$gseares)
+    # dev.off()
+    # cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Genes within pathways")
+    cat('\n')
+    cnetplot(res_custom$overrep, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Tree: pathway cluster ")
+    cat('\n')
+    if(nrow(res_custom$overrep_table) > 5){
+    sim <- pairwise_termsim(res_custom$overrep_all)
+    treeplot(sim, hclust_method = 'average')
+    }else{
+        cat('\n')
+        cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+        cat('\n')
+    }
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Table of enriched pathways")
+    cat('\n')
+
+    downloadableDTExcel(res_custom$overrep_table %>% dplyr::select(ID,GeneRatio, BgRatio, pvalue, p.adjust, geneID,link, Count,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pvalue', 'p.adjust'), digits = 3)
+    cat('\n')
+  
+ 
+
+```
+
+
+
+### Enrichr
+
 - running all enrichr genesets with their algorithm
 
-```{r }
-
+```{r , results='hide'}
 background <- all_contrasts[[name]] %>% filter(!is.na(padj)) %>% pull(symbol)
 
 all_db_results <- enrichr_results(
@@ -663,19 +742,39 @@ all_db_results <- enrichr_results(
   run_all = TRUE,
   background = background
 )
+
 combined_results <- bind_rows(
   lapply(names(all_db_results), function(db_name) {
-    all_db_results[[db_name]] %>%
-      mutate(Database = db_name) %>%
-      # Move the Database column to the beginning
-      select(Database, everything())
-  })
+    df <- all_db_results[[db_name]]
+    if(nrow(df) > 0) {
+      df %>%
+        mutate(Database = db_name) %>%
+        select(Database, everything())
+    } else {
+      NULL
+    }
+  }) %>% 
+    Filter(Negate(is.null), .)
 )
-# recalculate padjust
-# filter for padjust 0.05
 
-rio::export(combined_results, file=file.path(saveDir, "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.xlsx")))
+# recalculate padjust
+combined_results <- combined_results %>% select(-contains("Old."), Adjusted.P.value) %>% 
+    mutate(Full_Adjusted.P.value = p.adjust(P.value, method = "BH")) %>%
+    arrange(P.value) %>% 
+    select(Database, Term, P.value, Adjusted.P.value, everything()) %>% 
+    # rename("Database_Rank"="Rank") %>% 
+    rename("Database_Adjusted.P.value"="Adjusted.P.value")
+
+filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.csv"))
+rio::export(combined_results, file=filepath)
+linkpath <- fs::path_rel(filepath, start=file.path(baseDir, "REPORTS"))
 # (`r paste0("../DEG_ENRICHMENT/", basename(saveDir), "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.xlsx")))
 ```
 
-[link to Enrichr results](`r paste0("../DEG_ENRICHMENT/", basename(saveDir), "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.xlsx")))
+Note that:
+
+* Database adjusted pvalues (Database_Adjusted.P.value) are calculated for only the respective database's genesets. 
+* Full adjusted pvalues (Full_Adjusted.P.value) are calculated for all genesets assayed.
+
+
+[link to Enrichr results](`r linkpath`)
