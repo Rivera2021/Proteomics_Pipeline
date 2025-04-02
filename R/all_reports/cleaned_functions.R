@@ -22,6 +22,14 @@ enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 
     # If run_all is TRUE, use all available databases
     if (run_all) {
         databases <- all_dbs$libraryName
+        # broken_dbs <- c("huMAP", "PanglaoDB_Augmented_2021", "RNAseq_Automatic_GEO_Signatures_Human_Down",
+        #                 "RNAseq_Automatic_GEO_Signatures_Human_Up", "Metabolomics_Workbench_Metabolites_2022","Rummagene_kinases",
+        #                 "Rummagene_signatures", "Rummagene_transcription_factors", "Elsevier_Pathway_Collection",
+        #                 "Enrichr_Users_Contributed_Lists_2020", "GWAS_Catalog_2023")
+        # unwanted = c("BioCarta_2013", "BioCarta_2015", "ChEA_2013", "ChEA_2015", "ChEA_2016", "Chromosome_Location", "COVID-19_Related_Gene_Sets", "ENCODE_Histone_Modifications_2013", "ENCODE_TF_ChIP-seq_2014", "GO_Biological_Process_2013", "GO_Biological_Process_2015", "GO_Biological_Process_2017", "GO_Biological_Process_2017b", "GO_Biological_Process_2018", "GO_Biological_Process_2021", "GO_Cellular_Component_2013", "GO_Cellular_Component_2015", "GO_Cellular_Component_2017", "GO_Cellular_Component_2017b", "GO_Cellular_Component_2018", "GO_Cellular_Component_2021", "GO_Molecular_Function_2013", "GO_Molecular_Function_2015", "GO_Molecular_Function_2017", "GO_Molecular_Function_2017b", "GO_Molecular_Function_2018", "GO_Molecular_Function_2021", "GWAS_Catalog_2019", "HDSigDB_Mouse_2021",  "HumanCyc_2015", "KEA_2013", "KEGG_2013", "KEGG_2015", "KEGG_2016", "KEGG_2019_Human", "KEGG_2019_Mouse", "MGI_Mammalian_Phenotype_2013","MGI_Mammalian_Phenotype_2017",  "MGI_Mammalian_Phenotype_Level_4",  "MGI_Mammalian_Phenotype_Level_3", "MGI_Mammalian_Phenotype_Level_4_2019", "NCI-Nature_2015", "Panther_2015", "PFOCR_Pathways", "Reactome_2013", "Reactome_2015", "Reactome_2016", "RNAseq_Automatic_GEO_Signatures_Mouse_Down", "RNAseq_Automatic_GEO_Signatures_Mouse_Up", "SynGO_2022", "Tabula_Muris", "TargetScan_microRNA", "WikiPathways_2019_Mouse", "WikiPathways_2019_Human", "WikiPathways_2016", "WikiPathways_2015", "WikiPathways_2013", "WikiPathway_2021_Human" )
+        # to_remove <-  c(broken_dbs, unwanted)
+        # databases <- databases[!(databases %in% to_remove) ]
+
     }
     # Check if results already exist for all databases
     for (db in databases) {
@@ -31,13 +39,13 @@ enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 
             all_results[[db]] <- read_rds(filepath)
         } else {
             all_exist <- FALSE
-            break
         }
     }
     # If any results don't exist, run enrichr on all specified databases at once
     if (!all_exist && websiteLive && length(de_genes) > 0) {
         tryCatch({
-            enrichr_res <- enrichr(de_genes, databases, background=background)
+            # enrichr_res <- enrichR::enrichr(de_genes, databases, background = background) # fails for some databases so dropped background
+            enrichr_res <- enrichR::enrichr(de_genes, databases) # huMAP [104] database has something wrong with it
             # Save results for each database
             for (db in names(enrichr_res)) {
                 filename <- paste("enrichr", name, gsub("/|\\s", "_", db), ".RDS", sep = '_')
