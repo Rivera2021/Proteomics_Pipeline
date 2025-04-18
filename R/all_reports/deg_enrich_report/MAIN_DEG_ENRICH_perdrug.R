@@ -2,7 +2,7 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-source("/fsx/home/john/projects/empress/EXP000090/params_de_groupeddonors.txt")
+source("/fsx/home/john/projects/empress/old_2022_runs/compound2/221101_EXP006_BCH001//params_de.txt")
 
 
 List_contrasts = read_xlsx(Contrast_path)

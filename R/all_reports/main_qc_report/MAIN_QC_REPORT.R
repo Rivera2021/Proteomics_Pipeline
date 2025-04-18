@@ -2,7 +2,7 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-source("/fsx/home/john/projects/empress/EXP000090/params_qc_groupeddonors.txt")
+source("/fsx/home/john/projects/empress/old_2022_runs/compound2/230404_EXP008_BCH003/params_qc.txt")
 
 
 Name_folder_path =  file.path(baseDir, "REPORTS")

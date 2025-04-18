@@ -12,28 +12,28 @@ output:
     toc_float:
       collapsed: yes
 params:
-  cellline: "Intestinal Epithelial"
-  scinamicNum: "EXP000085"
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Results_250225_PerDonorReport"
-  DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
-  DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
-  Metrics_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/multiqc_general_stats.txt"
-  Metadata_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/Metadata_EXP000085.xlsx"
-  CountM_path:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/salmon.merged.gene_counts.tsv"
-  SampleName_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/SampleName.csv"
-  Experimental_design_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/Organoids_exp_design_exp85_exp88.png"
+  cellline: "Jurkat"
+  scinamicNum: "EXP_005"
+  baseDir: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/Results_250415_QC/"
+  DirDataForPipeline: "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
+  DirPipeline:  "/fsx/home/john/repos/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
+  Metrics_path: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/multiqc/multiqc_general_stats.txt"
+  Metadata_path: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/meta/processed_metadata.xlsx"
+  CountM_path:  "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/star_salmon/salmon.merged.gene_counts.tsv"
+  SampleName_path: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/meta/SampleName.csv"
+  Experimental_design_path: ""
   Column_match: "ID"
   Organism_type: "In_vitro" # Either In_vivo or In_vitro
   QCNORM: "PRE_QCNORM"
-  TPM_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Organoids/EXP000085/Data/salmon.merged.gene_tpm.tsv"
+  TPM_path: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/star_salmon/salmon.merged.gene_tpm.tsv"
   ControlName: "DMSO"
   Batch_variable: ""
-  ExpDescription: "Experiment with organoids of intestinal epithelial cells"
+  ExpDescription: "The protocol used for this experiment was Watchmaker"
   Prev_perc: 0.2
   MEMORY_MB: 4000
   Corr_plot_features: ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used","Sample_name"]
   CoarseCondition:  ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used"]
-  Alias_path: "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
+  Alias_path: "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
   PRE_FILTER: "PREV"
   outliers_path: "" # or if all the detected outliers from PRE_QCNORM run want to be removed then used then path within folder "params$baseDir/QC_PRENORMALIZATION/QCOutliers.xlsx"
   METHOD_NORM: 'Standard_Parallel'
@@ -386,25 +386,25 @@ cat('\n')
 
 ```{r OUtliers, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=8, fig.height=6}
 
-    
-    library(knitr)
-    library(ggplot2)
-    library(ggpubr)
-    library(rstatix)
-    library(tidyverse)
-    library(readxl)
-    
 
-    Path_Dir = params$baseDir
-    Out_file = "Outliers.xlsx"
-    Out_path = paste(Path_Dir,'QC_PRENORMALIZATION',Out_file, sep = "/")
-    
-    cat("\n")
-    outliers_cust = read_excel(Out_path, col_names = TRUE)
-    kable(outliers_cust, caption = "Outliers table")
-    cat("\n")
-    
-   
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(tidyverse)
+library(readxl)
+
+
+Path_Dir = params$baseDir
+Out_file = "Outliers.xlsx"
+Out_path = paste(Path_Dir,'QC_PRENORMALIZATION',Out_file, sep = "/")
+
+cat("\n")
+outliers_cust = read_excel(Out_path, col_names = TRUE)
+kable(outliers_cust, caption = "Outliers table")
+cat("\n")
+
+
 ```
 
 
@@ -625,20 +625,18 @@ for(cellt in celllines){
     cat("\n")  
   
     res_t <- lapply(covariates_ct_time, function(feature) {
-  knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time.Rmd"),
-                    envir = environment(),
-                    quiet = TRUE,
-                    options = list(
-                      cache = FALSE,
-                      fig.height = 6,
-                      fig.width = 8
-                    )
-  )
-})
+        knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time.Rmd"),
+                          envir = environment(),
+                          quiet = TRUE,
+                          options = list(
+                              cache = FALSE,
+                              fig.height = 6,
+                              fig.width = 8
+                          )
+        )
+    })
     cat(unlist(res_t), sep="\n")
-
   }
-  
 }  
 ```
 
@@ -812,15 +810,19 @@ for(cellt in celllines){
 ```
 
 
-# Correlation between samples - All samples{.tabset}
+# Correlation between samples - All samples {.tabset}
 
-```{r , results='asis', fig.height=10, fig.width=12}
+```{r ,  fig.height=10, fig.width=12}
 
 library(pheatmap)
 Methods = c('pearson', 'spearman')
 annotation_col = as.data.frame(Metadata %>% dplyr::select(all_of(params$Corr_plot_features))) %>% column_to_rownames("Sample_name")
 
-annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
+if(all(is.na(Metadata$RQN))){
+    annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
+} else{
+    annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
+}
 
 for(meth in Methods) {        
     
@@ -835,7 +837,7 @@ for(meth in Methods) {
                 Outliers = c('No' = "navy", 'Yes' = "firebrick")
             )
 
-    P = pheatmap(corr_mat, 
+    P = pheatmap(as.matrix(corr_mat), 
                  annotation_col = annotation_col,
                  annotation_row = annotation_row,
                  show_colnames = TRUE, 
@@ -853,9 +855,9 @@ for(meth in Methods) {
 
 
 
-# Correlation between samples - per cell lines{.tabset}
-
-```{r , eval = TRUE, results='asis', fig.height=10, fig.width=10}
+# Correlation between samples - per cell lines {.tabset}
+ 
+```{r , eval = TRUE, fig.height=10, fig.width=10}
 
 library(pheatmap)
 Methods = c('pearson', 'spearman')
@@ -877,8 +879,12 @@ for(cellt in celllines){
     
     annotation_col = as.data.frame(Metadata_cellt %>% dplyr::select( all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
 
-annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
-
+if(all(is.na(Metadata$RQN))){
+    annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
+} else{
+    annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
+}
+    
     cat("\n")
     cat("###", 'Methods', '{.tabset}')
     cat("\n")  
@@ -920,9 +926,9 @@ annotation_row = as.data.frame(Metadata_cellt %>% dplyr::select(Sample_name,  RQ
 
 
 
-# Correlation between samples - per cell lines, per time point{.tabset}
+# Correlation between samples - per cell lines, per time point {.tabset}
 
-```{r ,eval = TRUE,results='asis', fig.height=10, fig.width=10}
+```{r ,eval = TRUE, fig.height=10, fig.width=10}
 
 library(pheatmap)
 Methods = c('pearson', 'spearman')
@@ -947,23 +953,26 @@ for(cellt in celllines){
     
     for(timept in timepts){
         
-       cat("\n")
-       cat("####", timept)
-       cat("\n")      
-    
-       Metadata_cellt_time = Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
-       NormCounts_cellt_time = NormCounts[, match(Metadata_cellt_time$Sample_name, colnames(NormCounts))]
-    
-       annotation_col = as.data.frame(Metadata_cellt_time %>% dplyr::select(all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
-
-       annotation_row = as.data.frame(Metadata_cellt_time %>% dplyr::select(Sample_name,RQN, Outliers,RNA_Sample_plate)) %>% column_to_rownames("Sample_name")
-
-    cat("\n")
-    cat("#####", 'Methods', '{.tabset}')
-    cat("\n")  
-    
-    for(meth in Methods) {        
-    
+        cat("\n")
+        cat("####", timept)
+        cat("\n")      
+        
+        Metadata_cellt_time = Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
+        NormCounts_cellt_time = NormCounts[, match(Metadata_cellt_time$Sample_name, colnames(NormCounts))]
+        
+        annotation_col = as.data.frame(Metadata_cellt_time %>% dplyr::select(all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
+        
+        if(all(is.na(Metadata$RQN))){
+            annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
+        } else{
+            annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
+        }
+        cat("\n")
+        cat("#####", 'Methods', '{.tabset}')
+        cat("\n")  
+        
+        for(meth in Methods) {        
+            
             cat("\n")
             cat("######", meth)
             cat("\n")      
@@ -972,9 +981,9 @@ for(cellt in celllines){
             paletteLength <- 50
             myColor <- viridis::viridis(paletteLength)
             ann_colors = list(
-                        Outliers = c('No' = "navy", 'Yes' = "firebrick")
-                    )
-        
+                Outliers = c('No' = "navy", 'Yes' = "firebrick")
+            )
+            
             P = pheatmap(corr_mat, 
                          annotation_col = annotation_col,
                          annotation_row = annotation_row,
@@ -987,8 +996,8 @@ for(cellt in celllines){
             cat("\n")    
             print(P)
             cat("\n")   
-     }    
-   
+        }    
+        
     }
 }
 
