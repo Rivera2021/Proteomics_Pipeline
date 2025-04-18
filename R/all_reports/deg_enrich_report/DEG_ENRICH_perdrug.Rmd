@@ -76,7 +76,7 @@ write_json(params, file.path(params$baseDir,"params_DEG.json"))
 # directories
 
 baseDir = params$baseDir
-saveDir = file.path(params$baseDir, "DEG_ENRICHMENT", paste(params$drug,"Report",  params$ReportNum, sep = '_'))
+saveDir = file.path(params$baseDir, "REPORTS", "DEG_ENRICHMENT", paste(params$drug,"Report",  params$ReportNum, sep = '_'))
 #dataDir = file.path(baseDir,  "QCoutput", "221028_EXP005_BCH002")
 
 
