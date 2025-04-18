@@ -438,7 +438,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
             NormCounts_cons = getVarianceStabilizedData(deseqObj_cons)
             # Preparing for heatmap
 
-            res = results(deseqObj_cons,contrast = c("CoarseCondition",comp_vect['treat'], comp_vect['untreat'] ), parallel = TRUE)
+            res = results(deseqObj_cons,contrast =unlist( c("CoarseCondition",comp_vect['treat'], comp_vect['untreat'] )), parallel = TRUE)
             # shrink the lfcs
             #res <-  lfcShrink(deseqObj_cons, res = res, type = "ashr")
             res <- tibble(symbol = rownames(res),
@@ -552,6 +552,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
         All_DEG_filename_pdf <- file.path(saveDir, "contrasts", Contrast_name, "All_DEGs.pdf")
 
         mat_anno <- Metadata_temp %>% arrange(Treatment) %>% dplyr::select(Treatment, Stimulant_used, Treatment_conc, Outliers, Sample_name) %>% column_to_rownames(var = "Sample_name")
+        mat_anno <- mat_anno[,!mat_anno %>% apply(., 2, function(x) {all(is.na(x))})] # remove any all NA columns
         Heat_dat = NormCounts_cons[, match(rownames(mat_anno), colnames(NormCounts_cons))]
 
         # Top upregulated
@@ -568,7 +569,7 @@ DEG_FUNCTION_DA = function(comp_vect, saveDir,Metadata, count_data, DEG_Method =
                 require(dendsort)
                 sort_hclust <- function(...) as.hclust(dendsort(as.dendrogram(...), isReverse = TRUE))
                 cluster_rows <- sort_hclust(hclust(dist( Heat_dat_filtered)))
-                Hup = pheatmap(Heat_dat_filtered,
+                Hup = pheatmap(as.matrix(Heat_dat_filtered),
                          color = colorRampPalette(c("blue", "white", "red"))(200),
                          show_rownames = TRUE,
                          annotation_col = mat_anno,
