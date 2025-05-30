@@ -2,10 +2,14 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-source("/fsx/home/john/projects/empress/old_2022_runs/compound2/221101_EXP006_BCH001//params_de.txt")
-
-
-List_contrasts = read_xlsx(Contrast_path)
+#source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de.txt")
+#source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de_control.txt")
+source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de_emps.txt")
+baseDir = "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522"
+#List_contrasts = readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts.RDS")
+#List_contrasts <- readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts_control.RDS")
+List_contrasts <- readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts_emps.RDS")
+DirPipeline  = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 Name_folder_path =  file.path(baseDir, "REPORTS")
 dir.create(Name_folder_path, recursive = TRUE)
 
@@ -33,19 +37,15 @@ for(reportnum in unique(List_contrasts$reportNum)){
                                     DirDataForPipeline = DirDataForPipeline,
                                     Customgenesets_path = Customgenesets_path,
                                     DirPipeline = DirPipeline,
-                                    dataDir = dataDir,
+                                    dataDEG = dataDEG,
                                     Contrast_path = Contrast_path,
                                     Chemo_path = Chemo_path,
-                                    expr_gene_path = expr_gene_path,
                                     Experimental_design_path = Experimental_design_path,
                                     Cell_Dict_path = Cell_Dict_path,
-                                    AdjustDeSeq = AdjustDeSeq,
                                     Organism =  Organism,
                                     padj_thr_gene = padj_thr_gene,
                                     logFC_thrs_gene = logFC_thrs_gene,
-                                    ReportNum = reportnum,
-                                    METHOD_NORM  = METHOD_NORM,
-                                    DEG_Method = DEG_Method
+                                    ReportNum = reportnum
                                     ),
                       clean = TRUE,
                       output_file = file.path(Name_folder_path,paste(format(Sys.time(), '%y%m%d'), cell_line, drug,reportnum, "DEG_ENRICH", '.html',sep = '_')))

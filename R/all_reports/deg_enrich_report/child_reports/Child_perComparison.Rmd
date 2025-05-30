@@ -9,51 +9,44 @@ plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, Pad
 cat('\n')             
 
 
-cat('\n')
-cat("####", "MA Plot")
-cat('\n')
-if(params$DEG_Method == c('DESeq_Cons') ){
-   plot_ma(all_contrasts[[name]])
-}    
-cat('\n')
 
 
-cat('\n')
-cat("####", "Top Up/Downregulated Genes {.tabset .tabset-pills}")
-cat('\n')
+# cat('\n')
+# cat("####", "Top Up/Downregulated Genes {.tabset .tabset-pills}")
+# cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Top Up-regulated Genes")
+# cat('\n')
+# Top_up_filename <- file.path(saveDir, "contrasts", name, "Top_up_DEGs.jpeg")
+# if(file.exists(Top_up_filename)){
+# cat('\n')
+# writeLines(paste0("![](",Top_up_filename,")"))
+# cat('\n\n')
+# }else{
+#   cat("No significant upregulated genes")
+# }
+# cat('\n')
 
-cat('\n')
-cat("#####", "Top Up-regulated Genes")
-cat('\n')
-Top_up_filename <- file.path(saveDir, "contrasts", name, "Top_up_DEGs.jpeg")
-if(file.exists(Top_up_filename)){
-cat('\n')
-writeLines(paste0("![](",Top_up_filename,")"))
-cat('\n\n')
-}else{
-  cat("No significant upregulated genes")
-}
-cat('\n')
-
-cat('\n')
-cat("#####", "Top Down-regulated Genes")
-cat('\n')
-Top_dn_filename <- file.path(saveDir, "contrasts", name, "Top_dn_DEGs.jpeg")
-if(file.exists(Top_dn_filename)){
-cat('\n')
-writeLines(paste0("![](",Top_dn_filename,")"))
-cat('\n\n')
-}else{
-  cat("No significant upregulated genes")
-}
-cat('\n\n')
+# cat('\n')
+# cat("#####", "Top Down-regulated Genes")
+# cat('\n')
+# Top_dn_filename <- file.path(saveDir, "contrasts", name, "Top_dn_DEGs.jpeg")
+# if(file.exists(Top_dn_filename)){
+# cat('\n')
+# writeLines(paste0("![](",Top_dn_filename,")"))
+# cat('\n\n')
+# }else{
+#   cat("No significant upregulated genes")
+# }
+# cat('\n\n')
 
 
 cat('\n')
 cat("####", "Table of DE genes")
 cat('\n')
 
-display_de_genes4(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
+display_de_genes4_prot(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
 
 cat('\n')
 
@@ -74,14 +67,13 @@ cat('\n')
 gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
 
-res_hall <- gsea_results_logpval(res_tib = all_contrasts[[name]], 
+res_hall <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], 
                                  geneset = Hallmark, 
                                  name, 
                                  Chemo_path = params$Chemo_path, 
                                  Cellline = Cell_line , 
                                  Celline_Dict_Chemo_path = params$Cell_Dict_path, 
                                  drug = Drug, 
-                                 expr_gene_path = params$expr_gene_path, 
                                  Organism = params$Organism
                                  )
 
@@ -158,7 +150,7 @@ cat('\n')
 cat("#####", "Table of enriched pathways")
 cat('\n')
 
-downloadableDTExcel(res_hall$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+downloadableDTExcel(res_hall$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
 
 
@@ -166,7 +158,9 @@ cat('\n')
 cat("####", "Kegg {.tabset}")
 cat('\n')
 
-res_kegg <- gsea_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = params$cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+
+
+res_kegg <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -239,7 +233,7 @@ cat('\n')
 cat("#####", "Table of enriched pathways")
 cat('\n')
 
-downloadableDTExcel(res_kegg$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+downloadableDTExcel(res_kegg$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
 
 
@@ -247,7 +241,7 @@ cat('\n')
 cat("####", "Reactome {.tabset}")
 cat('\n')
 
-res_React <- gsea_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+res_React <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -323,7 +317,7 @@ cat('\n')
 cat("#####", "Table of enriched pathways")
 cat('\n')
 
-downloadableDTExcel(res_React$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all ), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+downloadableDTExcel(res_React$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all ), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
 
 ################################################################################################################################
@@ -337,7 +331,7 @@ kable(cutomgenesetsummarytable)
 gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
 
-res_custom <- gsea_results_logpval(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, expr_gene_path = params$expr_gene_path, Organism = params$Organism)
+res_custom <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, Organism = params$Organism)
 
 cat('\n')
 cat("#####", "Signficance and GeneRatios")
@@ -412,7 +406,7 @@ cat('\n')
 cat("#####", "Table of enriched pathways")
 cat('\n')
 
-downloadableDTExcel(res_custom$gsea_table %>% select(ID, pathway,pval, padj, ES, NES, size, core_enrichment,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+downloadableDTExcel(res_custom$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
 
 
@@ -422,7 +416,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Hallmark visualization
 
-res_hall <- over_rep_results_logpval(all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_hall <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Hallmark, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
  
 Eval_hall_over = FALSE
 if(!is.null(res_hall$overrep)){
@@ -500,7 +494,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Kegg visualization
                                
-res_kegg <- over_rep_results_logpval(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_kegg <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
 Eval_kegg_over = FALSE
 if(!is.null(res_kegg$overrep)){
@@ -576,7 +570,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Reactome visualization
                                
-res_React <- over_rep_results_logpval(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_React <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
 Eval_React_over = FALSE
 if(!is.null(res_React$overrep)){
@@ -652,7 +646,7 @@ cat('\n')
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
 # Reactome visualization
                                
-res_custom <- over_rep_results_logpval(all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  expr_gene_path = params$expr_gene_path, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+res_custom <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
 Eval_custom_over = FALSE
 if(!is.null(res_custom$overrep)){
@@ -731,7 +725,7 @@ cat('\n')
 - running all enrichr genesets with their algorithm
 
 ```{r , results='hide'}
-background <- all_contrasts[[name]] %>% filter(!is.na(padj)) %>% pull(symbol)
+background <- all_contrasts[[name]] %>% dplyr::filter(!is.na(padj)) %>% pull(symbol)
 
 all_db_results <- enrichr_results(
   res_tib = all_contrasts[[name]], 
@@ -749,7 +743,7 @@ combined_results <- bind_rows(
     if(nrow(df) > 0) {
       df %>%
         mutate(Database = db_name) %>%
-        select(Database, everything())
+        dplyr::select(Database, everything())
     } else {
       NULL
     }
@@ -758,12 +752,12 @@ combined_results <- bind_rows(
 )
 
 # recalculate padjust
-combined_results <- combined_results %>% select(-contains("Old."), Adjusted.P.value) %>% 
+combined_results <- combined_results %>% dplyr::select(-contains("Old."), Adjusted.P.value) %>% 
     mutate(Full_Adjusted.P.value = p.adjust(P.value, method = "BH")) %>%
     arrange(P.value) %>% 
-    select(Database, Term, P.value, Adjusted.P.value, everything()) %>% 
+    dplyr::select(Database, Term, P.value, Adjusted.P.value, everything()) %>% 
     # rename("Database_Rank"="Rank") %>% 
-    rename("Database_Adjusted.P.value"="Adjusted.P.value")
+    dplyr::rename("Database_Adjusted.P.value"="Adjusted.P.value")
 
 filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.csv"))
 rio::export(combined_results, file=filepath)

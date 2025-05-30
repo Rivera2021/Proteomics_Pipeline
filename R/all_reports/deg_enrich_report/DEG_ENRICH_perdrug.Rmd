@@ -12,27 +12,24 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "GSK2982772"
-  cell_line: "K562.3"
+  drug: "M2065_M2580_M277_SB525334"
+  cell_line: "WI-38"
   stimulation: "NONE"
-  scinamicNum: 'EXP000064'
-  baseDir: "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106"
+  scinamicNum: "AW85"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   Customgenesets_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-  dataDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106/DESEQ_NORM_QCNORM"
-  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/List_contrasts_K562.xlsx"
+  dataDEG: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/DEG/Results200522/all_contrasts.RDS"
+  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts.RDS"
   Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
-  expr_gene_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Results_241106/PRE_FILTERING/Expressed_genes.xlsx"
-  Experimental_design_path: ""
-  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/EXP000072/Data/CellLine_Dict_Chemo.csv"
-  AdjustDeSeq: ""
+  Experimental_design_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Data/Experimental_design.png"
+  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Data/CellLine_Dict_Chemo.csv"
   Organism: "Human"
   padj_thr_gene: 0.05
   logFC_thrs_gene: 0
-  ReportNum: "1"
-  METHOD_NORM: 'limma_voom'
-  DEG_Method: 'limma_voom'
+  ReportNum: "2"
+  
 ---
 
 
@@ -72,7 +69,6 @@ library(eulerr)
 library(jsonlite)
 write_json(params, file.path(params$baseDir,"params_DEG.json"))
 
-
 # directories
 
 baseDir = params$baseDir
@@ -106,21 +102,6 @@ source(file.path(params$DirPipeline, "../cleaned_functions.R"))
 
 ```{r load_meta_data}
 library(readxl)
-library(DESeq2)
-
-Metadata <-read_xlsx(file.path(params$dataDir, "Norm_Data.xlsx"), sheet = 'Metadata')
-#geneAnns <- readRDS(file.path(dataDir, "geneAnns.RDS"))
-load(file.path(params$dataDir, "DEG_Norm.RData"))
-
-
-
-if(params$METHOD_NORM ==  'limma_voom'){
-    count_data = dge$counts
-    
-}else if (params$METHOD_NORM == 'Standard_Parallel' | params$METHOD_NORM == 'Standard'){
-    
-    count_data = counts(deseqObj)
-}
 
 # load genesets
 if (params$Organism == 'Human') {
@@ -241,13 +222,6 @@ The y-axis position represents the -log p-value: a higher value indicates that t
 
 The x-axis position shows the log2 fold change for the gene between treatment or group 1 and control or group 2. Genes on the right-hand side of the plot increase in expression with treatment. Genes on the left-hand side decrease in expression with treatment.
 
-## MA Plot
-The MA plot shows the log2 fold change between experimental groups (M) on the y-axis against the log of the mean expression across all of the samples (A) on the x-axis for each gene (represented by dots). Spots are colored according to the following criteria:
-
-- **Teal**: p-value < 0.05 & fold change <= 1.5
-- **Red**: p-value < 0.05 & fold change >= 1.5
-- **Grey**: p-value > 0.05
-
 ## Top Up/Downregulated Genes
 
 Heatmaps showing the scaled expression values of the top 50 up or downregulated genes in all samples. Genes in these heatmaps have a padj < `r params$padj_thr_gene` and  abs(LogFC) > `r params$logFC_thrs_gene`
@@ -262,7 +236,6 @@ This table contains the DE results for all genes with padj < `r params$padj_thr_
 - **log2FC**: Log2 fold change
 - **pvalue**: Wald test p-value
 - **padj**: Benjamini-Hochberg corrected p-value
-- **baseMean**: The mean of normalized counts of all samples, normalizing for sequencing depth (This helps to get a sense for the absolute level of expression for a given gene.)
 
 ## Gene Set Enrichment Analysis GSEA
 
@@ -323,48 +296,23 @@ library(openxlsx)
 source(file.path(params$DirPipeline, "DEG_FUNCTION.R"))
 
 # check for 
-List_contrasts = read.xlsx(xlsxFile = params$Contrast_path)
-
-#print("Only contrasts allowed after removing outliers will be calculated")
-#List_contrasts = List_contrasts %>% filter(treat %in% Metadata$CoarseCondition & untreat %in% Metadata$CoarseCondition)
-#comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat)) | (grepl('NONE', treat) & grepl('DMSO', untreat)) ) 
-#comparisons <- List_contrasts %>%  dplyr::filter(grepl(Drug, treat) | grepl(Drug, untreat) | (grepl('DMSO', treat) & grepl('DMSO', untreat))) 
-#comparisons <- comparisons %>%  dplyr::filter(grepl(params$cell_line, treat) | grepl(params$cell_line, untreat)) 
+List_contrasts = readRDS(params$Contrast_path)
 
 comparisons  = List_contrasts %>%  dplyr::filter(reportNum == params$ReportNum)
-comparisons$namecontrast =  paste0(comparisons$treat,"_vs_",comparisons$untreat)
-
-# Remove comparisons where at least one of the groups has 1 sample
-SelectedCond = Metadata %>% dplyr::group_by(CoarseCondition) %>% dplyr::summarise(count = n()) %>% dplyr::filter(count > 1) 
-comparisons = comparisons[comparisons$treat %in% SelectedCond$CoarseCondition,]
-comparisons = comparisons[comparisons$untreat %in% SelectedCond$CoarseCondition,]
+comparisons$namecontrast =  paste0(comparisons$treat,"_Vs_",comparisons$untreat)
 
 # Make contrast names valid names in r
-replace_hyphens <- function(x) {
-  gsub("-", "_", x)
-}
+# replace_hyphens <- function(x) {
+#   gsub("-", "_", x)
+# }
+# 
+# comparisons <- data.frame(lapply(comparisons, replace_hyphens), stringsAsFactors = FALSE)
 
-comparisons <- data.frame(lapply(comparisons, replace_hyphens), stringsAsFactors = FALSE)
-
-if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
-  all_contrasts <- readRDS(file.path(saveDir, "contrasts",  "all_contrasts.RDS"))
+if (file.exists(file.path(baseDir, "DEG", "all_contrasts.RDS"))){
+  all_contrasts <- readRDS(file.path(baseDir, "DEG", "all_contrasts.RDS"))
+  all_contrasts = all_contrasts[comparisons$namecontrast]
 } else {
-  #print('Here')
-  all_contrasts <- apply(comparisons,1, function(x){
-    DEG_FUNCTION_DA(comp_vect=x,
-                    saveDir=saveDir,
-                    Metadata=Metadata, 
-                    count_data=count_data, 
-                    DEG_Method = params$DEG_Method,
-                    MH_Method = 'BH', 
-                    AdjustDeSeq = params$AdjustDeSeq, 
-                    padj_thr_gene = params$padj_thr_gene, 
-                    logFC_thrs_gene = params$logFC_thrs_gene
-                    )
-                    
-  })
-  names(all_contrasts) <- comparisons$namecontrast
-  saveRDS(all_contrasts,file.path(saveDir, "contrasts",  "all_contrasts.RDS"))
+  print('Please provide DEG file')
 }
 
 ```
@@ -399,7 +347,7 @@ An UpSet plot shows the same information as a Venn diagram, but when there are l
 
 ## All Comparisons
 
-```{r, eval = TRUE}
+```{r Comp, eval = TRUE}
 library(VennDiagram)
 library(eulerr)
 library(UpSetR)
@@ -453,7 +401,7 @@ upset_data_down <- fromList(venn_list_down)
 
 #### Venn Diagram
 
-```{r, results="asis", eval=TRUE}
+```{r VennUp, results="asis", eval=TRUE}
 if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
     plot_venn(venn_list_up)
 } else {
@@ -463,7 +411,7 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
 
 #### UpSet Plot
 
-```{r, results="asis", eval=TRUE, fig.width = 24}
+```{r UpUp, results="asis", eval=TRUE, fig.width = 24}
 if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
     upset(upset_data_up, text.scale = c(1, 1, 1, 1, 1, 2), nsets = 10, nintersects = 100)
 } else {
@@ -521,6 +469,7 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
 }
 
 ```
+
 `r out8`
 
 
@@ -577,7 +526,7 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
 
 ```
   
-`r out9`  
+`r out9`
 
 
 
