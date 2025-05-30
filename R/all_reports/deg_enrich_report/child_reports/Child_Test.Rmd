@@ -1,0 +1,23 @@
+## `r name` 
+
+
+### Enrichr
+
+- running all enrichr genesets with their algorithm
+
+```{r , results='hide'}
+
+
+filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.csv"))
+
+linkpath <- fs::path_rel(filepath, start=file.path(baseDir, "REPORTS"))
+# (`r paste0("../DEG_ENRICHMENT/", basename(saveDir), "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.xlsx")))
+```
+
+Note that:
+
+* Database adjusted pvalues (Database_Adjusted.P.value) are calculated for only the respective database's genesets. 
+* Full adjusted pvalues (Full_Adjusted.P.value) are calculated for all genesets assayed.
+
+
+[link to Enrichr results](`r linkpath`)
