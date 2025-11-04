@@ -1,4 +1,4 @@
-# Transcriptomics_Pipeline
+# Proteomics_Pipeline
 
 This project is used to create the Nextflow pipeline for bulk RNAseq transcriptomics data analysis. 
 
