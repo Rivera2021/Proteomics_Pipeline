@@ -5,7 +5,11 @@
 cat('\n')
 cat("####", "Volcano Plot")
 cat('\n')
+if(params$workstream == "Proteomics"){
 plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene)
+}else if(params$workstream == "Pisa"){
+plot_enhanced_volcano_pisa(all_contrasts[[name]],  FCcut = 0, PvalThrs = 0.001)
+}    
 cat('\n')             
 
 
@@ -46,7 +50,14 @@ cat('\n')
 cat("####", "Table of DE genes")
 cat('\n')
 
+if(params$workstream == "Proteomics"){
+  
 display_de_genes4_prot(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
+}else if(params$workstream == "Pisa"){
+    
+display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns == geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01)
+    
+}
 
 cat('\n')
 
@@ -319,6 +330,105 @@ cat('\n')
 
 downloadableDTExcel(res_React$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, link, Target_Chemo_esp, Target_Chemo_all ), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
 cat('\n')
+
+
+cat('\n')
+cat("####", "Pfam_InterPro {.tabset}")
+cat('\n')
+
+gene_expression_fold = all_contrasts[[name]]$log2FC
+names(gene_expression_fold) = all_contrasts[[name]]$symbol
+
+res_pfam <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], 
+                                 geneset = Pfam_Interpro, 
+                                 name, 
+                                 Chemo_path = params$Chemo_path, 
+                                 Cellline = Cell_line , 
+                                 Celline_Dict_Chemo_path = params$Cell_Dict_path, 
+                                 drug = Drug, 
+                                 Organism = params$Organism
+                                 )
+
+cat('\n')
+cat("#####", "Signficance and GeneRatios")
+cat('\n')
+if(nrow(res_pfam$gseares@result)>0 ){
+dotplot(res_pfam$gseares)
+}else{
+ cat("No significant pathways")   
+    
+}    
+cat('\n')
+
+# filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+# filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+# dotplot(res_hall$gseares)
+# cat('\n')
+# jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+# dotplot(res_hall$gseares)
+# dev.off()
+# cat('\n')
+
+cat('\n')
+cat("#####", "Visualization pathways")
+cat('\n')
+filename <- paste("Pfam_InterPro", "DotplotV2", name,'.jpeg', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Pfam_Interpro", filename )
+
+VisualPathways(res_pfam$gsea_table, filepath)
+cat('\n')
+
+cat('\n')
+cat("#####", "Genes within pathways")
+cat('\n')
+cnetplot(res_pfam$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+cat('\n')
+
+
+cat('\n')
+cat("#####", "Tree: pathway cluster ")
+cat('\n')
+if(nrow(res_pfam$gsea_table) > 5){
+sim <- pairwise_termsim(res_pfam$gseares)
+treeplot(sim, hclust_method = 'average')
+}else{
+    cat('\n')
+    cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+    cat('\n')
+}
+cat('\n')
+
+
+cat('\n')
+cat("#####", "Top upregulated")
+cat('\n')
+
+plot_top_gsea(res_pfam, top='up')
+cat('\n')
+
+cat('\n')
+cat("#####", "Top Downregulated")
+cat('\n')
+
+plot_top_gsea(res_pfam, top='down')
+cat('\n')
+
+cat('\n')
+cat("#####", "Table of enriched pathways")
+cat('\n')
+
+downloadableDTExcel(res_pfam$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment, Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+cat('\n')
+
+
+
+
+
 
 ################################################################################################################################
 
@@ -644,7 +754,87 @@ cat('\n')
 
 
 ```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
-# Reactome visualization
+# Pfam_Interpro visualization
+                               
+res_pfam <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Pfam_Interpro, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,  PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
+
+Eval_Pfam_over = FALSE
+if(!is.null(res_pfam$overrep)){
+    if(nrow(res_pfam$overrep_table)> 0){
+      
+        Eval_Pfam_over = TRUE
+    }
+}    
+
+```
+
+```{r results = 'asis' ,eval = Eval_Pfam_over, echo = FALSE, fig.width=9, fig.height=8}
+cat('\n')
+cat("####", "Pfam InterPro {.tabset}")
+cat('\n')
+                             
+
+
+    cat('\n')
+    cat("#####", "Signficance and GeneRatios")
+    cat('\n')
+    dotplot(res_pfam$overrep)
+    cat('\n')
+    
+    # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+    # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+    # dotplot(res_hall$gseares)
+    # cat('\n')
+    # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+    # dotplot(res_hall$gseares)
+    # dev.off()
+    # cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Genes within pathways")
+    cat('\n')
+    cnetplot(res_pfam$overrep, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+    midpoint = 0,                    # Neutral point corresponds to no change
+    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+    mid = "white",
+    
+  )
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Tree: pathway cluster ")
+    cat('\n')
+    if(nrow(res_pfam$overrep_table) > 5){
+    sim <- pairwise_termsim(res_pfam$overrep_all)
+    treeplot(sim, hclust_method = 'average')
+    }else{
+        cat('\n')
+        cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+        cat('\n')
+    }
+    cat('\n')
+    
+    
+    cat('\n')
+    cat("#####", "Table of enriched pathways")
+    cat('\n')
+
+    downloadableDTExcel(res_pfam$overrep_table %>% dplyr::select(ID,GeneRatio, BgRatio, pvalue, p.adjust, geneID, Count,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pvalue', 'p.adjust'), digits = 3)
+    cat('\n')
+  
+ 
+
+```
+
+
+
+
+
+
+```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+# Customgenesets visualization
                                
 res_custom <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
 
@@ -759,6 +949,7 @@ combined_results <- combined_results %>% dplyr::select(-contains("Old."), Adjust
     # rename("Database_Rank"="Rank") %>% 
     dplyr::rename("Database_Adjusted.P.value"="Adjusted.P.value")
 
+#linkpath is with respect to the place where the html is stored
 filepath <- file.path(saveDir, "contrasts", name, "enrichr_res", paste0(name, "_all_enrichr_results.csv"))
 rio::export(combined_results, file=filepath)
 linkpath <- fs::path_rel(filepath, start=file.path(baseDir, "REPORTS"))

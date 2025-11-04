@@ -176,6 +176,27 @@ plot_enhanced_volcano <- function(res_tib, FCcut = 1, PadjThr = 0.2){
   return(p1)
 }
 
+
+# Volcano plot for Pisa
+
+plot_enhanced_volcano_pisa <- function(res_tib,  FCcut = 0, PvalThrs = 0.001){
+    p1<-EnhancedVolcano(res_tib,
+                        lab = res_tib$symbol,
+                        x='log2FC',
+                        y='pvalue',
+                        labSize = 4,
+                        FCcutoff = FCcut,
+                        drawConnectors = F,
+                        pCutoff = 0.001,
+                        pCutoffCol = 'pvalue',
+                        subtitle = NULL,
+                        title = NULL,
+                        legendLabels=c('Not Sig','Sig Log2FC','Sig P-adj',
+                                       'Sig P-adj & Log2FC'))
+    return(p1)
+}
+
+
 ################################################################################
 
 plot_enhanced_volcano_prot <- function(res_tib){
@@ -284,6 +305,26 @@ display_de_genes4_prot <- function(mytable, geneAnns, filter = TRUE, distinct = 
     mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
     return(mydat)
 }
+
+# Equivalent function for Pisa
+
+display_de_genes4_pisa <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01) {
+    mydat <- merge(geneAnns,mytable, by ="symbol", all.x = FALSE, all.y = TRUE)
+
+    if (filter) {
+        mydat <- mydat %>% dplyr::filter( pvalue <=  pval_cutoff)
+    }
+    if (distinct) {
+        mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
+    }
+    format_cols <- c("log2FC", "pvalue", "padj")
+    mydat <- mydat %>% arrange(pvalue) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    return(mydat)
+}
+
+
+
+
 
 ################################################################################
 gsea_results_go_kegg <- function(res_tib, geneset = "GO", myorgdb = "org.Hs.eg.db", org = "hsa", name, pval = 0.25, filter = NULL) {

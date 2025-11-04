@@ -1,5 +1,5 @@
 ---
-title: "<br><br> `r params$scinamicNum`: Differential gene expression and enrichment analysis of bulk-RNAseq data for `r params$drug` treated samples in `r params$cell_line` with `r params$stimulation` stimulation"
+title: "<br><br> `r params$scinamicNum`: Differential gene expression and enrichment analysis of proteomics data for `r params$drug` treated samples in `r params$cell_line` with `r params$stimulation` stimulation"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   bookdown::html_document2:
@@ -12,23 +12,27 @@ output:
     toc_float:
       collapsed: yes
 params:
-  drug: "M2065_M2580_M277_SB525334"
-  cell_line: "WI-38"
-  stimulation: "NONE"
-  scinamicNum: "AW85"
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/"
+  drug: "Sunitinib_Dimethyl fumarate"
+  cell_line: "THP1.1"
+  stimulation: "oxLDL_R848_NONE"
+  scinamicNum: "A-2025-0147-B"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/A-2025-0147-B/"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
   Customgenesets_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-  dataDEG: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/DEG/Results200522/all_contrasts.RDS"
-  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts.RDS"
+  #dataDEG: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/DEG/Results200522/all_contrasts.RDS"
+  Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/A-2025-0147-B/CONTRAST_FILE_GEN/A-2025-0147-B_constrasts.csv"
   Chemo_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
-  Experimental_design_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Data/Experimental_design.png"
-  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Data/CellLine_Dict_Chemo.csv"
+  Experimental_design_path: ""
+  Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
   Organism: "Human"
-  padj_thr_gene: 0.05
+  padj_thr_gene: 0.2
   logFC_thrs_gene: 0
-  ReportNum: "2"
+  ReportNum: "1"
+  Uniprot_map_db: "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
+  Metadata_gr_path: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_contrast_metadata.csv"
+  Contrasts_stats: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_protein_abundance_contrast_stats.csv"
+  workstream: "Proteomics"
   
 ---
 
@@ -54,6 +58,7 @@ library(DESeq2)
 library(conflicted)
 library(patchwork)
 library(pheatmap)
+
 library(metafolio)
 #library(ggvenn)
 #library(UpSetR)
@@ -69,10 +74,25 @@ library(eulerr)
 library(jsonlite)
 write_json(params, file.path(params$baseDir,"params_DEG.json"))
 
-# directories
 
+
+#setwd(Output_file_path)
+
+# Save metadata and count formatted data frames
+#dir.create("CONTRAST_FILE_GEN")
+
+
+# directories
 baseDir = params$baseDir
-saveDir = file.path(params$baseDir, "REPORTS", "DEG_ENRICHMENT", paste(params$drug,"Report",  params$ReportNum, sep = '_'))
+dir.create(baseDir)
+setwd(baseDir)
+
+# Create REPORTS folder, when QC report is finished this should be created in the QC_REPORT rmd
+dir.create("REPORTS")
+setwd(file.path(baseDir,"REPORTS"))
+dir.create("DEG_ENRICHMENT")
+
+saveDir = file.path(params$baseDir, "REPORTS", "DEG_ENRICHMENT", paste("Report",  params$ReportNum, sep = '_'))
 #dataDir = file.path(baseDir,  "QCoutput", "221028_EXP005_BCH002")
 
 
@@ -109,6 +129,7 @@ if (params$Organism == 'Human') {
     Kegg = readRDS(file.path(params$DirDataForPipeline, "KEGG_All_human_symbol_240702.RDS"))
     Hallmark = read.gmt(file.path(params$DirDataForPipeline, "h.all.v2023.2.Hs.symbols.gmt"))
     Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt")) 
+    Pfam_Interpro = readRDS(file.path(params$DirDataForPipeline, "Pfam_Interpro_251030.RDS"))
     # get custom genesets
     if (file.exists(params$Customgenesets_path)) {
         # get the genesets
@@ -293,10 +314,15 @@ This table includes all gene sets in the pathway database. The columns are as fo
 ```{r comparisons,  eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results="asis", fig.show='hide'}
 library(openxlsx)
 
-source(file.path(params$DirPipeline, "DEG_FUNCTION.R"))
+# Read uniprot mapping
+uniprot_map <- readr::read_tsv(params$Uniprot_map_db)
+colnames(uniprot_map) <- c("gene", "Uniprot.ID")
+# Read contrast file with DEG
+DEG_df_all = read.csv(file.path(params$Contrasts_stats))
+
 
 # check for 
-List_contrasts = readRDS(params$Contrast_path)
+List_contrasts = read.csv(params$Contrast_path)
 
 comparisons  = List_contrasts %>%  dplyr::filter(reportNum == params$ReportNum)
 comparisons$namecontrast =  paste0(comparisons$treat,"_Vs_",comparisons$untreat)
@@ -308,11 +334,38 @@ comparisons$namecontrast =  paste0(comparisons$treat,"_Vs_",comparisons$untreat)
 # 
 # comparisons <- data.frame(lapply(comparisons, replace_hyphens), stringsAsFactors = FALSE)
 
-if (file.exists(file.path(baseDir, "DEG", "all_contrasts.RDS"))){
-  all_contrasts <- readRDS(file.path(baseDir, "DEG", "all_contrasts.RDS"))
+deg_frame = function(contrast_id, DEG_df){
+  
+    DEG_df_cont = DEG_df %>% dplyr::filter(Contrast_ID == contrast_id)
+    DEG_df_cont$padj = p.adjust(DEG_df_cont$P.Value, method = "BH")
+    DEG_df_cont$gene = uniprot_map$gene[match(DEG_df_cont$Uniprot_ID,uniprot_map$Uniprot.ID )]
+    DEG_df_cont = DEG_df_cont %>% drop_na(gene)
+    DEG_df_cont = DEG_df_cont %>% dplyr::select(gene, P.Value, log2FC, padj)
+    colnames(DEG_df_cont) = c("symbol", "pvalue", "log2FC", "padj")
+    return(DEG_df_cont)
+}
+
+
+
+if (file.exists(file.path(saveDir, "contrasts", "all_contrasts.RDS"))){
+  all_contrasts <- readRDS(file.path(saveDir, "contrasts", "all_contrasts.RDS"))
   all_contrasts = all_contrasts[comparisons$namecontrast]
 } else {
-  print('Please provide DEG file')
+  
+   all_contrasts = list()
+    if(!dir.exists(file.path(saveDir, "contrasts"))){
+       dir.create(file.path(saveDir, "contrasts"), recursive = TRUE)
+          
+        print("creating contrast list")
+        for(i in 1:length(comparisons$Contrast_ID)){
+             
+            deg_cont = deg_frame(contrast_id = comparisons$Contrast_ID[i] , DEG_df_all)
+            all_contrasts[[comparisons$namecontrast[i]]] = deg_cont
+            
+        }
+    }
+   saveRDS(all_contrasts, file.path(saveDir, "contrasts", "all_contrasts.RDS")) 
+    
 }
 
 ```
@@ -446,11 +499,12 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
      tables <- find_all_combinations_overlaps(venn_list_up)
 } 
 
+#eval_tables_over_up = ifelse(length(tables)>0, TRUE, FALSE)
 ```
 
 
 ```{r, results = "hide", eval=TRUE}
-if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
+if(any(unlist(lapply(venn_list_up, function(x) length(x)>0))) & length(tables)>0){
   src_list8 <- lapply(names(tables), function(comp) {
     src8 <- c("##### {{comp}} {.unnumbered}",
               "```{r}",
@@ -468,9 +522,11 @@ if(any(unlist(lapply(venn_list_up, function(x) length(x)>0)))){
   out8 <- knit_child(text="*No DE genes*")
 }
 
+#`r out8`
 ```
 
 `r out8`
+
 
 
 
@@ -506,7 +562,7 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
 
 ```{r, results = "hide",eval=TRUE}
 
-if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
+if(any(unlist(lapply(venn_list_down, function(x) length(x)>0))) & length(tables)>0){
   src_list9 <- lapply(names(tables), function(comp) {
     src9 <- c("##### {{comp}} {.unnumbered}",
               "```{r}",
@@ -524,6 +580,8 @@ if(any(unlist(lapply(venn_list_down, function(x) length(x)>0)))){
   out9 <- knit_child(text="*No DE genes*")
 }
 
+#Take it out of the r chink
+#`r out9`
 ```
   
 `r out9`
@@ -780,7 +838,7 @@ The asterisks in the heatmap tell you about the p-values associated with that GS
 
 ### Reactome
 
-```{r compReac, eval = TRUE, results = 'asis' , echo = FALSE}
+```{r compReac, eval = FALSE, results = 'asis' , echo = FALSE}
 
 #thr <- 100 # threshold
 geneset = 'Reactome'
@@ -842,14 +900,13 @@ knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 30)
     myfigheight <- calculate_fig_height(NES_mat)
 }   
     
-    
 
 
 
 ```
 
 
-```{r comp_Reacto_plt, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+```{r comp_Reacto_plt, eval =TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
 
 geneset = 'Reactome'
@@ -924,6 +981,125 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
 ```
 
 
+### Pfam_InterPro
+
+```{r compPfam, eval = TRUE, results = 'asis' , echo = FALSE}
+
+#thr <- 100 # threshold
+geneset = 'Pfam_Interpro'
+gseares_list <- lapply(names(all_contrasts), function(name) {
+   
+   filename <- paste(geneset, name,".RDS" , sep = '_')
+   res <- readRDS(file.path(saveDir,"contrasts",name, "gsea_res", geneset, filename ))
+   #res <- readRDS(file.path(saveDir, "gsea_res", paste0(name, " keggs.RDS")))
+   gseares_tb <- na.omit(res$gseares_all@result)
+   gseares_tb <- gseares_tb[order(gseares_tb$ID),]
+   
+   return(gseares_tb)
+   
+})
+pathway_list <- lapply(gseares_list, function(gseares){
+  return(gseares$ID)
+})
+pathway_isect <- Reduce(base::intersect, pathway_list)
+
+gseares_list <- lapply(gseares_list, function(gseares) {
+   gseares  <- gseares[order(gseares$ID),] %>% dplyr::filter(ID %in% pathway_isect)
+   return(gseares)
+})
+
+
+NES_list <- lapply(gseares_list, function(gseares){
+  return(gseares$NES)
+})
+NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+colnames(NES_mat) <- names(all_contrasts)
+rownames(NES_mat) <- pathway_isect
+
+forfiltering <- lapply(gseares_list, function(gseares){
+  return(vapply(gseares$p.adjust, getsigmarkerV2, FUN.VALUE="astring"))
+})
+forfiltering_mat <- as.data.frame(matrix(unlist(forfiltering), nrow=length(unlist(forfiltering[1]))))
+colnames(forfiltering_mat) <- names(all_contrasts)
+rownames(forfiltering_mat) <- pathway_isect
+
+rowstokeep <- apply(forfiltering_mat, 1, function(x) !all(x==""))
+NES_mat <- NES_mat[rowstokeep,, drop = FALSE]
+forfiltering_mat <- forfiltering_mat[rowstokeep,, drop = FALSE]
+
+# NES_mat[NES_mat < -thr] <- -thr
+# NES_mat[NES_mat > thr] <- thr
+
+# row.names(NES_mat) <- pathway_lookup[match(row.names(NES_mat), pathway_lookup$ID),"pathway"]
+
+myfigheight <- calculate_fig_height(NES_mat)
+old_opts <- knitr::opts_chunk$get()
+on.exit(knitr::opts_chunk$set(old_opts)) 
+knitr::opts_chunk$set(fig.height = myfigheight)
+
+
+
+
+
+```
+
+```{r comp_Pfam_plt, echo=FALSE, eval = TRUE, results='asis'}
+library(pheatmap)
+
+geneset = 'Pfam_Interpro'
+
+filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
+filepathMat <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMat)
+saveRDS(NES_mat, filepathMat)
+filenameMatsig <- paste(geneset,"Heatmap_comparison_Pways_SignifDisplay",".RDS", sep = '_' )
+filepathMatsig <- file.path(saveDir,"contrasts","ComparisonPathways", filenameMatsig)
+saveRDS(forfiltering_mat, filepathMatsig)
+
+filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
+filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
+dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
+
+thr = max(abs(min(NES_mat)), max(NES_mat))
+if (nrow(NES_mat)>1) {
+ hm <-  pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=T,
+           cluster_rows = T,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison of enriched pathways")
+ print(hm)
+ ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
+ 
+}else if (nrow(NES_mat)==1){
+  hm <- pheatmap(NES_mat,
+           display_numbers=forfiltering_mat,
+           breaks=seq(from=-thr, to=thr, length=101),
+           cluster_col=F,
+           cluster_rows = F,
+           show_rownames = T,
+           show_colnames = T,
+           main="Comparison of enriched pathways")
+  print(hm)
+  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
+}else  {
+  cat("**", paste("No significantly enriched pathways"), "**\n")
+}
+
+
+
+```
+
+
+
+The asterisks in the heatmap tell you about the p-values associated with that GSEA test as such:
+
+```
+*** p < 0.005
+** p < 0.05
+* p < 0.2
+```
 
 
 

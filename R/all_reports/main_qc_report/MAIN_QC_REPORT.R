@@ -2,39 +2,32 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-source("/fsx/home/john/projects/empress/old_2022_runs/compound2/230404_EXP008_BCH003/params_qc.txt")
+#source("/fsx/home/john/projects/empress/old_2022_runs/compound2/230404_EXP008_BCH003/params_qc.txt")
+
+# Create contrasts sheets for all the experiments in folder ~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025
+
+baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025"
+Exps = list.files(baseDir_all)
+OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter"
+DirPipeline = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
+Alias_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
+Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
 
 
-Name_folder_path =  file.path(baseDir, "REPORTS")
-dir.create(Name_folder_path, recursive = TRUE)
+for(exp in Exps){
 
-# THe correlation plots are not being plotted using this function. We need to solve that using the childs or something else.
+dir.create(file.path(OutputFolder, exp, "REPORTS"),  recursive = TRUE)
 
 rmarkdown::render(input = paste(DirPipeline,"QC_REPORT.Rmd", sep = '/')  ,
-                  params = list(cellline =  cellline,
-                                scinamicNum = scinamicNum,
-                                baseDir =  baseDir,
-                                DirDataForPipeline = DirDataForPipeline,
+                  params = list(scinamicNum = exp,
+                                baseDir =  file.path(OutputFolder, exp),
                                 DirPipeline = DirPipeline,
-                                Metrics_path = Metrics_path,
-                                Metadata_path = Metadata_path,
-                                CountM_path =CountM_path,
-                                SampleName_path = SampleName_path,
-                                Experimental_design_path = Experimental_design_path,
-                                Column_match = Column_match,
-                                Organism_type = Organism_type,
-                                QCNORM =  QCNORM,
-                                TPM_path = TPM_path,
-                                ControlName = ControlName,
-                                Batch_variable = Batch_variable,
-                                ExpDescription = Batch_variable,
-                                Prev_perc =  Prev_perc,
-                                MEMORY_MB = MEMORY_MB,
-                                Corr_plot_features = Corr_plot_features,
-                                CoarseCondition =  CoarseCondition,
                                 Alias_path = Alias_path,
-                                PRE_FILTER = PRE_FILTER),
+                                Uniprot_map_db = Uniprot_map_db,
+                                Metadata_gr_path = file.path(baseDir_all, exp, paste(exp, "contrast_metadata.csv", sep = '_')),
+                                Contrast_def_path = file.path(baseDir_all, exp, paste(exp, "contrast_definitions.csv", sep = '_'))
+                                ),
                   clean = TRUE,
-                  output_file = file.path(Name_folder_path,paste(format(Sys.time(), '%y-%m-%d'), cellline, "QC_REPORT", '.html',sep = '_')))
+                  output_file = file.path(OutputFolder, exp, "REPORTS",paste(format(Sys.time(), '%y-%m-%d'),exp, "QC_REPORT", '.html',sep = '_')))
 
-
+}

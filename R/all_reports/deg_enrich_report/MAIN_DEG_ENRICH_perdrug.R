@@ -2,58 +2,61 @@ library(rmarkdown)
 library(tidyverse)
 library(readxl)
 
-#source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de.txt")
-#source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de_control.txt")
-source("/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/params_de_emps.txt")
-baseDir = "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522"
-#List_contrasts = readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts.RDS")
-#List_contrasts <- readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts_control.RDS")
-List_contrasts <- readRDS("~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/Results_250522/DEG/List_contrasts_emps.RDS")
-DirPipeline  = "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
-Name_folder_path =  file.path(baseDir, "REPORTS")
-dir.create(Name_folder_path, recursive = TRUE)
+# Runs enrichments for all experiments in "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025" at the same time
 
-# Metadata <-read_xlsx(file.path(dataDir, "Norm_Data.xlsx"), sheet = 'Metadata')
-# drugs = unique(Metadata$Treatment)
-# drugs = drugs[!drugs %in% c('DMSO')]
-# #drugs = c("dBET6", "TAK-279","Selisistat" )
+baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025"
+Exps = list.files(baseDir_all)
+OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter"
+DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
+DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
+Customgenesets_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
+Chemo_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
+Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
+Organism = "Human"
+padj_thr_gene = 0.2
+logFC_thrs_gene = 0
+Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
 
-# Cycle through reportsnum
+#Exps = Exps[!Exps %in% c("A-2025-0146-A" , "A-2025-0146-B")]
+for(exp in Exps){
 
-start_time <- Sys.time()
+    dir.create(file.path(OutputFolder, exp, "REPORTS"),  recursive = TRUE)
+    List_contrasts <- read.csv(file.path(OutputFolder, exp,"CONTRAST_FILE_GEN", paste(exp, "constrasts.csv", sep = '_')))
 
-for(reportnum in unique(List_contrasts$reportNum)){
-    # params$drug, params$stimulation and params$cell_line are only used in the title. Therefore they can be concatenation of all the molecules involved
-    # in a given report. To find the drug associated to a given contrast inside the report we use the value within the List_contrast_file not the params$drug parameter
-    List_contrasts_report = List_contrasts %>% dplyr::filter(reportNum == reportnum)
-    cell_line = paste(unique(List_contrasts_report$cell_line), collapse = "_")
-    drug= paste(unique(List_contrasts_report$drug), collapse = "_")
-    rmarkdown::render(input = paste(DirPipeline,"DEG_ENRICH_perdrug.Rmd", sep = '/')  ,
-                      params = list(drug = paste(unique(List_contrasts_report$drug), collapse = "_"),
-                                    stimulation = paste(unique(List_contrasts_report$stimulation), collapse = "_"),
-                                    cell_line = paste(unique(List_contrasts_report$cell_line), collapse = "_"),
-                                    scinamicNum = scinamicNum,
-                                    baseDir = baseDir,
-                                    DirDataForPipeline = DirDataForPipeline,
-                                    Customgenesets_path = Customgenesets_path,
-                                    DirPipeline = DirPipeline,
-                                    dataDEG = dataDEG,
-                                    Contrast_path = Contrast_path,
-                                    Chemo_path = Chemo_path,
-                                    Experimental_design_path = Experimental_design_path,
-                                    Cell_Dict_path = Cell_Dict_path,
-                                    Organism =  Organism,
-                                    padj_thr_gene = padj_thr_gene,
-                                    logFC_thrs_gene = logFC_thrs_gene,
-                                    ReportNum = reportnum
-                                    ),
-                      clean = TRUE,
-                      output_file = file.path(Name_folder_path,paste(format(Sys.time(), '%y%m%d'), cell_line, drug,reportnum, "DEG_ENRICH", '.html',sep = '_')))
- }
 
-end_time <- Sys.time()
+    for(reportnum in unique(List_contrasts$reportNum)){
 
-execution_time <- end_time - start_time
+        # params$drug, params$stimulation and params$cell_line are only used in the title. Therefore they can be concatenation of all the molecules involved
+        # in a given report. To find the drug associated to a given contrast inside the report we use the value within the List_contrast_file not the params$drug parameter
+        List_contrasts_report = List_contrasts %>% dplyr::filter(reportNum == reportnum)
+        cell_line = paste(unique(List_contrasts_report$cell_line), collapse = "_")
+        drug= paste(unique(List_contrasts_report$drug), collapse = "_")
+        rmarkdown::render(input = paste(DirPipeline,"DEG_ENRICH_perdrug.Rmd", sep = '/')  ,
+                          params = list(drug = paste(unique(List_contrasts_report$drug), collapse = "_"),
+                                        stimulation = paste(unique(List_contrasts_report$stimulation), collapse = "_"),
+                                        cell_line = paste(unique(List_contrasts_report$cell_line), collapse = "_"),
+                                        scinamicNum = exp,
+                                        baseDir = file.path(OutputFolder, exp),
+                                        DirDataForPipeline = DirDataForPipeline,
+                                        Customgenesets_path = Customgenesets_path,
+                                        DirPipeline = DirPipeline,
+                                        Contrast_path = file.path(OutputFolder, exp,"CONTRAST_FILE_GEN", paste(exp, "constrasts.csv", sep = '_')),
+                                        Chemo_path = Chemo_path,
+                                        Experimental_design_path = "",
+                                        Cell_Dict_path = Cell_Dict_path,
+                                        Organism =  Organism,
+                                        padj_thr_gene = padj_thr_gene,
+                                        logFC_thrs_gene = logFC_thrs_gene,
+                                        ReportNum = reportnum,
+                                        Uniprot_map_db = Uniprot_map_db,
+                                        Metadata_gr_path = file.path(baseDir_all, exp, paste(exp, "contrast_metadata.csv", sep = '_')),
+                                        Contrasts_stats = file.path(baseDir_all, exp, paste(exp, "protein_abundance_contrast_stats.csv", sep = '_')),
+                                        workstream = "Proteomics"
+                          ),
+                          clean = TRUE,
+                          output_file = file.path(OutputFolder,exp, "REPORTS",paste(format(Sys.time(), '%y%m%d'), exp,"Report",reportnum, "DEG_ENRICH", '.html',sep = '_')))
+    }
+}
 
 
 
