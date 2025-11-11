@@ -13,7 +13,7 @@ Customgenesets_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pi
 Chemo_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
 Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
 Organism = "Human"
-padj_thr_gene = 0.2
+padj_thr_gene = 0.05
 logFC_thrs_gene = 0
 Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
 

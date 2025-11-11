@@ -26,9 +26,9 @@ params:
   Experimental_design_path: ""
   Cell_Dict_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
   Organism: "Human"
-  padj_thr_gene: 0.2
+  padj_thr_gene: 0.05
   logFC_thrs_gene: 0
-  ReportNum: "1"
+  ReportNum: "2"
   Uniprot_map_db: "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
   Metadata_gr_path: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_contrast_metadata.csv"
   Contrasts_stats: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_protein_abundance_contrast_stats.csv"
@@ -271,9 +271,9 @@ We will use the following gene sets in this analysis:
 
 For more information on the interpretation of these results, please see the "Interpreting results" section here: http://software.broadinstitute.org/gsea/doc/GSEAUserGuideFrame.html
 
-### Signficance and GeneRatios
+### Signficance and GeneRatios 
 
-These dotplot capture both the significance and the GeneRatio (i.e. (count of core enrichment genes)/(count of pathway genes)) 
+These dotplot in GSEA captures both the significance and the GeneRatio (i.e. (count of core enrichment genes)/(count of pathway genes)) 
 
 ### Visualization pathways
 
@@ -838,7 +838,7 @@ The asterisks in the heatmap tell you about the p-values associated with that GS
 
 ### Reactome
 
-```{r compReac, eval = FALSE, results = 'asis' , echo = FALSE}
+```{r compReac, eval = TRUE, results = 'asis' , echo = FALSE}
 
 #thr <- 100 # threshold
 geneset = 'Reactome'
@@ -906,7 +906,7 @@ knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 30)
 ```
 
 
-```{r comp_Reacto_plt, eval =TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
+```{r comp_Reacto_plt, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
 
 geneset = 'Reactome'

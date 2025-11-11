@@ -3,16 +3,24 @@
 ### Differential Expression {.tabset}
 ```{r results = 'asis' , echo = FALSE, fig.width=8, fig.height=8}
 cat('\n')
-cat("####", "Volcano Plot")
+cat("####", "Volcano Plot (Padj)")
 cat('\n')
 if(params$workstream == "Proteomics"){
-plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene)
+plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "padj")
 }else if(params$workstream == "Pisa"){
 plot_enhanced_volcano_pisa(all_contrasts[[name]],  FCcut = 0, PvalThrs = 0.001)
 }    
 cat('\n')             
 
-
+cat('\n')
+cat("####", "Volcano Plot (Pvalue)")
+cat('\n')
+if(params$workstream == "Proteomics"){
+plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "pvalue")
+}else if(params$workstream == "Pisa"){
+plot_enhanced_volcano_pisa(all_contrasts[[name]],  FCcut = 0, PvalThrs = 0.001)
+}    
+cat('\n')      
 
 
 # cat('\n')
@@ -52,10 +60,10 @@ cat('\n')
 
 if(params$workstream == "Proteomics"){
   
-display_de_genes4_prot(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = 0.2)
+display_de_genes4_prot(mytable = all_contrasts[[name]],geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = params$padj_thr_gene, name)
 }else if(params$workstream == "Pisa"){
     
-display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns == geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01)
+display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns == geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name)
     
 }
 
@@ -66,7 +74,7 @@ cat('\n')
 
 
 ### Pathway enrichment GSEA {.tabset}
-```{r results = 'asis' , echo = FALSE, fig.width=9, fig.height=8}
+```{r results = 'asis' ,echo = FALSE, fig.width=9, fig.height=8}
 # Define the cell line and drug to use in this comparison by using the info in comparisons
 Cell_line = comparisons$cell_line[which(comparisons$namecontrast == name)]
 Drug = comparisons$drug[which(comparisons$namecontrast == name)]
@@ -89,7 +97,17 @@ res_hall <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]],
                                  )
 
 cat('\n')
-cat("#####", "Signficance and GeneRatios")
+cat("#####", "Pathway visualization")
+cat('\n')
+filename <- paste("Hallmark", "Whole_Vis", name,'.html', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+
+CompleteVisualPathwaysGsea_V2(res_hall$gsea_table, filepath)
+cat('\n')
+
+
+cat('\n')
+cat("#####", "Signficant pathways GeneRatios")
 cat('\n')
 if(nrow(res_hall$gseares@result)>0 ){
 dotplot(res_hall$gseares)
@@ -108,8 +126,11 @@ cat('\n')
 # dev.off()
 # cat('\n')
 
+
+
+
 cat('\n')
-cat("#####", "Visualization pathways")
+cat("#####", " Top pathways vs NES")
 cat('\n')
 filename <- paste("Hallmark", "DotplotV2", name,'.jpeg', sep = '_')
 filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
@@ -172,6 +193,20 @@ cat('\n')
 
 
 res_kegg <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, Organism = params$Organism)
+
+
+cat('\n')
+cat("#####", "Pathway visualization")
+cat('\n')
+filename <- paste("Kegg", "Whole_Vis", name,'.html', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Kegg", filename )
+
+
+CompleteVisualPathwaysGsea_V2(res_kegg $gsea_table, filepath)
+cat('\n')
+
+
+
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -253,6 +288,19 @@ cat("####", "Reactome {.tabset}")
 cat('\n')
 
 res_React <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,Organism = params$Organism)
+
+cat('\n')
+cat("#####", "Pathway visualization")
+cat('\n')
+filename <- paste("Reactome", "Whole_Vis", name,'.html', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Reactome", filename )
+
+
+CompleteVisualPathwaysGsea_V2(res_React$gsea_table, filepath)
+cat('\n')
+
+
+
 
 cat('\n')
 cat("#####", "Significance and GeneRatios")
@@ -350,6 +398,18 @@ res_pfam <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]],
                                  )
 
 cat('\n')
+cat("#####", "Pathway visualization")
+cat('\n')
+filename <- paste("Pfam_InterPro", "Whole_Vis", name,'.html', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Pfam_InterPro", filename )
+
+
+CompleteVisualPathwaysGsea_V2(res_pfam$gsea_table, filepath)
+cat('\n')
+
+
+
+cat('\n')
 cat("#####", "Signficance and GeneRatios")
 cat('\n')
 if(nrow(res_pfam$gseares@result)>0 ){
@@ -442,6 +502,15 @@ gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
 
 res_custom <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, Organism = params$Organism)
+
+cat('\n')
+cat("#####", "Pathway visualization")
+cat('\n')
+filename <- paste("Customgenesets", "Whole_Vis", name,'.html', sep = '_')
+filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Customgenesets", filename )
+
+CompleteVisualPathwaysGsea_V2(res_custom$gsea_table, filepath)
+cat('\n')
 
 cat('\n')
 cat("#####", "Signficance and GeneRatios")

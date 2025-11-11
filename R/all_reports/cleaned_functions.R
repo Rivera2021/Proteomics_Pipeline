@@ -63,11 +63,12 @@ enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 
 }
 
 
+
+
+
 ################################################################################
 
-
-
-downloadableDT2 <- function(mytable, rownames=NULL, pageLength=10,...) {
+downloadableDT2 <- function(mytable, name, rownames=NULL, pageLength=10,...) {
   require(DT)
   if("pvalue" %in% colnames(mytable)){
     datatable(data = arrange(mytable, pvalue),
@@ -77,7 +78,12 @@ downloadableDT2 <- function(mytable, rownames=NULL, pageLength=10,...) {
                 dom = "Blfrtip",
                 buttons = list("copy", list(
                   extend = "collection",
-                  buttons = c("excel"),
+                  buttons = list(
+                      list(
+                          extend = "excel",
+                          filename = name  # this sets the filename for the excel download
+                      )
+                  ),
                   text = "Download"
                 )), # end of buttons customization
                 # customize the length menu
@@ -94,7 +100,12 @@ downloadableDT2 <- function(mytable, rownames=NULL, pageLength=10,...) {
                 dom = "Blfrtip",
                 buttons = list("copy", list(
                   extend = "collection",
-                  buttons = c("excel"),
+                  buttons = list(
+                      list(
+                          extend = "excel",
+                          filename = name  # this sets the filename for the excel download
+                      )
+                  ),
                   text = "Download"
                 )), # end of buttons customization
                 # customize the length menu
@@ -159,11 +170,12 @@ pcaplot <- function(df,pca_var,  covar, pc1 = "PC1", pc2 = "PC2") {
 
 ################################################################################
 
-plot_enhanced_volcano <- function(res_tib, FCcut = 1, PadjThr = 0.2){
+plot_enhanced_volcano <- function(res_tib, FCcut = 1, PadjThr = 0.2, yaxis = "padj"){
   p1<-EnhancedVolcano(res_tib,
                       lab = res_tib$symbol,
                       x='log2FC',
-                      y='padj',
+                      y= yaxis,
+                      ylab = paste("-Log10(", ifelse(yaxis=='padj', 'Padj', 'Pvalue'), ")", sep=''),
                       labSize = 4,
                       FCcutoff = FCcut,
                       drawConnectors = F,
@@ -184,6 +196,7 @@ plot_enhanced_volcano_pisa <- function(res_tib,  FCcut = 0, PvalThrs = 0.001){
                         lab = res_tib$symbol,
                         x='log2FC',
                         y='pvalue',
+                        ylab = bquote(~-Log[10] ~ italic(Pvalue)),
                         labSize = 4,
                         FCcutoff = FCcut,
                         drawConnectors = F,
@@ -292,7 +305,7 @@ display_de_genes4 <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE
 ################################################################################
 
 
-display_de_genes4_prot <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, padj_cutoff = 0.05) {
+display_de_genes4_prot <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, padj_cutoff = 0.05, name) {
     mydat <- merge(geneAnns,mytable, by ="symbol", all.x = FALSE, all.y = TRUE)
 
     if (filter) {
@@ -302,13 +315,17 @@ display_de_genes4_prot <- function(mytable, geneAnns, filter = TRUE, distinct = 
         mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
     }
     format_cols <- c("log2FC", "pvalue", "padj")
-    mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
-    return(mydat)
+    #mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    mydat <- mydat %>%
+        mutate(across(all_of(format_cols), ~ signif(.x, 3)))
+    dt <- downloadableDT2(mydat, name = name)
+
+    return(dt)
 }
 
 # Equivalent function for Pisa
 
-display_de_genes4_pisa <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01) {
+display_de_genes4_pisa <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name) {
     mydat <- merge(geneAnns,mytable, by ="symbol", all.x = FALSE, all.y = TRUE)
 
     if (filter) {
@@ -318,8 +335,11 @@ display_de_genes4_pisa <- function(mytable, geneAnns, filter = TRUE, distinct = 
         mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
     }
     format_cols <- c("log2FC", "pvalue", "padj")
-    mydat <- mydat %>% arrange(pvalue) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
-    return(mydat)
+    #mydat <- mydat %>% arrange(pvalue) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    mydat <- mydat %>%
+        mutate(across(all_of(format_cols), ~ signif(.x, 3)))
+    dt <- downloadableDT2(mydat, name = name)
+    return(dt)
 }
 
 
@@ -1522,7 +1542,7 @@ VisualPathways = function(mytable,  filepath) {
 
             total_up = sum(mytable$Enrichment == "Up regulated")
             total_down = sum(mytable$Enrichment == "Down regulated")
-            header = paste0("Top 10: Up=", total_up,", Down=",    total_down, ")")
+            header = paste0("Top 20: Up=", total_up,", Down=",    total_down, ")")
 
             colos = setNames(c("firebrick2", "dodgerblue2"),
                              c("Up regulated", "Down regulated"))
@@ -1553,6 +1573,203 @@ VisualPathways = function(mytable,  filepath) {
     }
 
 }
+
+
+
+################################################################################
+# New visualization
+
+CompleteVisualPathwaysGsea = function(mytable,  filepath) {
+
+    library(dplyr)
+    library(plotly)
+
+    if(nrow(mytable) == 0){
+        text = "No Pathways to Display"
+        ggplot() +
+            annotate("text", x = 4, y = 25, size=8, label = text) +
+            theme_void()
+    }else{
+
+        # Relevant genes
+
+        Relevant_genes = function(x) {
+            len_g = length(strsplit(x, "/")[[1]])
+            return(len_g)
+        }
+        gene_counts = unlist(lapply(mytable$core_enrichment, Relevant_genes))
+        mytable$Core_gene_len = gene_counts
+        mytable$Gene_ratio = gene_counts/mytable$size
+
+        mytable <- mytable %>% dplyr::arrange(padj)
+
+        mytable <- mytable %>%
+            mutate(formatted_log10_padj = signif(-log10(padj),3),
+                   formatted_padj = signif(padj, 3),
+                   formatted_NES = signif(NES, 3),
+                   formatted_Gene_ratio = signif(Gene_ratio, 3))
+
+        top_n <- 10
+        top_pathways <- mytable[1:min(top_n, nrow(mytable)), ]
+
+        p <- ggplot(data = mytable, aes(x = NES, y = -log10(padj), color = Gene_ratio, text = paste("Pathway:", pathway, "<br>Padj:", formatted_padj, "<br>NES:", formatted_NES,"<br>Gene ratio:", formatted_Gene_ratio ))) +
+            geom_point(size = 3) +  # Adjust the size as necessary
+            scale_color_distiller(palette = "Purples", direction = 1) +  # Using ColorBrewer's "Spectral" palette
+            labs(
+                x = "NES (Normalized Enrichment Score)",
+                y = "Padj",
+                color = "GeneRatio = RelGenes/PwaySize"
+            ) +
+            theme_minimal() +  # Use a minimal theme for better visualization
+            theme(
+                plot.title = element_text(hjust = 0.5),
+                axis.text = element_text(size = 12)
+            )+
+            geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+            geom_vline(xintercept = 0, linetype = "solid", color = "black")
+        p <- p + geom_text(data = top_pathways, aes(label = pathway),
+                           hjust = 0, vjust = 0.2, size = 3)
+
+        #Convert to interactive plot
+        p2 <- ggplotly(p, tooltip = "text")
+
+        saveWidget(p2, file = filepath )
+
+        return(p2)
+
+    }
+}
+
+# The previous function with interactive plot, destroyed the organization of the report. Ask ziffo if they can look into it, otherwise let's keep the static version
+CompleteVisualPathwaysGsea_V2 = function(mytable,  filepath) {
+
+    library(dplyr)
+    library(plotly)
+
+    if(nrow(mytable) == 0){
+        text = "No Pathways to Display"
+        ggplot() +
+            annotate("text", x = 4, y = 25, size=8, label = text) +
+            theme_void()
+    }else{
+
+        # Relevant genes
+
+        Relevant_genes = function(x) {
+            len_g = length(strsplit(x, "/")[[1]])
+            return(len_g)
+        }
+        gene_counts = unlist(lapply(mytable$core_enrichment, Relevant_genes))
+        mytable$Core_gene_len = gene_counts
+        mytable$Gene_ratio = gene_counts/mytable$size
+
+        mytable <- mytable %>% dplyr::arrange(padj)
+
+        mytable <- mytable %>%
+            mutate(formatted_log10_padj = signif(-log10(padj),3),
+                   formatted_padj = signif(padj, 3),
+                   formatted_NES = signif(NES, 3),
+                   formatted_Gene_ratio = signif(Gene_ratio, 3))
+
+        top_n <- 10
+        top_pathways <- mytable[1:min(top_n, nrow(mytable)), ]
+
+        p <- ggplot(data = mytable, aes(x = NES, y = -log10(padj), color = Gene_ratio)) +
+            geom_point(size = 3) +  # Adjust the size as necessary
+            scale_color_distiller(palette = "Purples", direction = 1) +  # Using ColorBrewer's "Spectral" palette
+            labs(
+                x = "NES (Normalized Enrichment Score)",
+                y = "Padj",
+                color = "GeneRatio \n(|Core Genes|/|Pway|)"
+            ) +
+            theme_minimal() +  # Use a minimal theme for better visualization
+            theme(
+                plot.title = element_text(hjust = 0.5),
+                axis.text = element_text(size = 12)
+            )+
+            geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+            geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+            geom_text_repel(data = top_pathways, aes(label = pathway),
+                            size = 3, color = "black",
+                            box.padding = 0.5, # Adjust padding around text boxes
+                            point.padding = 0.3, # Adjust padding around data points
+                            segment.size = 0.2, # Adjust line size
+                            segment.color = 'grey50', # Color of line connecting labels to points
+                            max.overlaps = Inf)
+
+            #geom_text(data = top_pathways, aes(label = pathway, hjust = ifelse(NES < 0, -0.2, 1.2)),
+            #          size = 3, color = "black", vjust = 0)
+
+
+        return(p)
+
+    }
+}
+
+################################################################################
+# New visualization for Over-representation
+
+CompleteVisualPathwaysOver = function(mytable,  filepath) {
+
+    library(dplyr)
+    library(plotly)
+
+    if(nrow(mytable) == 0){
+        text = "No Pathways to Display"
+        ggplot() +
+            annotate("text", x = 4, y = 25, size=8, label = text) +
+            theme_void()
+    }else{
+
+
+        mytable <- mytable %>% dplyr::arrange(p.adjust)
+
+        # mytable = mytable %>% separate(BgRatio, into = c("PwaySize", "Universe"), sep = "/", convert = TRUE, remove = FALSE) %>%
+        #     mutate(BgRatio_real = signif(num / den,3)) %>% separate(GeneRatio, into = c("num", "den"), sep = "/", convert = TRUE, remove = FALSE) %>%
+        #     mutate(GeneRatio_real = signif(num / den,3)) %>% mutate(log10_padj = signif(-log10(p.adjust),3))
+
+        mytable = mytable %>% separate(BgRatio, into = c("PwaySize", "Universe"), sep = "/", convert = TRUE, remove = FALSE) %>%
+                separate(GeneRatio, into = c("numDEGPway", "NumDEG"), sep = "/", convert = TRUE, remove = FALSE) %>%
+                mutate(GeneRatio_real = signif(num / den,3)) %>% mutate(log10_padj = signif(-log10(p.adjust),3)) %>%
+                mutate(CRRatio = signif(numDEGPway / PwaySize,3))
+
+
+
+        top_n <- 10
+        top_pathways <- mytable[1:min(top_n, nrow(mytable)), ]
+
+        p <- ggplot(data = mytable, aes(x = GeneRatio_real, y = log10_padj, color = CRRatio)) +
+            geom_point(size = 3) +  # Adjust the size as necessary
+            scale_color_distiller(palette = "Purples", direction = 1) +  # Using ColorBrewer's "Spectral" palette
+            labs(
+                x = "Gene ratio (# DEGs in Pway/ # DEGs )",
+                y = "Padj",
+                color = "BgRatio: \n(|Pway|/|Universe|)"
+            ) +
+            theme_minimal() +  # Use a minimal theme for better visualization
+            theme(
+                plot.title = element_text(hjust = 0.5),
+                axis.text = element_text(size = 12)
+            )+
+            geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+            geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+            geom_text_repel(data = top_pathways, aes(label = ID),
+                            size = 3, color = "black",
+                            box.padding = 0.5, # Adjust padding around text boxes
+                            point.padding = 0.3, # Adjust padding around data points
+                            segment.size = 0.2, # Adjust line size
+                            segment.color = 'grey50', # Color of line connecting labels to points
+                            max.overlaps = Inf)
+
+        #geom_text(data = top_pathways, aes(label = pathway, hjust = ifelse(NES < 0, -0.2, 1.2)),
+        #          size = 3, color = "black", vjust = 0)
+
+
+        return(p)
+
+    }
+}
+
 
 
 ################################################################################
