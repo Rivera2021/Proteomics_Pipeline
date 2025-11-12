@@ -492,101 +492,101 @@ cat('\n')
 
 ################################################################################################################################
 
-cat('\n')
-cat("####", "Custom genesets {.tabset}")
-cat('\n')
-
-kable(cutomgenesetsummarytable)
-
-gene_expression_fold = all_contrasts[[name]]$log2FC
-names(gene_expression_fold) = all_contrasts[[name]]$symbol
-
-res_custom <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, Organism = params$Organism)
-
-cat('\n')
-cat("#####", "Pathway visualization")
-cat('\n')
-filename <- paste("Customgenesets", "Whole_Vis", name,'.html', sep = '_')
-filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Customgenesets", filename )
-
-CompleteVisualPathwaysGsea_V2(res_custom$gsea_table, filepath)
-cat('\n')
-
-cat('\n')
-cat("#####", "Signficance and GeneRatios")
-cat('\n')
-if(nrow(res_custom$gseares@result)>0 ){
-dotplot(res_custom$gseares)
-}else{
- cat("No significant pathways")
-    
-}    
-cat('\n')
-
-# filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
-# filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
-# dotplot(res_hall$gseares)
 # cat('\n')
-# jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
-# dotplot(res_hall$gseares)
-# dev.off()
+# cat("####", "Custom genesets {.tabset}")
 # cat('\n')
-
-cat('\n')
-cat("#####", "Visualization pathways")
-cat('\n')
-filename <- paste("Customgenesets", "DotplotV2", name,'.jpeg', sep = '_')
-filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Customgenesets", filename )
-
-VisualPathways(res_custom$gsea_table, filepath)
-cat('\n')
-
-cat('\n')
-cat("#####", "Genes within pathways")
-cat('\n')
-cnetplot(res_custom$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
-    midpoint = 0,                    # Neutral point corresponds to no change
-    low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
-    mid = "white",
-    
-  )
-cat('\n')
-
-
-cat('\n')
-cat("#####", "Tree: pathway cluster ")
-cat('\n')
-if(nrow(res_custom$gsea_table) > 5){
-sim <- pairwise_termsim(res_custom$gseares)
-treeplot(sim, hclust_method = 'average')
-}else{
-    cat('\n')
-    cat("**", paste("Not enough pathways to fit a tree"), "**\n")
-    cat('\n')
-}
-cat('\n')
-
-
-cat('\n')
-cat("#####", "Top upregulated")
-cat('\n')
-
-plot_top_gsea(res_custom, top='up')
-cat('\n')
-
-cat('\n')
-cat("#####", "Top Downregulated")
-cat('\n')
-
-plot_top_gsea(res_custom, top='down')
-cat('\n')
-
-cat('\n')
-cat("#####", "Table of enriched pathways")
-cat('\n')
-
-downloadableDTExcel(res_custom$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
-cat('\n')
+# 
+# kable(cutomgenesetsummarytable)
+# 
+# gene_expression_fold = all_contrasts[[name]]$log2FC
+# names(gene_expression_fold) = all_contrasts[[name]]$symbol
+# 
+# res_custom <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, Organism = params$Organism)
+# 
+# cat('\n')
+# cat("#####", "Pathway visualization")
+# cat('\n')
+# filename <- paste("Customgenesets", "Whole_Vis", name,'.html', sep = '_')
+# filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Customgenesets", filename )
+# 
+# CompleteVisualPathwaysGsea_V2(res_custom$gsea_table, filepath)
+# cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Signficance and GeneRatios")
+# cat('\n')
+# if(nrow(res_custom$gseares@result)>0 ){
+# dotplot(res_custom$gseares)
+# }else{
+#  cat("No significant pathways")
+#     
+# }    
+# cat('\n')
+# 
+# # filename <- paste("Hallmark", "Dotplot", name,'.jpeg', sep = '_')
+# # filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Hallmark", filename )
+# # dotplot(res_hall$gseares)
+# # cat('\n')
+# # jpeg(file = filepath, width = 8, height = 8, units = "in", res = 300)
+# # dotplot(res_hall$gseares)
+# # dev.off()
+# # cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Visualization pathways")
+# cat('\n')
+# filename <- paste("Customgenesets", "DotplotV2", name,'.jpeg', sep = '_')
+# filepath <- file.path(saveDir,"contrasts",name, "gsea_res", "Customgenesets", filename )
+# 
+# VisualPathways(res_custom$gsea_table, filepath)
+# cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Genes within pathways")
+# cat('\n')
+# cnetplot(res_custom$gseares, cex_label_gene=0.3, cex_label_category = 0.5, showCategory = 8, foldChange = gene_expression_fold) + scale_color_gradient2(
+#     midpoint = 0,                    # Neutral point corresponds to no change
+#     low = "blue", high = "red",      # Low values (downregulated) are blue, high are red
+#     mid = "white",
+#     
+#   )
+# cat('\n')
+# 
+# 
+# cat('\n')
+# cat("#####", "Tree: pathway cluster ")
+# cat('\n')
+# if(nrow(res_custom$gsea_table) > 5){
+# sim <- pairwise_termsim(res_custom$gseares)
+# treeplot(sim, hclust_method = 'average')
+# }else{
+#     cat('\n')
+#     cat("**", paste("Not enough pathways to fit a tree"), "**\n")
+#     cat('\n')
+# }
+# cat('\n')
+# 
+# 
+# cat('\n')
+# cat("#####", "Top upregulated")
+# cat('\n')
+# 
+# plot_top_gsea(res_custom, top='up')
+# cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Top Downregulated")
+# cat('\n')
+# 
+# plot_top_gsea(res_custom, top='down')
+# cat('\n')
+# 
+# cat('\n')
+# cat("#####", "Table of enriched pathways")
+# cat('\n')
+# 
+# downloadableDTExcel(res_custom$gsea_table %>% dplyr::select(ID, pathway,pval, padj, ES, NES, size, core_enrichment,Target_Chemo_esp, Target_Chemo_all), escape=FALSE) %>% formatSignif(columns = c('pval','padj', 'ES', 'NES'), digits = 3)
+# cat('\n')
 
 
 ```
@@ -612,7 +612,14 @@ cat('\n')
 cat("####", "Hallmark {.tabset}")
 cat('\n')
                              
+    cat('\n')
+    cat("#####", "Pathway visualization")
+    cat('\n')
+    filename <- paste("Hallmark", "Whole_Vis_over", name,'.html', sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "overrep_res", "Hallmark", filename )
 
+    CompleteVisualPathwaysOver(res_hall$overrep_table, filepath)
+    cat('\n')
 
     cat('\n')
     cat("#####", "Signficance and GeneRatios")
@@ -690,6 +697,15 @@ cat('\n')
 cat("####", "Kegg {.tabset}")
 cat('\n')
                              
+    
+    cat('\n')
+    cat("#####", "Pathway visualization")
+    cat('\n')
+    filename <- paste("Kegg", "Whole_Vis_over", name,'.html', sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "overrep_res", "Kegg", filename )
+
+    CompleteVisualPathwaysOver(res_kegg$overrep_table, filepath)
+    cat('\n')
 
 
     cat('\n')
@@ -767,6 +783,14 @@ cat("####", "Reactome {.tabset}")
 cat('\n')
                              
 
+    cat('\n')
+    cat("#####", "Pathway visualization")
+    cat('\n')
+    filename <- paste("Reactome", "Whole_Vis_over", name,'.html', sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "overrep_res", "Reactome", filename )
+
+    CompleteVisualPathwaysOver(res_React$overrep_table, filepath)
+    cat('\n')
 
     cat('\n')
     cat("#####", "Signficance and GeneRatios")
@@ -843,6 +867,14 @@ cat("####", "Pfam InterPro {.tabset}")
 cat('\n')
                              
 
+    cat('\n')
+    cat("#####", "Pathway visualization")
+    cat('\n')
+    filename <- paste("Pfam_Interpro", "Whole_Vis_over", name,'.html', sep = '_')
+    filepath <- file.path(saveDir,"contrasts",name, "overrep_res", "Reactome", filename )
+
+    CompleteVisualPathwaysOver(res_pfam$overrep_table, filepath)
+    cat('\n')
 
     cat('\n')
     cat("#####", "Signficance and GeneRatios")
@@ -902,7 +934,7 @@ cat('\n')
 
 
 
-```{r results = 'asis' ,eval = TRUE, echo = FALSE, fig.width=9, fig.height=8}
+```{r results = 'asis' ,eval = FALSE, echo = FALSE, fig.width=9, fig.height=8}
 # Customgenesets visualization
                                
 res_custom <- over_rep_results_logpval_prot(res_tib = all_contrasts[[name]], geneset = Customgenesets, name, Chemo_path = params$Chemo_path, Cellline = Cell_line ,Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug, PadjThr = params$padj_thr_gene, log2FCTHr = params$logFC_thrs_gene, Organism = params$Organism)
@@ -917,7 +949,7 @@ if(!is.null(res_custom$overrep)){
 
 ```
 
-```{r results = 'asis' ,eval = Eval_custom_over, echo = FALSE, fig.width=9, fig.height=8}
+```{r results = 'asis' ,eval = FALSE, echo = FALSE, fig.width=9, fig.height=8}
 cat('\n')
 cat("####", "Custom genesets {.tabset}")
 cat('\n')

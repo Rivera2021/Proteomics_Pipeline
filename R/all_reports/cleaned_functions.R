@@ -1679,7 +1679,7 @@ CompleteVisualPathwaysGsea_V2 = function(mytable,  filepath) {
             scale_color_distiller(palette = "Purples", direction = 1) +  # Using ColorBrewer's "Spectral" palette
             labs(
                 x = "NES (Normalized Enrichment Score)",
-                y = "Padj",
+                y = "-log10(Padj)",
                 color = "GeneRatio \n(|Core Genes|/|Pway|)"
             ) +
             theme_minimal() +  # Use a minimal theme for better visualization
@@ -1730,21 +1730,21 @@ CompleteVisualPathwaysOver = function(mytable,  filepath) {
 
         mytable = mytable %>% separate(BgRatio, into = c("PwaySize", "Universe"), sep = "/", convert = TRUE, remove = FALSE) %>%
                 separate(GeneRatio, into = c("numDEGPway", "NumDEG"), sep = "/", convert = TRUE, remove = FALSE) %>%
-                mutate(GeneRatio_real = signif(num / den,3)) %>% mutate(log10_padj = signif(-log10(p.adjust),3)) %>%
-                mutate(CRRatio = signif(numDEGPway / PwaySize,3))
+                mutate(GeneRatio_real = signif(numDEGPway / NumDEG,3)) %>% mutate(log10_padj = signif(-log10(p.adjust),3)) %>%
+                mutate(One_M_BgRatio = signif((1-(PwaySize / Universe)),3))
 
 
 
         top_n <- 10
         top_pathways <- mytable[1:min(top_n, nrow(mytable)), ]
 
-        p <- ggplot(data = mytable, aes(x = GeneRatio_real, y = log10_padj, color = CRRatio)) +
+        p <- ggplot(data = mytable, aes(x = GeneRatio_real, y = log10_padj, color = One_M_BgRatio)) +
             geom_point(size = 3) +  # Adjust the size as necessary
             scale_color_distiller(palette = "Purples", direction = 1) +  # Using ColorBrewer's "Spectral" palette
             labs(
                 x = "Gene ratio (# DEGs in Pway/ # DEGs )",
-                y = "Padj",
-                color = "BgRatio: \n(|Pway|/|Universe|)"
+                y = "-log10(Padj)",
+                color = "One_M_BgRatio: \n(1-|Pway|/|Universe|)"
             ) +
             theme_minimal() +  # Use a minimal theme for better visualization
             theme(

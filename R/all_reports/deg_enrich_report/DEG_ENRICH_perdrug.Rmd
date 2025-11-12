@@ -624,10 +624,17 @@ gseares_list <- lapply(gseares_list, function(gseares) {
 })
 
 
-NES_list <- lapply(gseares_list, function(gseares){
-  return(gseares$NES)
-})
-NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+# NES_list <- lapply(gseares_list, function(gseares){
+#   return(gseares$NES)
+# })
+ NES_sign_padj_list <- lapply(gseares_list, function(gseares){
+   return(sign(gseares$NES)*(-log10(gseares$p.adjust)))
+ })
+ 
+ 
+
+
+NES_mat <- as.data.frame(matrix(unlist(NES_sign_padj_list), nrow=length(unlist(NES_sign_padj_list[1]))))
 colnames(NES_mat) <- names(all_contrasts)
 rownames(NES_mat) <- pathway_isect
 
@@ -674,29 +681,32 @@ filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 
 #dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
-
+my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
- hm <-  pheatmap(NES_mat,
+ hm <-  pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
            cluster_rows = T,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
+ 
  print(hm)
  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
  
 }else if (nrow(NES_mat)==1){
-  hm <- pheatmap(NES_mat,
+  hm <- pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=F,
            cluster_rows = F,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
   print(hm)
   ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
 }else  {
@@ -711,9 +721,9 @@ if (nrow(NES_mat)>1) {
 The asterisks in the heatmap tell you about the p-values associated with that GSEA test as such:
 
 ```
-*** p < 0.005
-** p < 0.05
-* p < 0.2
+*** p_adj < 0.005
+** padj < 0.05
+* padj < 0.2
 ```
 
 ### Kegg
@@ -744,10 +754,16 @@ gseares_list <- lapply(gseares_list, function(gseares) {
 })
 
 
-NES_list <- lapply(gseares_list, function(gseares){
-  return(gseares$NES)
-})
-NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+# NES_list <- lapply(gseares_list, function(gseares){
+#   return(gseares$NES)
+# })
+
+NES_sign_padj_list <- lapply(gseares_list, function(gseares){
+   return(sign(gseares$NES)*(-log10(gseares$p.adjust)))
+ })
+ 
+
+NES_mat <- as.data.frame(matrix(unlist(NES_sign_padj_list), nrow=length(unlist(NES_sign_padj_list[1]))))
 colnames(NES_mat) <- names(all_contrasts)
 rownames(NES_mat) <- pathway_isect
 
@@ -794,6 +810,7 @@ filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
+my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
  hm <-  pheatmap(NES_mat,
@@ -803,7 +820,8 @@ if (nrow(NES_mat)>1) {
            cluster_rows = T,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
  print(hm)
  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
  
@@ -815,7 +833,8 @@ if (nrow(NES_mat)>1) {
            cluster_rows = F,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
   print(hm)
   ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
 }else  {
@@ -831,9 +850,9 @@ if (nrow(NES_mat)>1) {
 The asterisks in the heatmap tell you about the p-values associated with that GSEA test as such:
 
 ```
-*** p < 0.005
-** p < 0.05
-* p < 0.2
+*** padj < 0.005
+** padj < 0.05
+* padj < 0.2
 ```
 
 ### Reactome
@@ -867,10 +886,14 @@ gseares_list <- lapply(gseares_list, function(gseares) {
 })
 
 
-NES_list <- lapply(gseares_list, function(gseares){
-  return(gseares$NES)
-})
-NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+# NES_list <- lapply(gseares_list, function(gseares){
+#   return(gseares$NES)
+# })
+NES_sign_padj_list <- lapply(gseares_list, function(gseares){
+   return(sign(gseares$NES)*(-log10(gseares$p.adjust)))
+ })
+
+NES_mat <- as.data.frame(matrix(unlist(NES_sign_padj_list), nrow=length(unlist(NES_sign_padj_list[1]))))
 colnames(NES_mat) <- names(all_contrasts)
 rownames(NES_mat) <- pathway_isect
 
@@ -925,6 +948,7 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 
 
 thr = max(abs(min(NES_mat)), max(NES_mat))
+my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
  hm <-  pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
@@ -934,7 +958,8 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
            show_rownames = T,
            show_colnames = T,
            fontsize_row = 4,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
  print(hm)
  ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
 
@@ -951,10 +976,11 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
            fontsize_row = 5,
            fontsize_col = 10,
            silent = TRUE,
-           main="Comparison of enriched pathways",
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
            filename = filepath,
            width = 10,
-           height = myfigheight)
+           height = myfigheight,
+           color = my_colors)
     
     split_path <- strsplit(filepath, "Results_\\d+/")[[1]][2]
     print(paste("Heatmap is too large. Please find the pdf version here: ", split_path))
@@ -968,7 +994,8 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
            cluster_rows = F,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
   print(hm)
   ggsave(filename= filepath, plot=hm , width = 20,height = myfigheight, units = 'in',limitsize = FALSE)
 
@@ -1009,10 +1036,15 @@ gseares_list <- lapply(gseares_list, function(gseares) {
 })
 
 
-NES_list <- lapply(gseares_list, function(gseares){
-  return(gseares$NES)
-})
-NES_mat <- as.data.frame(matrix(unlist(NES_list), nrow=length(unlist(NES_list[1]))))
+# NES_list <- lapply(gseares_list, function(gseares){
+#   return(gseares$NES)
+# })
+
+NES_sign_padj_list <- lapply(gseares_list, function(gseares){
+   return(sign(gseares$NES)*(-log10(gseares$p.adjust)))
+ })
+
+NES_mat <- as.data.frame(matrix(unlist(NES_sign_padj_list), nrow=length(unlist(NES_sign_padj_list[1]))))
 colnames(NES_mat) <- names(all_contrasts)
 rownames(NES_mat) <- pathway_isect
 
@@ -1059,6 +1091,7 @@ filename <- paste(geneset,"Heatmap_comparison_Pways",".jpeg", sep = '_' )
 filepath <- file.path(saveDir,"contrasts","ComparisonPathways", filename)
 dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE)
 
+my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
  hm <-  pheatmap(NES_mat,
@@ -1068,7 +1101,8 @@ if (nrow(NES_mat)>1) {
            cluster_rows = T,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
  print(hm)
  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
  
@@ -1080,7 +1114,8 @@ if (nrow(NES_mat)>1) {
            cluster_rows = F,
            show_rownames = T,
            show_colnames = T,
-           main="Comparison of enriched pathways")
+           main="Comparison of enriched pathways: sign(NES)*-log10(padj)",
+           color = my_colors)
   print(hm)
   ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
 }else  {
@@ -1096,9 +1131,9 @@ if (nrow(NES_mat)>1) {
 The asterisks in the heatmap tell you about the p-values associated with that GSEA test as such:
 
 ```
-*** p < 0.005
-** p < 0.05
-* p < 0.2
+*** padj < 0.005
+** padj < 0.05
+* padj < 0.2
 ```
 
 
