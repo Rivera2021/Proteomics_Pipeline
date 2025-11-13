@@ -1291,7 +1291,7 @@ over_rep_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_pa
 
 ################################################################################
 
-over_rep_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, PadjThr, log2FCTHr,Organism  ) {
+over_rep_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug, PadjThr, log2FCTHr,Organism, Workstream  ) {
     require(BiocParallel)
     require(parallel)
     set.seed(54321)
@@ -1307,8 +1307,11 @@ over_rep_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Che
 
         Univ_genes = base::intersect(res_tib$symbol, geneset$gene)
         Expr_genes = res_tib$symbol
+        if(Workstream == "Proteomics"){
         res_tib = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr )
-
+        }else if(Workstream == "Pisa"){
+          res_tib = res_tib %>% dplyr::filter(pvalue < 0.001  & abs(log2FC) > log2FCTHr )
+        }
         #try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = geneset, universe = Univ_genes))
 
         try(overrep_all <- enricher(res_tib$symbol, TERM2GENE = geneset,  universe = Univ_genes, qvalueCutoff = 1, pvalueCutoff = 1))

@@ -18,7 +18,7 @@ params:
   scinamicNum: "A-2025-0147-B"
   baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/A-2025-0147-B/"
   DirDataForPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
-  Customgenesets_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
+  #Customgenesets_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
   DirPipeline: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
   #dataDEG: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/AW85/DEG/Results200522/all_contrasts.RDS"
   Contrast_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/A-2025-0147-B/CONTRAST_FILE_GEN/A-2025-0147-B_constrasts.csv"
@@ -667,7 +667,7 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 
 ```{r comp_hallm_plt, echo=FALSE, eval = TRUE, results='asis'}
 library(pheatmap)
-
+# IMPORTANT NOTE: if you use the MAIN_DEG_ENRICH_perdrug.R to render this file, and these heatmaps are not displaying. Please close the enviornment open it again. THEN IT WORKS!
 geneset = 'Hallmark'
 
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
@@ -797,6 +797,8 @@ knitr::opts_chunk$set(fig.height = myfigheight)
 ```{r comp_Kegg_plt, echo=FALSE, eval = TRUE, results='asis'}
 library(pheatmap)
 
+# IMPORTANT NOTE: if you use the MAIN_DEG_ENRICH_perdrug.R to render this file, and these heatmaps are not displaying. Please close the enviornment open it again. THEN IT WORKS!
+
 geneset = 'Kegg'
 
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
@@ -813,7 +815,7 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
- hm <-  pheatmap(NES_mat,
+ hm <-  pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
@@ -826,7 +828,7 @@ if (nrow(NES_mat)>1) {
  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
  
 }else if (nrow(NES_mat)==1){
-  hm <- pheatmap(NES_mat,
+  hm <- pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=F,
@@ -931,7 +933,7 @@ knitr::opts_chunk$set(fig.height = myfigheight, fig.width = 30)
 
 ```{r comp_Reacto_plt, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis"}
 library(pheatmap)
-
+# IMPORTANT NOTE: if you use the MAIN_DEG_ENRICH_perdrug.R to render this file, and these heatmaps are not displaying. Please close the enviornment open it again. THEN IT WORKS!
 geneset = 'Reactome'
 
 filenameMat <- paste(geneset,"Heatmap_comparison_Pways",".RDS", sep = '_' )
@@ -950,7 +952,7 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 thr = max(abs(min(NES_mat)), max(NES_mat))
 my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
- hm <-  pheatmap(NES_mat,
+ hm <-  pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
@@ -966,7 +968,7 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
 
 
 }else if(nrow(NES_mat) >=  450){
-    hm <-  pheatmap(NES_mat,
+    hm <-  pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
@@ -987,7 +989,7 @@ if (nrow(NES_mat)>1 & nrow(NES_mat) < 450) {
     
 
 }else if (nrow(NES_mat)==1){
-  hm <- pheatmap(NES_mat,
+  hm <- pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=F,
@@ -1094,7 +1096,7 @@ dir.create(file.path(saveDir,"contrasts","ComparisonPathways"), recursive = TRUE
 my_colors <- colorRampPalette(c("springgreen4", "white", "orchid4"))(100)
 thr = max(abs(min(NES_mat)), max(NES_mat))
 if (nrow(NES_mat)>1) {
- hm <-  pheatmap(NES_mat,
+ hm <-  pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=T,
@@ -1107,7 +1109,7 @@ if (nrow(NES_mat)>1) {
  ggsave(filename= filepath, plot=hm , width = 8,height = myfigheight, units = 'in',limitsize = FALSE)
  
 }else if (nrow(NES_mat)==1){
-  hm <- pheatmap(NES_mat,
+  hm <- pheatmap::pheatmap(NES_mat,
            display_numbers=forfiltering_mat,
            breaks=seq(from=-thr, to=thr, length=101),
            cluster_col=F,

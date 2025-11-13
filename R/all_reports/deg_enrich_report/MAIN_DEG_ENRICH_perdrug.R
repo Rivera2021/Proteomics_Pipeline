@@ -6,10 +6,9 @@ library(readxl)
 
 baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025"
 Exps = list.files(baseDir_all)
-OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter"
+OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_251112"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
-Customgenesets_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/250303_Disease_genesets.xlsx"
 Chemo_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
 Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
 Organism = "Human"
@@ -19,6 +18,7 @@ Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_map
 
 #Exps = Exps[!Exps %in% c("A-2025-0146-A" , "A-2025-0146-B")]
 for(exp in Exps){
+
 
     dir.create(file.path(OutputFolder, exp, "REPORTS"),  recursive = TRUE)
     List_contrasts <- read.csv(file.path(OutputFolder, exp,"CONTRAST_FILE_GEN", paste(exp, "constrasts.csv", sep = '_')))
@@ -38,7 +38,6 @@ for(exp in Exps){
                                         scinamicNum = exp,
                                         baseDir = file.path(OutputFolder, exp),
                                         DirDataForPipeline = DirDataForPipeline,
-                                        Customgenesets_path = Customgenesets_path,
                                         DirPipeline = DirPipeline,
                                         Contrast_path = file.path(OutputFolder, exp,"CONTRAST_FILE_GEN", paste(exp, "constrasts.csv", sep = '_')),
                                         Chemo_path = Chemo_path,
