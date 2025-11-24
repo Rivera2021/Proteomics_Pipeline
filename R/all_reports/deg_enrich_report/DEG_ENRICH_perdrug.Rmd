@@ -131,21 +131,21 @@ if (params$Organism == 'Human') {
     Reactome = read.gmt(file.path(params$DirDataForPipeline, "c2.cp.reactome.v2023.2.Hs.symbols.gmt")) 
     Pfam_Interpro = readRDS(file.path(params$DirDataForPipeline, "Pfam_Interpro_251030.RDS"))
     # get custom genesets
-    if (file.exists(params$Customgenesets_path)) {
-        # get the genesets
-        sheet_names <- excel_sheets(params$Customgenesets_path)
-        sheet_names <- sheet_names[!sheet_names %in% c("INSTRUCTIONS", "SUMMARY", "Sheet1")]
-        all_sheets <- sheet_names %>%
-            map(~read_excel(params$Customgenesets_path, sheet = .) %>% dplyr::select(1))
-        names(all_sheets) <- sheet_names
-        Customgenesets <- bind_rows(all_sheets, .id = "sheet_name")
-        names(Customgenesets) <- c("term", "gene")
-        # get the geneset sumamry table
-        sheet_names <- "SUMMARY"
-        cutomgenesetsummarytable <- read_excel(params$Customgenesets_path, sheet = "SUMMARY")
-    } else {
-        print("No custom genesets file found")
-    }
+    # if (file.exists(params$Customgenesets_path)) {
+    #     # get the genesets
+    #     sheet_names <- excel_sheets(params$Customgenesets_path)
+    #     sheet_names <- sheet_names[!sheet_names %in% c("INSTRUCTIONS", "SUMMARY", "Sheet1")]
+    #     all_sheets <- sheet_names %>%
+    #         map(~read_excel(params$Customgenesets_path, sheet = .) %>% dplyr::select(1))
+    #     names(all_sheets) <- sheet_names
+    #     Customgenesets <- bind_rows(all_sheets, .id = "sheet_name")
+    #     names(Customgenesets) <- c("term", "gene")
+    #     # get the geneset sumamry table
+    #     sheet_names <- "SUMMARY"
+    #     cutomgenesetsummarytable <- read_excel(params$Customgenesets_path, sheet = "SUMMARY")
+    # } else {
+    #     print("No custom genesets file found")
+    # }
     
 } else if (params$Organism == 'Mouse') {
     print(paste("Organism selected", params$Organism, sep = " "))

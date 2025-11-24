@@ -4,9 +4,9 @@ library(readxl)
 
 # Runs enrichments for all experiments in "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025" at the same time
 
-baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025"
+baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025_Corrected/omics-proteomics"
 Exps = list.files(baseDir_all)
-OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_251112"
+OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_251121_PROTEOMICS"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 Chemo_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
@@ -15,8 +15,9 @@ Organism = "Human"
 padj_thr_gene = 0.05
 logFC_thrs_gene = 0
 Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
+workstr = "Proteomics"
 
-#Exps = Exps[!Exps %in% c("A-2025-0146-A" , "A-2025-0146-B")]
+Exps = Exps[Exps %in% c( "A-2025-0150-A", "A-2025-0150-B")]
 for(exp in Exps){
 
 
@@ -50,7 +51,7 @@ for(exp in Exps){
                                         Uniprot_map_db = Uniprot_map_db,
                                         Metadata_gr_path = file.path(baseDir_all, exp, paste(exp, "contrast_metadata.csv", sep = '_')),
                                         Contrasts_stats = file.path(baseDir_all, exp, paste(exp, "protein_abundance_contrast_stats.csv", sep = '_')),
-                                        workstream = "Proteomics"
+                                        workstream = workstr
                           ),
                           clean = TRUE,
                           output_file = file.path(OutputFolder,exp, "REPORTS",paste(format(Sys.time(), '%y%m%d'), exp,"Report",reportnum, "DEG_ENRICH", '.html',sep = '_')))

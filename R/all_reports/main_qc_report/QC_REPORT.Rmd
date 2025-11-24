@@ -13,8 +13,8 @@ output:
       collapsed: yes
 params:
   #cellline: "Jurkat"
-  scinamicNum: "A-2025-0147-B"
-  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/A-2025-0147-B"
+  scinamicNum: "A-2025-0150-A"
+  baseDir: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_251112_CHEMOPROTEOMICS/A-2025-0150-A"
   #DirDataForPipeline: "/fsx/home/john/repos/Transcriptomics_Pipeline/data/Data_for_pipeline"
   DirPipeline:  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/main_qc_report"
   #Metrics_path: "/fsx/home/john/projects/empress/old_2022_runs/compound2/221028_EXP005_BCH002/multiqc/multiqc_general_stats.txt"
@@ -33,14 +33,20 @@ params:
   #MEMORY_MB: 4000
   #Corr_plot_features: ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used","Sample_name"]
   #CoarseCondition:  ["Cell_line","Treatment","Treatment_conc","Treatment_time_hrs","Stimulant_used"]
-  Alias_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids.csv"
+  Alias_path: "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/mol_ids_chemobetter.csv"
   #PRE_FILTER: "PREV"
   #outliers_path: "" # or if all the detected outliers from PRE_QCNORM run want to be removed then used then path within folder "params$baseDir/QC_PRENORMALIZATION/QCOutliers.xlsx"
   #METHOD_NORM: 'Standard_Parallel'
   Uniprot_map_db: "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
-  Metadata_gr_path: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_contrast_metadata.csv"
-  Contrast_def_path: "~/MULTI_OMICS/ChemoBetter_results/Proteomics/2025/A-2025-0147-B/A-2025-0147-B_contrast_definitions.csv"
- 
+  Metadata_gr_path: "~/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025/A-2025-0150-A/A-2025-0150-A_contrast_metadata.csv"
+  Contrast_def_path: "~/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025/A-2025-0150-A/A-2025-0150-A_contrast_definitions.csv"
+  workstream: "Pisa"
+  Extract_Metadata_path: "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025_Raw/elnid=A-2025-0150-A/Extract Proteomics-20251017052646.xlsx"
+  Proteins_protdisc_path: "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025_Raw/elnid=A-2025-0150-A/20251003_A150_A_f_Proteins.txt"               
+  Contrast_groups_path: "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025/A-2025-0150-A/A-2025-0150-A_contrast_groups.csv"     
+  PSM_path: "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Chemoproteomics/2025_Raw/elnid=A-2025-0150-A/20251003_A150_A_f_PSMs.txt"
+  
+     
   
 ---
 
@@ -87,6 +93,9 @@ conflicts_prefer(
 
 theme_set(theme_bw(base_size = 14))
 
+library(jsonlite)
+write_json(params, file.path(params$baseDir,"params_QC.json"))
+
 # color blind friendly palette
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
@@ -99,23 +108,74 @@ source(file.path(params$DirPipeline, "../cleaned_functions.R"))
 
 
 
+-------------------
+
+# Description QC Report
+
+
+### **2. Boxplot for QC ** {.unnumbered}
+
+Boxplot from abundance matrix across all samples before normalization. These plots are utilized to assess whether the protein abundance distribution varies significantly between different biological conditions and to identify any anomalies in individual samples.
+
+### **3. Coefficient of Variation of Biological groups ** {.unnumbered}
+
+Histograms showing the distribution of the coefficient of variation percentage (CV %) for each biological group. The CV % is calculated as the standard deviation divided by the mean, multiplied by 100. A lower CV % indicates less variability within the group, while a higher CV % suggests greater variability.
+
+### **4. Number of quantified proteins ** {.unnumbered}
+
+The total number of proteins quantified with High FDR confidence (combined) is displayed here
+
+### **5. Principal Components Analysis (Abundances) ** {.unnumbered}
+
+PCA plot across all samples using the abundance matrix before normalization.
+
+### **6. Principal Components Analysis (Normalized abundances) ** {.unnumbered}
+
+PCA plot across all samples using the normalized abundance matrix. This plot gives an overview of how well samples of the same biological condition are clustering.
+
+### **7. Number of Peptide Spectrum Matches ** {.unnumbered}
+
+The total number of PSMs identified
+
+### **8. Average Reporter S/N ** {.unnumbered}
+
+Histogram showing the average Signal to Noise ratio across all PSMs identified. A higher S/N ratio indicates that the signal (i.e., the reporter ion's intensity) is significantly above the noise level, suggesting more reliable quantification.
+
+### **8. Number of missed cleavages ** {.unnumbered}
+
+Histogram showing the distribution of the number of missed cleavages across all PSMs identified. Missed cleavages occur when the protease used for digestion does not cleave at all expected sites, leading to longer peptides. A lower number of missed cleavages generally indicates more efficient digestion and better sample preparation.
+
+
+
 
 ```{r ReportContrast,eval = TRUE}
 
+library(tidyverse)
 uniprot_map <- readr::read_tsv(params$Uniprot_map_db)
 colnames(uniprot_map) <- c("gene", "Uniprot.ID")
 
 # Download mapping between molid and alias name
 Alias_map <- read.csv(params$Alias_path)
 
-# Download 
+# Download metadata of the groups
 Metadata_gr_def = read.csv(file.path(params$Metadata_gr_path))
 Contrasts_def = read.csv(file.path(params$Contrast_def_path))
 #Data_df = read.csv(file.path(params$Data_df_path))
 
 Metadata_gr_def_new <- Metadata_gr_def  %>% pivot_wider(names_from = Factor, values_from = Value)
 colnames(Metadata_gr_def_new) <- gsub(" ", "_", colnames(Metadata_gr_def_new))
-Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Treatment_Time = `Compound_Treatment_Time_(h)`)
+
+if(params$workstream == "Pisa"){
+# Comment once metadata is fixed
+Metadata_gr_def_new$Compound_Treatment_Time = 0.5
+Metadata_gr_def_new$Cotreatment_Batch = "NONE"
+Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Cellline = Celllines)
+Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Concentration = Compound_Concentration_uM)
+}else if (params$workstream == "Proteomics"){
+
+ Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Treatment_Time = `Compound_Treatment_Time_(h)`)
+ 
+}
 Metadata_gr_def_new$alias_name <- ifelse(is.na(match(Metadata_gr_def_new$Compound_Batch, Alias_map$MolID)),
   # If Compound_Batch is not found, use itself as the alias name
   Metadata_gr_def_new$Compound_Batch,
@@ -133,7 +193,7 @@ Metadata_gr_def_new$alias_cotreat <- ifelse(is.na(match(Metadata_gr_def_new$Cotr
 Metadata_gr_def_new$coarse_cond = paste(Metadata_gr_def_new$Cellline, Metadata_gr_def_new$alias_name, Metadata_gr_def_new$Compound_Concentration, Metadata_gr_def_new$Compound_Treatment_Time, Metadata_gr_def_new$alias_cotreat, sep = "_")
 
 Drugs = Metadata_gr_def_new$alias_name[!Metadata_gr_def_new$alias_name %in% "DMSO"]
-Groups_drugs = Metadata_gr_def_new %>% filter(alias_name %in% Drugs) %>% pull(Group_ID)
+Groups_drugs = Metadata_gr_def_new %>% dplyr::filter(alias_name %in% Drugs) %>% pull(Group_ID)
 
 Contrasts_def_new <- Contrasts_def %>% pivot_wider(
     names_from = Numerator_or_Denomenator,
@@ -203,900 +263,321 @@ write.csv(Contrasts_def_new, file.path(params$baseDir, "CONTRAST_FILE_GEN", past
 ```
 
 
-
-
-
-```{r load_meta_data}
-# library(readxl)
-# library(DESeq2)
-# 
-# source(paste(params$DirPipeline, "IMPORT_DATA.R", sep = '/'))
-# IMPORT_DATA(Output_file_path = params$baseDir, 
-#             Metadata_path = params$Metadata_path, 
-#             CountM_path = params$CountM_path, 
-#             Metrics_path = params$Metrics_path, 
-#             TPM_path = params$TPM_path, 
-#             Organism_type = params$Organism_type, 
-#             SampleName_path = params$SampleName_path, 
-#             Column_match = params$Column_match, 
-#             Alias_path = params$Alias_path)
-# 
-# Metadata <- read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Metadata')
-# count_data = read_xlsx(file.path(params$baseDir,"IMPORT_DATA", "Import_Data.xlsx"), sheet = 'Count')
-# 
-# write_json(params, file.path(params$baseDir,"params_QC.json"))
-
-```
-
-# Experimental design
-
-
-
-```{r Exp,echo=FALSE, warning = FALSE,message=FALSE, fig.cap="Experimental design", fig.height=20, fig.width=24}
-
-# cat(params$ExpDescription)
-# 
-# 
-# if(file.exists(params$Experimental_design_path)){
-#   
-#     #knitr::opts_chunk$set(fig_width=20, fig_height=15)
-#     knitr::include_graphics(params$Experimental_design_path)
-# }else{
-#     cat("No experimental design scheme available")
-# }
-```
-
-# Distribution of counts per sample
-
-Distribution of log10(counts) per sample. Looking for trends across cell lines or treatment.
-```{r setUpForviolin}
-# Celllines_unq = unique(Metadata$Cell_line)
-# fig_height_cell = 10* length(Celllines_unq)
-fig_height_cell = 30
-```
-
-```{r violinplot, fig.height=fig_height_cell, fig.width=30}
-
-
-# temp <- count_data %>% pivot_longer(cols = !Gene, names_to = "Sample_name", values_to = "count")
-# temp <- left_join(temp, Metadata, by=c("Sample_name"))
-# Met_cell = Metadata %>% group_by(Cell_line) %>% summarize(n= n()) 
-# Fontsize = ifelse(max(Met_cell$Cell_line) > 150, 8, 10 )
-# 
-# p1 <- ggplot(data=temp, aes(x=Sample_name, y=log10(count), fill=Treatment)) +
-#   geom_violin(alpha=0.8, show.legend = T, trim = F) +
-#   ylab("log10(counts)") +
-#   xlab("") + facet_wrap(~Cell_line, nrow=length(Celllines_unq), scales="free") +
-#   theme(element_text(size=rel(30)), axis.text.x = element_text(angle = 90, hjust = 1, size=Fontsize))
-#     #theme(axis.text.x = element_text(angle = 90, hjust = 1, size=Fontsize), axis.text.y = element_text(size=20),axis.title.y = element_text(size = 20), legend.text = element_text(size = 20))+
-#   
-# p1
-```
-
-
-# Sequencing QC metrics
-
-## Description of various relevant QC metrics 
-
-* **total_reads**
-  - In paired end sequencing, each pair is counted as one read
-* **mapping_percent**
-  - Percentage of total reads mapped anywhere to the genome
-  - Typically we expect to see at least 80% of total reads/fragments mapping to the genome
-* **perc_rrna** 
-  - Percentage of reads mapping to ribosomal transcripts
-  - Ribosomal transcripts make up >80% of the transcriptome
-  - if they are not removed by either polyA or ribo-purification, it can affect the detection of other genes
-  - levels below 5% are ideal
-* **genes_detected**
-  - Genes with at least one count assigned to them, here we are mostly looking for consistency
-
-```{r qcprenormalization, echo=FALSE, warning = FALSE,message=FALSE,  results = "asis"}
-# #PARAM FOR QC_PRENORMALIZATION
-# 
-# # Number of IQR below first quartile to consider an outlier. Default is 2
-# nMust = 2
-# Output_file_path = params$baseDir
-# # Mapp in-house cell line annotation to the standard annotation
-# #CellLine_Dict = params$CellLine_Dict_path
-# # Path to the Human Protein ATLAS file for cell line
-# #CellLineDB_path = file.path(params$DirDataForPipeline,"rna_celline_240330.tsv")
-# # Gene annotation: Either ensemble or symbol
-# #Gene_annotation = 'Symbol'
-# 
-# TPM_path = params$TPM_path
-# 
-# 
-# # QC-PRENORMALIZATION -----------------------------------------------------------------------------
-# source(paste(params$DirPipeline, "QC_PRENORMALIZATION_CL.R", sep = '/'))
-# #QC_PRENORMALIZATION_CL(Output_file_path,nMust, CellLine_Dict = CellLine_Dict, CellLineDB_path = CellLineDB_path, Gene_annotation,TPM_path)
-# QC_PRENORMALIZATION_CL_V2(Output_file_path,nMust, TPM_path)
-```
-
-
-```{r load_meta_data2}
-# library(readxl)
-# 
-# Metadata <-read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Metadata')
-# Count = read_xlsx(file.path(params$baseDir,"QC_PRENORMALIZATION", "QC_Data.xlsx"), sheet = 'Count')
-# 
-# #Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
-
-```
-
-
-
-
-
-
-```{r qcmetrics}
-
-# # This metrics file has be the output of the multiqc, from samtools
-# metric_param = TRUE
-# if(file.exists(params$Metrics_path)){
-#     multiqc_metrics <- rio::import(file.path(params$Metrics_path)) %>% janitor::clean_names() %>% as_tibble()
-#     
-#     # total reads per fastq
-#     totalreads <- multiqc_metrics %>% 
-#         dplyr::select(sample, samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total) %>% 
-#         dplyr::rename("total_reads"="samtools_flagstat_mqc_generalstats_samtools_flagstat_flagstat_total") 
-#     
-#     # get total unique mapping rates 
-#     mapped_reads <- multiqc_metrics %>%  
-#         dplyr::select(sample, star_mqc_generalstats_star_uniquely_mapped_percent) %>% 
-#         dplyr::rename("mapping_percent"="star_mqc_generalstats_star_uniquely_mapped_percent")
-#     
-#     qcmetrics <- left_join(totalreads, mapped_reads, by="sample")
-#     
-#     # rrna
-#     rrna_perc <- multiqc_metrics %>% 
-#         dplyr::select(sample, custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna) %>% 
-#         dplyr::rename("perc_rrna"="custom_content_biotype_counts_mqc_generalstats_custom_content_biotype_counts_percent_r_rna")
-#     
-#     qcmetrics <- left_join(qcmetrics, rrna_perc, by="sample")
-#     
-#     qcmetrics$Sample_name = Metadata$Sample_name[match(qcmetrics$sample, Metadata$MatchID)]
-#     Metadata <- left_join(Metadata , qcmetrics, by=c("Sample_name")) 
-#     
-#     wb <- loadWorkbook(paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'))
-#     removeWorksheet(wb, "Metadata")
-#     addWorksheet(wb, "Metadata")
-#     writeData(wb, sheet = "Metadata", x = Metadata)
-#     saveWorkbook(wb, paste(params$baseDir, "QC_PRENORMALIZATION", "QC_Data.xlsx", sep = '/'), overwrite = TRUE)
-#     
-#     # clean up the sample metadata a bit to make it easier to read and work with
-#     # sample_meta <- Metadata %>%  
-#     #   # remove the dashes as they mess up our automatic naming later
-#     #   mutate(across(c(id, condition), ~sub("-", "_", .))) %>%
-#     #   # add sample for the sample id as its standard for the following code
-#     #   mutate(sample=id) %>% 
-#     #   # need this for the pca plots
-#     #   mutate(drug_stim=paste(drug, stim, sep="_"))
-#     
-# } else {
-#     metric_param = FALSE
-# }
-```
-
-## Plots of Sequencing QC metrics {.tabset}
-
-```{r barplotqcmetricss, results="hide"}
-
-# # Adapt height of plot to sample name length
-# lenchar = round(max(nchar(Metadata$Sample_name))/10)
-# 
-# metrics <- c("total_reads", "mapping_percent", "perc_rrna", 'detected_genes')
-# #metric_param = FALSE
-# #height = as.character(5)
-# if(metric_param ==TRUE){
-# src_list <- lapply(metrics, function(metric) {
-#   src <- c("\n",
-#            paste("###", metric, "\n"),
-#            paste("```{r, fig.height=" ,as.character((lenchar + 5)* length(unique(Metadata$Cell_line))), ",fig.width=24}",sep = ""),
-#            paste("barplot_metrics_cellline(Metadata, metric =", sQuote(metric), ", sort1='Treatment', sort2='Treatment_conc', colorcol='Treatment')"),
-#            "```",
-#            "\n")
-#   knit_expand(text = src)
-# })
-# 
-# 
-# out <- knit_child(text = unlist(src_list), options = list(cache = FALSE, fig.height=5, fig.width=10))
-# } else{
-#     out = "No available sequencing QCs"
-# }
-# 
-# 
-# # Set pic dimension for next plots 
-# Num_cellline = length(unique(Metadata$Cell_line))
-# knitr::opts_chunk$set(fig_width=15, fig_height=ceiling(Num_cellline/2))
-
-# PUT THIS OUTSIDE OF THE R CHUNK
-
-#`r out`
-```
-
-
-
-
-## Plots of sequencing saturation {.tabset}
-
-The following QC plots were made before any type of normalization. The number of detected genes should saturate as the number of reads increases up to a high enough value.
-
-```{r QC_PRENORM,echo=FALSE, warning = FALSE,message=FALSE,  results = "asis"}
-# 
-# 
-# # #Path_Dir = "/fsx/home/crivera/Novogene/usftp21.novogene.com_Exp5/Results_Ramos/Summary_Plots_Nfcore"
-# Path_Dir = params$baseDir
-# cat('\n')
-# cat("###","By treatment")
-# cat('\n')
-# 
-# PreNorm_file = "QC_Prenorm_LogGenesVsLogReads.png"
-# Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
-# knitr::opts_chunk$set(fig_width=15, fig_height=7)
-# knitr::include_graphics(Path_PreNorm)
-# cat('\n')
-# 
-# cat('\n')
-# cat("###","By replicate")
-# cat('\n')
-# 
-# PreNorm_file = "QC_Prenorm_LogGenesVsLogReads_V2.png"
-# Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
-# knitr::opts_chunk$set(fig_width=15, fig_height=7)
-# knitr::include_graphics(Path_PreNorm)
-# cat('\n')
-# 
-# cat('\n')
-# cat("###","By RQN")
-# cat('\n')
-# 
-# PreNorm_file = "QC_Prenorm_LogGenesVsLogReads_V3.png"
-# Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
-# knitr::opts_chunk$set(fig_width=15, fig_height=7)
-# knitr::include_graphics(Path_PreNorm)
-# cat('\n')
-# 
-# cat('\n')
-# cat("###","By treatment (original scale)")
-# cat('\n')
-# 
-# PreNorm_file = "QC_Prenorm_GenesVsReads.png"
-# Path_PreNorm = paste(Path_Dir,'QC_PRENORMALIZATION',PreNorm_file, sep = "/")
-# knitr::opts_chunk$set(fig_width=15, fig_height=7)
-# knitr::include_graphics(Path_PreNorm)
-# cat('\n')
-
-
-```
-
-# {-}
-
-# Outliers from QC-prenormalization
-
-```{r OUtliers, eval = TRUE, echo=FALSE,warning = FALSE,message=FALSE, results = "asis", fig.width=8, fig.height=6}
-
-
-# library(knitr)
-# library(ggplot2)
-# library(ggpubr)
-# library(rstatix)
-# library(tidyverse)
-# library(readxl)
-# 
-# 
-# Path_Dir = params$baseDir
-# Out_file = "Outliers.xlsx"
-# Out_path = paste(Path_Dir,'QC_PRENORMALIZATION',Out_file, sep = "/")
-# 
-# cat("\n")
-# outliers_cust = read_excel(Out_path, col_names = TRUE)
-# kable(outliers_cust, caption = "Outliers table")
-# cat("\n")
-
-
-```
-
-
-
-```{r PCA_POSTNORM_ALLSAMPLES,eval = TRUE, echo=FALSE, warning = FALSE,message=FALSE, results = "asis"}
-# # PRE-FILTERING AND DESEQ NORMALIZATION
-# 
-# #PARAM FOR PRE-FILTERING
-# # Prevalence fraction filter. A number between 0 and 1.
-# Prev_perc = params$Prev_perc
-# # PREV uses only Prevalence for pre-filtering, MNB uses prevances AND mixture of negative binomial as pre-filtering, leaving genes that are a mixture of two or more
-# # negative binomial functions
-# PRE_FILTER = params$PRE_FILTER
-# Output_file_path = params$baseDir
-# # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. 
-# CoarseConditions = params$CoarseCondition
-# 
-# 
-# # PRE-FILTERING -----------------------------------------------------------------------------
-# source(paste(params$DirPipeline, "PRE_FILTERING.R", sep = '/'))
-# PRE_FILTERING(Output_file_path, Prev_perc, PRE_FILTER,CoarseConditions )
-# 
-# #PARAM FOR DESEQ_NORM
-# # Whether normalization is being performed before or after QC_POSTNORMALIZATION. "POST_QCNORM": After QC_POSTNORMALIZATION, "PRE_QCNORM": Before QC_POSTNORMALIZATION
-# QCNORM = params$QCNORM
-# # Path to samples that should be excluded in a customize manner. Add "" if no list wants to be submitted
-# # See example in "~/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/outliers_unitTest.csv"
-# outliers_path = params$outliers_path
-# # The Metadata features used to build the Coarse condition to use in DESeq's design matrix. Add Treatment as the first feature.
-# CoarseConditions = params$CoarseCondition
-# # Normalization method. Only has 'Standard' otherwise it will stop
-# METHOD_NORM = params$METHOD_NORM
-# # Use VST transformation after normalization. Either VST_ON or VST_OFF. Otherwise it will stop.
-# VST_FILTER = "VST_ON"
-# # Use SVD truncation to get rid of noise from data. 'SVD_ON' otherwise it will continue without implementing filter
-# SVD_FILTER = 'SVD_OFF'
-# # Plot PCA per molecule. 'PCA_PLOT' will plot PCA, otherwise it won't
-# PlotPCA = ''
-# # Character with the name of negative control to include in PCA
-# Control_Neg_PCA = "DMSO"
-# # Character with the name of positive control to include in PCA
-# Control_Pos_PCA = ""
-# 
-# Output_file_path = params$baseDir
-# # Memory required for parallelization
-# MEM_MB = params$MEMORY_MB
-# DataForPipeline = params$DirDataForPipeline
-# 
-# # Extra term to adjust for normalization "" for no batch, and the name of the batch to correct for batch using combat. These should be reflected in the PCA plots. Just one variable allowed
-# Batch_variable =c("")
-# 
-# # DESEQ NORMALIZATION -----------------------------------------------------------------------------
-# source(paste(params$DirPipeline, "DESEQ_NORM.R", sep = '/'))
-# 
-# DESEQ_NORM(Output_file_path, QCNORM , outliers_path = outliers_path, CoarseConditions, METHOD_NORM , VST_FILTER ,  SVD_FILTER , MEM_MB = MEM_MB, Batch_variable,DataForPipeline )
-# 
-
-
-```
-
-
-
-
-```{r runpcaall}
-
-# if(params$QCNORM == "PRE_QCNORM"){
-#    file_filt_path = file.path(params$baseDir, "DESEQ_NORM", "DEG_Norm.RData")
-#    load(file_filt_path)
-# } else if(params$QCNORM == "POST_QCNORM"){
-#     
-#     file_filt_path = file.path(params$baseDir, "DESEQ_NORM_QCNORM", "DEG_Norm.RData")
-#     load(file_filt_path)
-#     
-# }   
-# 
-# # select most variable genes. We are not filtering genes more, but leave it commented in case what to implemented later
-# # cv <- apply(NormCounts, 1, compute_cv)
-# # cutoff <- 1
-# # variable <- NormCounts[rank(cv) / length(cv) > 1 - cutoff, ]
-# 
-# # Order Doses
-# sorted_doses <- as.character(sort(unique(as.numeric(Metadata$Treatment_conc))))
-# #Metadata$Treatment_conc_uM = factor(Metadata$Path_metrics, levels = sorted_doses)
-# #Metadata$Treatment_time_hrs = Metadata$`Molecule.treatment.time.(hrs)`
-# 
-# pca <- prcomp(t(NormCounts))
-# 
-# pca_res <- left_join(Metadata,
-#                      as.data.frame(pca$x) %>% rownames_to_column("Sample_name"),
-#                      by="Sample_name")
-# pca_var <-pca$sdev^2/sum(pca$sdev^2)
-
-```
-
-
-# Principal Components Analysis - All samples {.tabset}
-
-We use PCA plots like these to give us an overall view of the samples.
-
 ```{r, echo=FALSE, results='asis', fig.show='hide'}
+library(openxlsx)
 
-# covariates = c('Cell_line', 'Treatment', 'Stimulant_used', "Treatment_conc", "Treatment_time_hrs", "Outliers_QC")
-# 
-# 
-# result <- lapply(covariates, function(covar) {
-#    knitr::knit_child(file.path(params$DirPipeline, "Child_PCA.Rmd"),
-#                     envir = environment(),
-#                     quiet = TRUE,
-#                     options = list(
-#                       cache = FALSE
-#                     )
-#    )
-#   })
-# 
-# cat(unlist(result), sep="\n")
-# celllines <- unique(Metadata$Cell_line)
-# Evalcells = ifelse(length(celllines)>1, TRUE, FALSE)
-# 
-# timepoints = unique(Metadata$Molecule_treatment_time_hrs)
-# Evaltime = ifelse(length(timepoints)>1, TRUE, FALSE)
-# 
-# stimulants = unique(Metadata$Stimulant_used)
-# Evalstim = ifelse(length(stimulants)>1, TRUE, FALSE)
-# 
-# DELETE THIS WHEN ACTIVATING THE R CHUNK
-Evalcells = FALSE
-Evaltime = FALSE
-Evalstim = FALSE
+dir.create(file.path( params$baseDir, "QC_Plots"))
+# Build metadata and unnormalized unscaled abundances and normalized abundances matrices
+# Read contrast group assignments
+Contrast_groups_map = read.csv(params$Contrast_groups_path)
+Contrast_groups_map$coarse_cond = Metadata_gr_def_new$coarse_cond[match(Contrast_groups_map$Group_ID, Metadata_gr_def_new$Group_ID)]
+
+Metadata_features = c("ID", "Isobaric.Tag.Channel", "Isobaric.Tag")
+# Read Extract metadata and group class and alias group
+Metadata_Extract <- read.xlsx(params$Extract_Metadata_path, sheet = 1) %>% dplyr::select(all_of(Metadata_features))
+ 
+# Add groups and alias_group to Metadata Extract
+Metadata_Extract <- left_join(Metadata_Extract, Contrast_groups_map, by = c("ID" = "Proteomics_Extract_ID"))
+ 
+ # Define Samples Names
+ Metadata_Extract$Sample_name = paste(Metadata_Extract$coarse_cond, Metadata_Extract$ID, sep = "_")
+ Metadata_Extract$Biological_condition = Metadata_Extract$coarse_cond
+ 
+ # Read Proteome discover outcome containing everything
+ Proteins_prot_dic <- read.table(params$Proteins_protdisc_path, header = TRUE, sep = "\t")
+ # Grab columns for un-nomalized, unscaled abundances
+ Col_abundances = colnames(Proteins_prot_dic)[grep("Abundance..F", colnames(Proteins_prot_dic))]
+ Col_Nom_abundances = colnames(Proteins_prot_dic)[grep("Abundances..Normalized", colnames(Proteins_prot_dic))]
+ #Col_scl_abundances = colnames(Proteins_prot_dic)[grep("Abundances..Scaled", colnames(Proteins_prot_dic))]
+ 
+ # ABUNDANCE MATRIX
+ Data_df_abundances = Proteins_prot_dic %>% dplyr::select(Accession, all_of(Col_abundances))
+ Data_df_abundances = Data_df_abundances %>% column_to_rownames("Accession")
+ colnames(Data_df_abundances) = unlist(sapply(colnames(Data_df_abundances),function(x){sub(".*F1\\.\\.(.*?)\\.\\.Sample.*", "\\1", x)}))
+ Colnames_abund = Metadata_Extract$Sample_name[match(colnames(Data_df_abundances),Metadata_Extract$Isobaric.Tag.Channel)]
+ colnames(Data_df_abundances) = Colnames_abund
+ #Data_df_abundances[is.na(Data_df_abundances)] <- 0
+ 
+ # NORMALIZED ABUNDANCE MATRIX
+ 
+ Data_df_abundances_norm = Proteins_prot_dic %>% dplyr::select(Accession, all_of(Col_Nom_abundances))
+ Data_df_abundances_norm = Data_df_abundances_norm %>% column_to_rownames("Accession")
+ colnames(Data_df_abundances_norm) = unlist(sapply(colnames(Data_df_abundances_norm),function(x){sub(".*F1\\.\\.(.*?)\\.\\.Sample.*", "\\1", x)}))
+ Colnames_abund_norm = Metadata_Extract$Sample_name[match(colnames(Data_df_abundances_norm),Metadata_Extract$Isobaric.Tag.Channel)]
+ colnames(Data_df_abundances_norm) = Colnames_abund_norm
+ #Data_df_abundances_norm[is.na(Data_df_abundances_norm)] <- 0
+ 
+ # Save Metadata and abndace matrices
+ 
+ Df_list = list("Abundances" = Data_df_abundances %>% rownames_to_column("Uniprot"),
+                "Norm_Abundances" = Data_df_abundances_norm %>% rownames_to_column("Uniprot"),
+                "Metadata" = Metadata_Extract)
+ wb <- createWorkbook()
+ for (sheet_name in names(Df_list)) {
+  # Add a new sheet
+  addWorksheet(wb, sheet_name)
+  
+  # Write the data frame to the sheet
+  writeData(wb, sheet = sheet_name, Df_list[[sheet_name]])
+}
+
+# Save the workbook to a file
+saveWorkbook(wb, file.path(params$baseDir, "QC_Plots","Dfs_abund_metadata.xlsx"), overwrite = TRUE)
+ 
+         
+```
+
+# Boxplots for QC (Abundances) - All samples - All samples
+
+In these boxplot the middle represents the median and the box the interquartile range (IQR), which spans from 25th percentile (first quartile, Q1) to the 75th percentile (third quartile, Q3). The whiskers extend to 1.5 times the IQR. Points outside this range are considered outliers.
+
+```{r, echo=FALSE, results='asis'}
+
+
+Data_df_abundances_long = Data_df_abundances %>% rownames_to_column("Uniprot") %>% pivot_longer(!Uniprot, names_to = "Sample_name", values_to = "abundance")
+Data_df_abundances_long = left_join(Data_df_abundances_long, Metadata_Extract, by="Sample_name")
+Data_df_abundances_long$Biological_condition = as.factor(Data_df_abundances_long$Biological_condition)
+pl = ggplot(Data_df_abundances_long, aes(x=Sample_name, y = log10(abundance), fill=Biological_condition)) +
+  geom_boxplot(outlier.size = 0.5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=6)) +
+  xlab("Samples") +
+  ylab("Log10(Abundance)") +
+  ggtitle("Protein abundance across samples")
+
+
+
+
+ggplotly(pl)
+
+ggsave(
+  filename = file.path( params$baseDir, "QC_Plots", "Boxplot_Abundances.png"),
+  plot = pl,
+  width = 10,         # in inches
+  height = 7,        # in inches
+  dpi = 300          # good quality
+)
+
+```         
+
+# Coefficient of Variation of Biological groups (Normalized abundances) {.tabset}
+
+
+
+```{r, echo=FALSE, results='asis', eval. = FALSE}
+
+Coarse_conds = unique(Data_df_abundances_long$Biological_condition)
+# We use the normalized abundance matrix for this. 
+Data_df_abundances_norm_long = Data_df_abundances_norm %>% rownames_to_column("Uniprot") %>% pivot_longer(!Uniprot, names_to = "Sample_name", values_to = "abundance")
+Data_df_abundances_norm_long = left_join(Data_df_abundances_norm_long, Metadata_Extract, by="Sample_name")
+
+
+Data_for_CV = Data_df_abundances_norm_long
+result <- lapply(Coarse_conds, function(coarse) {
+   knitr::knit_child(file.path(params$DirPipeline, "child_reports","Child_CV_hist.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE
+                    )
+   )
+  })
+
+cat(unlist(result), sep="\n")
+
+```         
+
+
+# Number of quantified proteins
+
+
+```{r, echo=FALSE, results='asis'}
+library(openxlsx)
+
+
+cat(paste("Number of quantified proteins (Proteins with High value on the <i>Protein FDR Confidence: Combined </i> ) is ", nrow(Proteins_prot_dic), sep=""))
          
 ```
 
 
-```{r, eval = Evalcells, results='asis', fig.show='interactive'}
+# Principal Components Analysis (Abundances) - All samples{.tabset}
 
-# celllines <- unique(Metadata$Cell_line)
-# covariates_ct = c("Treatment_time_hrs", 'Treatment', 'Stimulant_used', "Treatment_conc", "Outliers_QC", "RQN")
-# 
-# cat("\n")
-# cat("#", 'Principal Component Analysis - Per cell-line', '{.tabset}')
-# cat("\n")     
-# 
-# for(cellt in celllines){
-#     
-#  cat("\n")
-#  cat("##", cellt)
-#  cat("\n")       
-#     
-#   Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
-#   NormCounts_cellt = NormCounts[, match(Metadata_cellt$Sample_name, colnames(NormCounts))]
-#   
-#   pca_ct <- prcomp(t(NormCounts_cellt))
-#   pca_res_ct <- left_join(Metadata_cellt,
-#                      as.data.frame(pca_ct$x) %>% rownames_to_column("Sample_name"),
-#                      by="Sample_name")
-#   pca_var_ct <-pca_ct$sdev^2/sum(pca_ct$sdev^2)
-#   
-#   cat("\n")
-#   cat("###", 'Features', '{.tabset}')
-#   cat("\n")  
-#   
-#   res_ct <- lapply(covariates_ct, function(feature) {
-#   knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline.Rmd"),
-#                     envir = environment(),
-#                     quiet = TRUE,
-#                     options = list(
-#                       cache = FALSE,
-#                       fig.height = 6,
-#                       fig.width = 8
-#                     )
-#   )
-# })
-#     cat(unlist(res_ct), sep="\n")
-#   
-#  }  
-```
+We use PCA plots like these to give us an overall view of the samples.
 
+```{r, echo=FALSE, results='asis', fig.show='hide'}
+library(openxlsx)
+dir.create(file.path( params$baseDir, "PCAs"))
 
+has_valid_variance <- apply(Data_df_abundances, 1, function(x) {
+  # Calculate variance but handle NA cases
+  v <- var(x, na.rm = TRUE)
+  !is.na(v) && v > 0
+})
 
-
-
-```{r cellline_PCAs_time, eval = Evaltime, results='asis', fig.show='interactive'}
-
-# cat("\n")
-# cat("#",  'Principal Component Analysis - Per cell-line, per time point', '{.tabset}')
-# cat("\n")     
-# 
-# 
-# celllines <- unique(Metadata$Cell_line)
-# covariates_ct_time = c("Stimulant_used", 'Treatment', "Treatment_conc", "Outliers_QC", "RQN")
-# 
-# for(cellt in celllines){
-#     
-#  cat("\n")
-#  cat("##", cellt)
-#  cat("\n")       
-#     
-#   Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
-#   timepts = unique(Metadata_cellt$Treatment_time_hrs)
-#   cat("\n")
-#   cat("###", 'Time points', '{.tabset}')
-#   cat("\n")     
-#   
-#   for(timept in timepts){
-#     Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
-#     NormCounts_ct_time = NormCounts[, match(Metadata_cell_time$Sample_name, colnames(NormCounts))]
-# 
-#     pca_ct_time <- prcomp(t(NormCounts_ct_time))
-# 
-#     pca_res_ct_time <- left_join(Metadata_cell_time,
-#                      as.data.frame(pca_ct_time$x) %>% rownames_to_column("Sample_name"),
-#                      by="Sample_name")
-#     pca_var_ct_time <-pca_ct_time$sdev^2/sum(pca_ct_time$sdev^2)
-#     
-#   
-#     cat("\n")
-#     cat("####", timept)
-#     cat("\n")    
-#     
-#     cat("\n")
-#     cat("#####", 'Features', '{.tabset}')
-#     cat("\n")  
-#   
-#     res_t <- lapply(covariates_ct_time, function(feature) {
-#         knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time.Rmd"),
-#                           envir = environment(),
-#                           quiet = TRUE,
-#                           options = list(
-#                               cache = FALSE,
-#                               fig.height = 6,
-#                               fig.width = 8
-#                           )
-#         )
-#     })
-#     cat(unlist(res_t), sep="\n")
-#   }
-# }  
-```
-
-
-
-```{r , eval = Evalstim, results='asis', fig.show='interactive'}
-
-# cat("\n")
-# cat("#",  'Principal Component Analysis - Per cell-line, per time point, per stimulation', '{.tabset}')
-# cat("\n")   
-# 
-# 
-# celllines <- unique(Metadata$Cell_line)
-# covariates_ct_time_stim = c('Treatment', "Treatment_conc", "Outliers_QC", "RQN")
-# 
-# for(cellt in celllines){
-#     
-#  cat("\n")
-#  cat("##", cellt)
-#  cat("\n")       
-#     
-#   Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
-#   timepts = unique(Metadata_cellt$Treatment_time_hrs)
-#   cat("\n")
-#   cat("###", 'Time points', '{.tabset}')
-#   cat("\n")     
-#   
-#   for(timept in timepts){
-#       
-#     cat("\n")
-#     cat("####", timept)
-#     cat("\n")        
-#       
-#     Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
-#     stims = unique(Metadata_cell_time$Stimulant_used)
-#     
-#     cat("\n")
-#     cat("#####", 'Stimulation', '{.tabset}')
-#     cat("\n")     
-#     
-#     for(stimu in stims){
-#         
-#        cat("\n")
-#        cat("######", stimu)
-#        cat("\n") 
-#        
-#        cat("\n")
-#        cat("#######", 'Features', '{.tabset}')
-#        cat("\n")  
-#         
-#         Metadata_cell_time_stim <- Metadata_cell_time %>% dplyr::filter(Stimulant_used == stimu)
-#         NormCounts_ct_time_stim = NormCounts[, match(Metadata_cell_time_stim$Sample_name, colnames(NormCounts))]
-#         
-#         pca_ct_time_stim <- prcomp(t(NormCounts_ct_time_stim))
-#         pca_res_ct_time_stim <- left_join(Metadata_cell_time_stim,
-#                      as.data.frame(pca_ct_time_stim$x) %>% rownames_to_column("Sample_name"),
-#                      by="Sample_name")
-#         pca_var_ct_time_stim <-pca_ct_time_stim$sdev^2/sum(pca_ct_time_stim$sdev^2)
-#         
-#         
-#         res_t <- lapply(covariates_ct_time_stim, function(feature) {
-#   knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time_stim.Rmd"),
-#                     envir = environment(),
-#                     quiet = TRUE,
-#                     options = list(
-#                       cache = FALSE,
-#                       fig.height = 6,
-#                       fig.width = 8
-#                     )
-#   )
-# })
-#     cat(unlist(res_t), sep="\n")
-#     
-#     
-#     cat("\n") 
-#         
-#         
-#         
-#         
-#         
-#     }
-#     
-#   }  
-#     
-# }    
-    
-    
-```
-
-
-# Principal Component Analysis - Per cell-line, per time point, per treatment{.tabset}
-
-```{r , eval = TRUE, results='asis', fig.show='interactive'}
-
-# celllines <- unique(Metadata$Cell_line)
-# covariates_ct_time_treat = c("Treatment","Treatment_conc", "Stimulant_used", "Outliers_QC", "RQN")
-# 
-# for(cellt in celllines){
-#     
-#  cat("\n")
-#  cat("##", cellt)
-#  cat("\n")       
-#     
-#   Metadata_cellt <- Metadata %>% dplyr::filter(Cell_line == cellt)
-#   timepts = unique(Metadata_cellt$Treatment_time_hrs)
-#   cat("\n")
-#   cat("###", 'Time points', '{.tabset}')
-#   cat("\n")     
-#   
-#   for(timept in timepts){
-#       
-#     cat("\n")
-#     cat("####", timept)
-#     cat("\n")        
-#       
-#     Metadata_cell_time <- Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
-#     drugs = unique(Metadata_cell_time$Treatment)
-#     drugs = drugs[drugs != params$ControlName]
-#     
-#     cat("\n")
-#     cat("#####", 'Treatments', '{.tabset}')
-#     cat("\n")     
-#     
-#     for(drug in drugs){
-#         
-#        cat("\n")
-#        cat("######", drug)
-#        cat("\n") 
-#        
-#        cat("\n")
-#        cat("#######", 'Features', '{.tabset}')
-#        cat("\n")  
-#         
-#         Metadata_cell_time_treat <- Metadata_cell_time %>% dplyr::filter(Treatment %in% c(drug, params$ControlName))
-#         NormCounts_ct_time_treat = NormCounts[, match(Metadata_cell_time_treat$Sample_name, colnames(NormCounts))]
-#         
-#         pca_ct_time_treat <- prcomp(t(NormCounts_ct_time_treat))
-#         pca_res_ct_time_treat <- left_join(Metadata_cell_time_treat,
-#                      as.data.frame(pca_ct_time_treat$x) %>% rownames_to_column("Sample_name"),
-#                      by="Sample_name")
-#         pca_var_ct_time_treat <-pca_ct_time_treat$sdev^2/sum(pca_ct_time_treat$sdev^2)
-#         
-#         
-#         res_t <- lapply(covariates_ct_time_treat, function(feature) {
-#   knitr::knit_child(file.path(params$DirPipeline, "Child_PCA_Cellline_time_treat.Rmd"),
-#                     envir = environment(),
-#                     quiet = TRUE,
-#                     options = list(
-#                       cache = FALSE,
-#                       fig.height = 6,
-#                       fig.width = 8
-#                     )
-#   )
-# })
-#     cat(unlist(res_t), sep="\n")
-#     
-#     
-#     cat("\n") 
-#         
-#         
-#         
-#         
-#         
-#     }
-#     
-#   }  
-#     
-# }    
-#     
-    
-```
-
-
-# Correlation between samples - All samples {.tabset}
-
-```{r ,  fig.height=10, fig.width=12}
-
-# library(pheatmap)
-# Methods = c('pearson', 'spearman')
-# annotation_col = as.data.frame(Metadata %>% dplyr::select(all_of(params$Corr_plot_features))) %>% column_to_rownames("Sample_name")
-# 
-# if(all(is.na(Metadata$RQN))){
-#     annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
-# } else{
-#     annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
-# }
-# 
-# for(meth in Methods) {        
-#     
-#     cat("\n")
-#     cat("##", meth)
-#     cat("\n")      
-#     
-#     corr_mat<- cor(NormCounts, method = meth)
-#     paletteLength <- 50
-#     myColor <- viridis::viridis(paletteLength)
-#     ann_colors = list(
-#                 Outliers = c('No' = "navy", 'Yes' = "firebrick")
-#             )
-# 
-#     P = pheatmap(as.matrix(corr_mat), 
-#                  annotation_col = annotation_col,
-#                  annotation_row = annotation_row,
-#                  show_colnames = TRUE, 
-#                  show_rownames = FALSE,
-#                  clustering_method = "ward.D2",
-#                  fontsize_col =3, 
-#                  color = rev(myColor), 
-#                  annotation_colors = ann_colors)
-#     cat("\n")    
-#     print(P)
-#     cat("\n")   
-# }            
-
-```
-
-
-
-# Correlation between samples - per cell lines {.tabset}
+ Data_df_abundances_pca = Data_df_abundances[has_valid_variance , ]
  
-```{r , eval = TRUE, fig.height=10, fig.width=10}
+ pca <- prcomp(t(as.matrix(Data_df_abundances_pca)), scale. = TRUE, center = TRUE)
+ pca_res <- left_join(Metadata_Extract,
+                     as.data.frame(pca$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+ pca_var <-pca$sdev^2/sum(pca$sdev^2)
+ 
 
-# library(pheatmap)
-# Methods = c('pearson', 'spearman')
-# 
-# celllines <- unique(Metadata$Cell_line)
-# Corr_plot_features_cell = params$Corr_plot_features[params$Corr_plot_features != "Cell_line"]
-# for(cellt in celllines){
-#     
-#     cat("\n")
-#     cat("##", cellt)
-#     cat("\n")      
-#     
-#     
-#     
-#     
-#     
-#     Metadata_cellt = Metadata %>% dplyr::filter(Cell_line == cellt)
-#     NormCounts_cellt = NormCounts[, match(Metadata_cellt$Sample_name, colnames(NormCounts))]
-#     
-#     annotation_col = as.data.frame(Metadata_cellt %>% dplyr::select( all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
-# 
-# if(all(is.na(Metadata$RQN))){
-#     annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
-# } else{
-#     annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
-# }
-#     
-#     cat("\n")
-#     cat("###", 'Methods', '{.tabset}')
-#     cat("\n")  
-#     
-#     for(meth in Methods) {        
-#     
-#             cat("\n")
-#             cat("####", meth)
-#             cat("\n")      
-#             
-#             corr_mat<- cor(NormCounts_cellt, method = meth)
-#             paletteLength <- 50
-#             myColor <- viridis::viridis(paletteLength)
-#             ann_colors = list(
-#                         Outliers = c('No' = "navy", 'Yes' = "firebrick")
-#                     )
-#         
-#             P = pheatmap(corr_mat, 
-#                          annotation_col = annotation_col,
-#                          annotation_row = annotation_row,
-#                          show_colnames = TRUE, 
-#                          show_rownames = FALSE,
-#                          clustering_method = "ward.D2",
-#                          fontsize_col =3, 
-#                          color = rev(myColor), 
-#                          annotation_colors = ann_colors)
-#             cat("\n")    
-#             print(P)
-#             cat("\n")   
-#      }    
-#    
-#     
-# }
-# 
-# 
+covariates = c("Biological_condition", Metadata_features)
+
+result <- lapply(covariates, function(covar) {
+   knitr::knit_child(file.path(params$DirPipeline, "child_reports","Child_PCA.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE
+                    )
+   )
+  })
 
 
+cat(unlist(result), sep="\n")
+# Save just the PCA colored by the biological sample condition
+pl = pcaplot(df = pca_res,pca_var, covar = "Biological_condition", pc1 = "PC1", pc2 = "PC2")
+
+ggsave(
+  filename = file.path( params$baseDir, "PCAs", "PCA_unnormalized.png"),
+  plot = pl,
+  width = 10,         # in inches
+  height = 7,        # in inches
+  dpi = 300          # good quality
+)
+
+
+         
 ```
 
 
+# Principal Components Analysis (Normalized abundances) - All samples{.tabset}
 
-# Correlation between samples - per cell lines, per time point {.tabset}
+We use PCA plots like these to give us an overall view of the samples.
 
-```{r ,eval = TRUE, fig.height=10, fig.width=10}
+```{r, echo=FALSE, results='asis', fig.show='hide'}
+library(openxlsx)
 
-# library(pheatmap)
-# Methods = c('pearson', 'spearman')
-# 
-# celllines <- unique(Metadata$Cell_line)
-# for(cellt in celllines){
-#     
-#     cat("\n")
-#     cat("##", cellt)
-#     cat("\n")      
-#     
-#     
-#     
-#     
-#     
-#     Metadata_cellt = Metadata %>% dplyr::filter(Cell_line == cellt)
-#     timepts = unique(Metadata_cellt$Treatment_time_hrs)
-#     
-#     cat("\n")
-#     cat("###", 'Time points', '{.tabset}')
-#     cat("\n")  
-#     
-#     for(timept in timepts){
-#         
-#         cat("\n")
-#         cat("####", timept)
-#         cat("\n")      
-#         
-#         Metadata_cellt_time = Metadata_cellt %>% dplyr::filter(Treatment_time_hrs == timept)
-#         NormCounts_cellt_time = NormCounts[, match(Metadata_cellt_time$Sample_name, colnames(NormCounts))]
-#         
-#         annotation_col = as.data.frame(Metadata_cellt_time %>% dplyr::select(all_of(Corr_plot_features_cell))) %>% column_to_rownames("Sample_name")
-#         
-#         if(all(is.na(Metadata$RQN))){
-#             annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, Outliers_QC)) %>% column_to_rownames("Sample_name")
-#         } else{
-#             annotation_row = as.data.frame(Metadata %>% dplyr::select(Sample_name, RQN, Outliers_QC)) %>% column_to_rownames("Sample_name")
-#         }
-#         cat("\n")
-#         cat("#####", 'Methods', '{.tabset}')
-#         cat("\n")  
-#         
-#         for(meth in Methods) {        
-#             
-#             cat("\n")
-#             cat("######", meth)
-#             cat("\n")      
-#             
-#             corr_mat<- cor(NormCounts_cellt_time, method = meth)
-#             paletteLength <- 50
-#             myColor <- viridis::viridis(paletteLength)
-#             ann_colors = list(
-#                 Outliers = c('No' = "navy", 'Yes' = "firebrick")
-#             )
-#             
-#             P = pheatmap(corr_mat, 
-#                          annotation_col = annotation_col,
-#                          annotation_row = annotation_row,
-#                          show_colnames = TRUE, 
-#                          show_rownames = FALSE,
-#                          #clustering_method = "ward.D2",
-#                          fontsize_col =3, 
-#                          color = rev(myColor), 
-#                          annotation_colors = ann_colors)
-#             cat("\n")    
-#             print(P)
-#             cat("\n")   
-#         }    
-#         
-#     }
-# }
-# 
-# 
-# 
+dir.create(file.path( params$baseDir, "PCAs"))
 
+ has_valid_variance <- apply(Data_df_abundances_norm, 1, function(x) {
+  # Calculate variance but handle NA cases
+  v <- var(x, na.rm = TRUE)
+  !is.na(v) && v > 0
+})
+ 
+ Data_df_abundances_norm_pca = Data_df_abundances_norm[has_valid_variance, ]
+ 
+ pca_norm <- prcomp(t(as.matrix(Data_df_abundances_norm_pca)), scale. = TRUE, center = TRUE)
+ pca_res <- left_join(Metadata_Extract,
+                     as.data.frame(pca_norm$x) %>% rownames_to_column("Sample_name"),
+                     by="Sample_name")
+ pca_var <-pca_norm$sdev^2/sum(pca_norm$sdev^2)
+ 
+
+covariates = c("Biological_condition", Metadata_features)
+
+result <- lapply(covariates, function(covar) {
+   knitr::knit_child(file.path(params$DirPipeline, "child_reports","Child_PCA.Rmd"),
+                    envir = environment(),
+                    quiet = TRUE,
+                    options = list(
+                      cache = FALSE
+                    )
+   )
+  })
+cat(unlist(result), sep="\n")
+# Save just the PCA colored by the biological sample condition
+
+pl2 = pcaplot(df = pca_res,pca_var, covar = "Biological_condition", pc1 = "PC1", pc2 = "PC2")
+
+ggsave(
+  filename = file.path( params$baseDir, "PCAs", "PCA_normalized.png"),
+  plot = pl2,
+  width = 10,         # in inches
+  height = 7,        # in inches
+  dpi = 300          # good quality
+)
+
+         
+```
+
+
+# Number of PSMs
+
+
+```{r, echo=FALSE, results='asis'}
+library(openxlsx)
+
+
+ PSMs_df = read.table(params$PSM_path, header = TRUE, sep = "\t")
+
+ cat(paste("Number of PSMs is ", nrow(PSMs_df), sep=""))
+         
+```
+
+
+# Average Reporter Signal to Noise ratio
+
+Histogram showing the average Signal to Noise ratio across all PSMs identified. A higher S/N ratio indicates that the signal (i.e., the reporter ion's intensity) is significantly above the noise level, suggesting more reliable quantification.
+
+
+```{r, echo=FALSE, results='asis'}
+
+
+percentiles <- quantile(PSMs_df$Average.Reporter.S.N, probs = c(0.50, 0.8), na.rm = TRUE)
+annotations <- data.frame(
+  x = percentiles,
+  labels = c("Median", "80th Percentile")
+)
+
+Max = PSMs_df$Average.Reporter.S.N[which.max(PSMs_df$Average.Reporter.S.N)]
+ggplot(PSMs_df, aes(x = Average.Reporter.S.N)) +
+  geom_histogram(bins = 40,  # You can change the binwidth to refine the histogram
+                 fill = "cyan3", color = "black", 
+                 boundary = 0, closed = "left") +
+  geom_vline(data = annotations, aes(xintercept = x, color = labels), 
+             linetype = "dashed", size = 1, show.legend = TRUE) +
+  scale_color_manual(name = "Percentiles", values = c("Median" = "red", "80th Percentile" = "blue")) +     
+  scale_x_continuous(name = "Average Reporter S/N", limits = c(0, Max)) +
+  scale_y_continuous(name = "Frequency") 
+
+ggplot(PSMs_df, aes(x = Average.Reporter.S.N)) +
+  geom_histogram(bins = 40,  # You can change the binwidth to refine the histogram
+                 fill = "cyan3", color = "black", 
+                 boundary = 0, closed = "left") +
+  geom_vline(data = annotations, aes(xintercept = x, color = labels), 
+             linetype = "dashed", size = 1, show.legend = TRUE) +
+  scale_color_manual(name = "Percentiles", values = c("Median" = "red", "80th Percentile" = "blue")) +     
+  scale_x_continuous(name = "Average Reporter S/N", limits = c(0, percentiles[2])) +
+  scale_y_continuous(name = "Frequency") 
+  
+
+  
+
+
+         
+```
+
+# Number of missed cleavages
+Histogram showing the distribution of the number of missed cleavages across all PSMs identified. Missed cleavages occur when the protease used for digestion does not cleave at all expected sites, leading to longer peptides. A lower number of missed cleavages generally indicates more efficient digestion and better sample preparation.
+
+```{r, echo=FALSE, results='asis'}
+PSMs_df$Number_missed_cleavages_perc = PSMs_df[["X..Missed.Cleavages"]] 
+
+ggplot(PSMs_df, aes(x = Number_missed_cleavages_perc)) +
+  geom_histogram(aes(y = after_stat((count / sum(count)) * 100)), binwidth = 1,fill = "cyan3", color = "black") +
+  xlab("Number of missed cleavages") +
+  ylab("Percent count") +
+  scale_y_continuous(breaks = seq(0, 100, by = 10)) +
+  ggtitle("") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(size = 14),
+        axis.title.x = element_text(size = 16),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(size = 16))    
+         
 ```
 
 

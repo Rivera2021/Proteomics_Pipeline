@@ -164,7 +164,9 @@ pcaplot <- function(df,pca_var,  covar, pc1 = "PC1", pc2 = "PC2") {
     ylab(paste0(pc2, " (percent variance explained ", round(pca_var[2], 2) * 100, "%)"))+
     theme(aspect.ratio=1) +
     theme(text = element_text(size = 16, ))+
-    theme(legend.position="right")
+    theme(legend.position="right",
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 10) )
   return(p)
 }
 

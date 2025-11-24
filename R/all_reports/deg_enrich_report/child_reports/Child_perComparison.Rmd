@@ -63,7 +63,7 @@ if(params$workstream == "Proteomics"){
 display_de_genes4_prot(mytable = all_contrasts[[name]],geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = params$padj_thr_gene, name)
 }else if(params$workstream == "Pisa"){
     
-display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns == geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name)
+display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name)
     
 }
 
