@@ -8,7 +8,10 @@ cat('\n')
 if(params$workstream == "Proteomics"){
 plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "padj")
 }else if(params$workstream == "Pisa"){
-plot_enhanced_volcano_pisa(all_contrasts[[name]],  FCcut = 0, PvalThrs = 0.001)
+plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "padj")
+}else if(params$workstream == "PAL"){
+plot_enhanced_volcano_PAL(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "padj")
+    
 }    
 cat('\n')             
 
@@ -18,7 +21,10 @@ cat('\n')
 if(params$workstream == "Proteomics"){
 plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "pvalue")
 }else if(params$workstream == "Pisa"){
-plot_enhanced_volcano_pisa(all_contrasts[[name]],  FCcut = 0, PvalThrs = 0.001)
+plot_enhanced_volcano(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis = "pvalue")
+}else if(params$workstream == "PAL"){
+plot_enhanced_volcano_PAL(all_contrasts[[name]], FCcut = params$logFC_thrs_gene, PadjThr = params$padj_thr_gene, yaxis ="pvalue")    
+    
 }    
 cat('\n')      
 
@@ -63,8 +69,12 @@ if(params$workstream == "Proteomics"){
 display_de_genes4_prot(mytable = all_contrasts[[name]],geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = params$padj_thr_gene, name)
 }else if(params$workstream == "Pisa"){
     
-display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name)
+#display_de_genes4_pisa(mytable = all_contrasts[[name]], geneAnns = geneAnns_unique, filter = TRUE, distinct = FALSE, pval_cutoff = 0.01, name)
+display_de_genes4_prot(mytable = all_contrasts[[name]],geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = params$padj_thr_gene, name)
+        
+}else if(params$workstream == "PAL"){
     
+display_de_genes4_PAL(mytable = all_contrasts[[name]],geneAnns = geneAnns_unique, filter = TRUE, distinct = TRUE, padj_cutoff = params$padj_thr_gene, name)    
 }
 
 cat('\n')
@@ -83,8 +93,10 @@ cat('\n')
 cat("####", "Hallmark {.tabset}")
 cat('\n')
 
+
 gene_expression_fold = all_contrasts[[name]]$log2FC
 names(gene_expression_fold) = all_contrasts[[name]]$symbol
+
 
 res_hall <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]], 
                                  geneset = Hallmark, 
@@ -93,8 +105,11 @@ res_hall <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]],
                                  Cellline = Cell_line , 
                                  Celline_Dict_Chemo_path = params$Cell_Dict_path, 
                                  drug = Drug, 
-                                 Organism = params$Organism
-                                 )
+                                 Organism = params$Organism,
+                                 Workstream = params$workstream)
+
+
+
 
 cat('\n')
 cat("#####", "Pathway visualization")
@@ -192,7 +207,7 @@ cat('\n')
 
 
 
-res_kegg <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, Organism = params$Organism)
+res_kegg <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Kegg, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = Cell_line, drug = Drug, Organism = params$Organism, Workstream = params$workstream)
 
 
 cat('\n')
@@ -287,7 +302,7 @@ cat('\n')
 cat("####", "Reactome {.tabset}")
 cat('\n')
 
-res_React <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,Organism = params$Organism)
+res_React <- gsea_results_logpval_prot(all_contrasts[[name]], geneset = Reactome, name, Chemo_path = params$Chemo_path, Cellline = Cell_line , Celline_Dict_Chemo_path = params$Cell_Dict_path, drug = Drug,Organism = params$Organism, Workstream = params$workstream)
 
 cat('\n')
 cat("#####", "Pathway visualization")
@@ -394,8 +409,8 @@ res_pfam <- gsea_results_logpval_prot(res_tib = all_contrasts[[name]],
                                  Cellline = Cell_line , 
                                  Celline_Dict_Chemo_path = params$Cell_Dict_path, 
                                  drug = Drug, 
-                                 Organism = params$Organism
-                                 )
+                                 Organism = params$Organism,
+                                 Workstream = params$workstream)
 
 cat('\n')
 cat("#####", "Pathway visualization")
@@ -1023,10 +1038,10 @@ all_db_results <- enrichr_results(
   name = name,
   saveDir = saveDir,
   PadjThr = params$padj_thr_gene,
-  log2FCThr = params$logFC_thrs_gene,
+  log2FCTHr = params$logFC_thrs_gene,
   run_all = TRUE,
-  background = background
-)
+  background = background,
+  Workstream  = params$workstream)
 
 combined_results <- bind_rows(
   lapply(names(all_db_results), function(db_name) {

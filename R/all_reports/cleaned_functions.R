@@ -1,4 +1,4 @@
-enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 1, databases = "KEGG_2021_Human", run_all = FALSE, background=NULL) {
+enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCTHr = 1, run_all = FALSE, background=NULL, Workstream = "Proteomics") {
     require(tidyverse)
     require(enrichR)
     set.seed(54321)
@@ -8,9 +8,21 @@ enrichr_results <- function(res_tib, name, saveDir, PadjThr = 0.05, log2FCThr = 
     all_exist <- TRUE
     all_results <- list()
     # Filter DE genes based on thresholds
-    de_genes <- res_tib %>%
-        dplyr::filter(padj < PadjThr & abs(log2FC) > log2FCThr) %>%
-        pull(symbol)
+    if(Workstream == "Proteomics"){
+        de_genes = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr ) %>% pull(symbol)
+        print("enrichr in mode PX")
+    }else if(Workstream == "Pisa"){
+        print("enrichr in mode Pisa")
+        #res_tib = res_tib %>% dplyr::filter(pvalue < 0.001  & abs(log2FC) > log2FCTHr )
+        de_genes = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr ) %>% pull(symbol)
+    }else if(Workstream == "PAL"){
+        print("enrichr in mode PAL")
+        de_genes = res_tib %>% dplyr::filter(padj < PadjThr  & log2FC < -log2FCTHr ) %>% pull(symbol)
+    }
+
+    # de_genes <- res_tib %>%
+    #     dplyr::filter(padj < PadjThr & abs(log2FC) > log2FCThr) %>%
+    #     pull(symbol)
     # Check if Enrichr is accessible
     websiteLive <- TRUE
     all_dbs <- listEnrichrDbs()
@@ -173,23 +185,61 @@ pcaplot <- function(df,pca_var,  covar, pc1 = "PC1", pc2 = "PC2") {
 ################################################################################
 
 plot_enhanced_volcano <- function(res_tib, FCcut = 1, PadjThr = 0.2, yaxis = "padj"){
-  p1<-EnhancedVolcano(res_tib,
-                      lab = res_tib$symbol,
-                      x='log2FC',
-                      y= yaxis,
-                      ylab = paste("-Log10(", ifelse(yaxis=='padj', 'Padj', 'Pvalue'), ")", sep=''),
-                      labSize = 4,
-                      FCcutoff = FCcut,
-                      drawConnectors = F,
-                      pCutoff = PadjThr,
-                      pCutoffCol = 'padj',
-                      subtitle = NULL,
-                      title = NULL,
-                      legendLabels=c('Not Sig','Sig Log2FC','Sig P-adj',
-                                     'Sig P-adj & Log2FC'))
+    p1<-EnhancedVolcano(res_tib,
+                        lab = res_tib$symbol,
+                        x='log2FC',
+                        y= yaxis,
+                        ylab = paste("-Log10(", ifelse(yaxis=='padj', 'Padj', 'Pvalue'), ")", sep=''),
+                        labSize = 4,
+                        FCcutoff = FCcut,
+                        drawConnectors = F,
+                        pCutoff = PadjThr,
+                        pCutoffCol = 'padj',
+                        subtitle = NULL,
+                        title = NULL,
+                        legendLabels=c('Not Sig','Sig Log2FC','Sig P-adj',
+                                       'Sig P-adj & Log2FC'))
+
   return(p1)
 }
 
+
+plot_enhanced_volcano_PAL <- function(res_tib,FCcut = 1, PadjThr = 0.2, yaxis = "padj"){
+
+    sig_vec <- ifelse(res_tib$padj < PadjThr & res_tib$log2FC < -0.5, "sig", "nosig")
+
+    keyvals <- ifelse(sig_vec == "sig", "royalblue4", "grey70")
+    names(keyvals) <- ifelse(sig_vec == "sig", paste("Sig padj<",PadjThr," & log2FC<-0.5", sep = ""), "Not sig")
+
+
+    p1 <- EnhancedVolcano(
+        res_tib,
+        lab = res_tib$symbol,
+        x = 'log2FC',
+        y = yaxis,
+        ylab = paste("-Log10(", ifelse(yaxis == 'padj', 'Padj', 'Pvalue'), ")"),
+        labSize = 4,
+
+        # Turn off internal FC/p cutoffs so ONLY our custom colors matter
+        FCcutoff = FCcut,
+        pCutoff  = PadjThr,
+        drawConnectors = FALSE,
+        subtitle = NULL,
+        title = NULL,
+
+        # Custom coloring based on our keyvals
+        colCustom  = keyvals,
+        colAlpha   = 1,
+
+        # Label only significant points (optional)
+        selectLab = res_tib$symbol[sig_vec == "sig"],
+
+        # Optional: custom legend labels
+        legendLabels = c("Not sig", paste("Sig padj<",PadjThr," & log2FC<-0.5", sep = ""))
+    )
+
+    return(p1)
+}
 
 # Volcano plot for Pisa
 
@@ -344,7 +394,24 @@ display_de_genes4_pisa <- function(mytable, geneAnns, filter = TRUE, distinct = 
     return(dt)
 }
 
+# Equivalent  function but for PAL
+display_de_genes4_PAL <- function(mytable, geneAnns, filter = TRUE, distinct = FALSE, padj_cutoff = 0.05, name) {
+    mydat <- merge(geneAnns,mytable, by ="symbol", all.x = FALSE, all.y = TRUE)
 
+    if (filter) {
+        mydat <- mydat %>% dplyr::filter( padj <=  padj_cutoff & log2FC <= -0.5)
+    }
+    if (distinct) {
+        mydat <- mydat %>% distinct(symbol, .keep_all = TRUE)
+    }
+    format_cols <- c("log2FC", "pvalue", "padj")
+    #mydat <- mydat %>% arrange(padj) %>% downloadableDT2 %>%  formatSignif(columns = format_cols, digits = 3)
+    mydat <- mydat %>%
+        mutate(across(all_of(format_cols), ~ signif(.x, 3)))
+    dt <- downloadableDT2(mydat, name = name)
+
+    return(dt)
+}
 
 
 
@@ -848,7 +915,9 @@ gsea_results_logpval <- function(res_tib, geneset = Hallmark, name, Chemo_path, 
 ################################################################################
 
 
-gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug,Organism) {
+
+
+gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_path, Cellline , Celline_Dict_Chemo_path, drug,Organism, Workstream) {
     require(BiocParallel)
     require(parallel)
     set.seed(54321)
@@ -862,7 +931,13 @@ gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_p
         res <- read_rds(filepath)
     } else {
 
-        res_tib = res_tib %>% dplyr::filter(!is.na(pvalue))
+        if(Workstream == "PAL"){
+            res_tib = res_tib %>% dplyr::filter(!is.na(pvalue)) %>% dplyr::filter(log2FC < 0)
+
+        }else{
+            res_tib = res_tib %>% dplyr::filter(!is.na(pvalue))
+        }
+
         # Manage pval that are zero
 
         if(length(which(res_tib$pvalue == 0))!= 0){
@@ -977,7 +1052,7 @@ gsea_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Chemo_p
 
 
 
-                Target_list = Target_list %>% dplyr::filter(gene %in% res_tib$symbol)
+            Target_list = Target_list %>% dplyr::filter(gene %in% res_tib$symbol)
 
 
 
@@ -1312,7 +1387,11 @@ over_rep_results_logpval_prot <- function(res_tib, geneset = Hallmark, name, Che
         if(Workstream == "Proteomics"){
         res_tib = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr )
         }else if(Workstream == "Pisa"){
-          res_tib = res_tib %>% dplyr::filter(pvalue < 0.001  & abs(log2FC) > log2FCTHr )
+          #res_tib = res_tib %>% dplyr::filter(pvalue < 0.001  & abs(log2FC) > log2FCTHr )
+            res_tib = res_tib %>% dplyr::filter(padj < PadjThr  & abs(log2FC) > log2FCTHr )
+        }else if(Workstream == "PAL"){
+
+            res_tib = res_tib %>% dplyr::filter(padj < PadjThr  & log2FC < -log2FCTHr )
         }
         #try(res <- enricher(Df_mol_filt$entrez, TERM2GENE = geneset, universe = Univ_genes))
 
@@ -1562,6 +1641,7 @@ VisualPathways = function(mytable,  filepath) {
                 coord_flip() +
                 labs(x = "Pathways", y="Normalized Enrichment Score",
                      title=header)
+
 
             ggsave(filename= filepath, plot=g1 , width = 8,height = 6, units = 'in')
 

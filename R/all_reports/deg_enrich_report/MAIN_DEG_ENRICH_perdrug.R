@@ -4,27 +4,30 @@ library(readxl)
 
 # Runs enrichments for all experiments in "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025" at the same time
 
-baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025_Corrected/omics-proteomics"
+baseDir_all <- "/fsx/home/crivera/MULTI_OMICS/ChemoBetter_results/Proteomics/2025_Corrected_exp155B"
+#baseDir_all <- "~/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/Cellarity/Data"
 Exps = list.files(baseDir_all)
-OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_251121_PROTEOMICS"
+OutputFolder = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Results_252224_PROTEOMICS_exp155B/Test_PAL"
 DirPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/R/all_reports/deg_enrich_report"
 DirDataForPipeline = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline"
 Chemo_path =  "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Transcriptomics_Pipeline/data/Data_for_pipeline/Target_list_241210_w_InvitroTargets_knInh.RDS"
-Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
+#Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/PROTEOMICS/ChemoBetter/Data/CellLine_Dict_Chemo.csv"
+Cell_Dict_path = "/fsx/home/crivera/BULK-TRANSCRIPTOMICS/Cell_line_Experiments/Cellarity/Data/A-2025-0183-A_Test/CellLine_Dict_Chemo.csv"
 Organism = "Human"
 padj_thr_gene = 0.05
-logFC_thrs_gene = 0
+logFC_thrs_gene = 0.5
 Uniprot_map_db = "/fsx/home/crivera/Data_Bases/UNIPROT_GeneInfo/hgnc_uniprot_mapping.txt"
-workstr = "Proteomics"
+workstr = "PAL"
 
-Exps = Exps[Exps %in% c( "A-2025-0150-A", "A-2025-0150-B")]
+#Exps = Exps[Exps %in% c( "A-2025-0150-A", "A-2025-0150-B")]
 for(exp in Exps){
 
 
     dir.create(file.path(OutputFolder, exp, "REPORTS"),  recursive = TRUE)
     List_contrasts <- read.csv(file.path(OutputFolder, exp,"CONTRAST_FILE_GEN", paste(exp, "constrasts.csv", sep = '_')))
 
-
+    x = strsplit(exp, "_")[[1]]
+    exp_real = x[1]
     for(reportnum in unique(List_contrasts$reportNum)){
 
         # params$drug, params$stimulation and params$cell_line are only used in the title. Therefore they can be concatenation of all the molecules involved
@@ -50,7 +53,9 @@ for(exp in Exps){
                                         ReportNum = reportnum,
                                         Uniprot_map_db = Uniprot_map_db,
                                         Metadata_gr_path = file.path(baseDir_all, exp, paste(exp, "contrast_metadata.csv", sep = '_')),
+                                        #Metadata_gr_path = file.path(baseDir_all, exp, paste(exp_real, "contrast_metadata.csv", sep = '_')),
                                         Contrasts_stats = file.path(baseDir_all, exp, paste(exp, "protein_abundance_contrast_stats.csv", sep = '_')),
+                                        #Contrasts_stats = file.path(baseDir_all, exp, paste(exp_real, "protein_abundance_contrast_stats.csv", sep = '_')),
                                         workstream = workstr
                           ),
                           clean = TRUE,

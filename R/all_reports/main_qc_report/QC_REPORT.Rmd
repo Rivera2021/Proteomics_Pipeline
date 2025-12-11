@@ -155,6 +155,14 @@ Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Concentratio
 
  Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Treatment_Time = `Compound_Treatment_Time_(h)`)
  
+}else if(params$workstream == "PAL"){
+ 
+    Metadata_gr_def_new$Compound_Treatment_Time = 1
+    Metadata_gr_def_new$Cotreatment_Batch = "COT-00000027-001"
+    Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Cellline = Celllines)
+    Metadata_gr_def_new =Metadata_gr_def_new %>% dplyr::rename(Compound_Concentration = Compound_Concentration_uM)
+    
+    
 }
 Metadata_gr_def_new$alias_name <- ifelse(is.na(match(Metadata_gr_def_new$Compound_Batch, Alias_map$MolID)),
   # If Compound_Batch is not found, use itself as the alias name
